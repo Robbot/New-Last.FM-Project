@@ -5,22 +5,7 @@ Python (latest stable version)
 Virtual environment tool: venv
 Web framework: Flask or FastAPI
 Database: SQLite (sufficient for local use)
-Create a Project Structure:
 
-lastfm_stats/
-├── app/
-│   ├── templates/    # HTML files
-│   ├── static/       # CSS, JavaScript, and images
-│   ├── __init__.py   # App initialization
-│   ├── routes.py     # Define app routes
-│   ├── models.py     # Data models and DB schema
-│   ├── utils.py      # Helper functions (e.g., API requests)
-├── data/             # Local data storage
-├── config.py         # App configuration (e.g., API keys)
-├── requirements.txt  # Dependencies
-├── update_data.py    # Script for daily updates
-├── run.py            # Entry point to start the app
-└── README.md         # Project documentation
 2. Fetching and Storing Data
 Set Up Last.fm API Access:
 
