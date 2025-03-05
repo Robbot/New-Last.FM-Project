@@ -1,3 +1,0 @@
-#empty
-# Dependencies
-python -m pip install Django
