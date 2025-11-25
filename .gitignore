@@ -1,4 +1,5 @@
 config.ini
+files/
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json
