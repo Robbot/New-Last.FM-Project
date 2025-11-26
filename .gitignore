@@ -1,6 +1,7 @@
 config.ini
 files/
 wsgi.py
+.python-version
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json
