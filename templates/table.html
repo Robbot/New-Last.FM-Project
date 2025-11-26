@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>CSV File Contents</title>
+    <title>Scrobbles</title>
     <style>
         table {
             border-collapse: collapse;
@@ -30,7 +30,7 @@
     </style>
 </head>
 <body>
-<h2>CSV File Contents</h2>
+<h2>Scrobbles</h2>
 
 <table>
     <tr>
@@ -52,13 +52,13 @@
     
     {% if page > 1 %}
         <a href="{{ url_for('index', page=1) }}">« First</a>
-        <a href="{{ url_for('index', page=page-1) }}">‹ Prev</a>
+        <a href="{{ url_for('index', page=page-1) }}">‹ {{page - 1}}</a>
     {% endif %}
 
     <span class="current">Page {{ page }} of {{ total_pages }}</span>
 
     {% if page < total_pages %}
-        <a href="{{ url_for('index', page=page+1) }}">Next ›</a>
+        <a href="{{ url_for('index', page=page+1) }}">{{page + 1}} ›</a>
         <a href="{{ url_for('index', page=total_pages) }}">Last »</a>
     {% endif %}
 </div>
