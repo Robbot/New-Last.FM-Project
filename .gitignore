@@ -1,5 +1,4 @@
 config.ini
-files/
 wsgi.py
 .python-version
 ### VisualStudioCode template
