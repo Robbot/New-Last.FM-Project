@@ -8,13 +8,15 @@
 <body>
 <h2>Scrobbles</h2>
 
-<table>
-    <tr>
-        {% for h in headers %}
-        <th>{{ h }}</th>
-        {% endfor %}
-    </tr>
-
+<table class="scrobbles">
+    <thead>
+        <tr>
+            <th class="col-artist">Artist</th>
+            <th class="col-album">Album</th>
+            <th class="col-track">Track</th>
+            <th class="col-date">Date</th>
+        </tr>
+    </thead>
     {% for row in rows %}
     <tr>
         {% for cell in row %}

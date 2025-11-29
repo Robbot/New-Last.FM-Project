@@ -66,8 +66,6 @@ def index():
     end = start + per_page
     page_rows = all_rows[start:end]
 
-    headers = ["Artist", "Album", "Track", "Date"]
-
     print("total_rows:", total_rows)
     print("per_page:", per_page)
     print("total_pages:", total_pages)
@@ -76,7 +74,6 @@ def index():
 
     return render_template(
         "table.html",
-        headers=headers,
         rows=page_rows,
         page=page,
         total_pages=total_pages,

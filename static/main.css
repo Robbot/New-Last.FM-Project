@@ -21,3 +21,21 @@ table {
         .pagination .current {
             font-weight: bold;
         }
+
+.scrobbles {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;  /* 🔑 stops content-based resizing */
+}
+
+.scrobbles th,
+.scrobbles td {
+    padding: 4px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.scrobbles .col-artist { width: 20%; }
+.scrobbles .col-album  { width: 30%; }
+.scrobbles .col-track  { width: 40%; }
+.scrobbles .col-date   { width: 10%; white-space: nowrap; }
