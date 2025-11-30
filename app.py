@@ -42,9 +42,9 @@ def load_rows():
 
             date_str = ms_epoch_to_date(epoch_raw)
             filtered_rows.append([artist, album, track, date_str])
+    filtered_rows.reverse()
 
-    return filtered_rows[::-1]
-
+    return filtered_rows
 
 @app.route("/")
 def index():
