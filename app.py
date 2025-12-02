@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, url_for
-import csv
+# import csv
 from datetime import datetime, timezone
 import math
+from db import get_db_connection
 
 app = Flask(__name__)
 
-CSV_FILE = "files/lastfmstats.csv"
+# CSV_FILE = "files/lastfmstats.csv"
 
 
 def ms_epoch_to_date(ms_str: str) -> str:
@@ -22,33 +23,51 @@ def ms_epoch_to_date(ms_str: str) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def load_rows():
-    filtered_rows = []
+# def load_rows():
+#     filtered_rows = []
 
-    with open(CSV_FILE, "r", encoding="utf-8") as f:
-        reader = csv.reader(f, delimiter=';')
+    # with open(CSV_FILE, "r", encoding="utf-8") as f:
+    #     reader = csv.reader(f, delimiter=';')
 
-        # skip first CSV row if it’s a header / unwanted
-        next(reader, None)
+    #     # skip first CSV row if it’s a header / unwanted
+    #     next(reader, None)
 
-        for row in reader:
-            if len(row) < 5:
-                continue
+    #     for row in reader:
+    #         if len(row) < 5:
+    #             continue
 
-            artist = row[0]
-            album = row[1]
-            track = row[3]
-            epoch_raw = row[4]
+    #         artist = row[0]
+    #         album = row[1]
+    #         track = row[3]
+    #         epoch_raw = row[4]
 
-            date_str = ms_epoch_to_date(epoch_raw)
-            filtered_rows.append([artist, album, track, date_str])
-    filtered_rows.reverse()
+    #         date_str = ms_epoch_to_date(epoch_raw)
+    #         filtered_rows.append([artist, album, track, date_str])
+    # filtered_rows.reverse()
 
-    return filtered_rows
+    # return filtered_rows
+
+# app.py
+
+def get_latest_scrobbles():
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT artist,
+               album,
+               track,
+               strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
+        FROM scrobble
+        ORDER BY uts DESC
+        """
+    ).fetchall()
+    conn.close()
+    return rows
 
 @app.route("/")
 def index():
-    all_rows = load_rows()
+    # all_rows = load_rows()
+    all_rows = get_latest_scrobbles()
 
     per_page = 50
     page = request.args.get("page", 1, type=int)
