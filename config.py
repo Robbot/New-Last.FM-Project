@@ -13,7 +13,7 @@ def get_api_key() -> tuple[str, str]:
         raise FileNotFoundError(f"config.ini not found at: {config_path}")
 
     section = config["last.fm"]          # your existing section name
-    api_key = section["api"]
-    username = section["user"]
+    api_key = section["api_key"]
+    username = section["username"]
 
-    return api, user
+    return api_key, username
