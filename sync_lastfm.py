@@ -12,10 +12,12 @@ Sync Last.fm scrobbles into SQLite.
 import time
 import sqlite3
 import requests
-
+from pathlib import Path
 from config import get_api_key  # your helper: returns (api_key, username)
 
-DB_PATH = "files/lastfmstats.sqlite"   # adjust if needed
+# ---------- Constants ----------
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 
 
