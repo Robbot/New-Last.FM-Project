@@ -284,12 +284,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print("ERROR during sync:", exc)
         traceback.print_exc()
-
-    import traceback
-    try:
-        print("Starting Last.fm sync...")
-        sync_lastfm()
-        print("Sync finished.")
-    except Exception as e:
-        print("ERROR during sync:", e)
-        traceback.print_exc()
