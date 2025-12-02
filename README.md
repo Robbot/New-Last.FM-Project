@@ -1,32 +1,5 @@
 # New-Last.FM-Project
-Install Required Tools:
-
-Python (latest stable version)
-Virtual environment tool: venv
-Web framework: Flask or FastAPI
-Database: SQLite (sufficient for local use)
-
-2. Fetching and Storing Data
-Set Up Last.fm API Access:
-
-Store your API key securely in config.py.
-Create a function to fetch data using the API in utils.py.
-Design the Data Schema:
-
-Use SQLite for storage.
-Tables: users, tracks, statistics (e.g., play counts per period).
-Create a Script for Initial Data Fetch:
-
-Fetch data from Last.fm and populate your database.
-Save data to the data/ folder for backup purposes.
-Implement Update Script (update_data.py):
-
-Fetch new data incrementally to keep the database up-to-date.
-Schedule with cron or Windows Task Scheduler.
-3. Develop the Web App
-Set Up Flask/FastAPI:
-
-Initialize the app in __init__.py.
+TO DO
 Define configuration (e.g., database connection) in config.py.
 Create Pages (Routes in routes.py):
 
