@@ -96,6 +96,7 @@ def index():
         rows=page_rows,
         page=page,
         total_pages=total_pages,
+        total_rows=total_rows,
     )
 
 

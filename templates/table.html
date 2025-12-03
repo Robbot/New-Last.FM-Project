@@ -6,23 +6,23 @@
     <link rel="stylesheet" href="static/main.css">
 </head>
 <body>
-<h2>Scrobbles</h2>
+<h2>Scrobbles<br/> {{total_rows}}</h2>
 
 <table class="scrobbles">
     <thead>
         <tr>
-            <th class="col-artist">Artist</th>
-            <th class="col-album">Album</th>
             <th class="col-track">Track</th>
+            <th class="col-album">Album</th>
+            <th class="col-artist">Artist</th>
             <th class="col-date">Date</th>
         </tr>
     </thead>
     <tbody>
         {% for row in rows %}
         <tr>
-        <td>{{ row["artist"] }}</td>
-        <td>{{ row["album"] }}</td>
         <td>{{ row["track"] }}</td>
+        <td>{{ row["album"] }}</td>
+        <td>{{ row["artist"] }}</td>
         <td>{{ row["date"] }}</td>
         </tr>
         {% endfor %}
