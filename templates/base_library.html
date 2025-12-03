@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}My Website{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+<!-- base_library.html -->
+<h1>Library</h1>
+
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'scrobbles' %}active{% endif %}"
+       href="{{ url_for('library_scrobbles') }}">Scrobbles</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'artists' %}active{% endif %}"
+       href="{{ url_for('library_artists') }}">Artists</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'albums' %}active{% endif %}"
+       href="{{ url_for('library_albums') }}">Albums</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'tracks' %}active{% endif %}"
+       href="{{ url_for('library_tracks') }}">Tracks</a>
+  </li>
+</ul>
+
+<div class="mt-3">
+  {% block summary_header %}{% endblock %}
+</div>
+
+<div class="mt-3">
+  {% block main_content %}{% endblock %}
+</div>
+</body>
+</html>

@@ -91,13 +91,50 @@ def index():
     print("current page:", page)
 
 
-    return render_template(
-        "table.html",
-        rows=page_rows,
-        page=page,
-        total_pages=total_pages,
-        total_rows=total_rows,
-    )
+#     return render_template(
+#         "table.html",
+#         rows=page_rows,
+#         page=page,
+#         total_pages=total_pages,
+#         total_rows=total_rows,
+#     )
+
+# @app.route("/library/scrobbles")
+# def library_scrobbles():
+#     # query: total scrobbles, avg per day, latest tracks
+#     stats = get_scrobble_stats()
+#     recent = get_recent_scrobbles(limit=20)
+#     return render_template("library_scrobbles.html",
+#                            active_tab="scrobbles",
+#                            stats=stats,
+#                            rows=recent)
+
+# @app.route("/library/artists")
+# def library_artists():
+#     stats = get_artist_stats()
+#     top_artists = get_top_artists(limit=50)
+#     return render_template("library_artists.html",
+#                            active_tab="artists",
+#                            stats=stats,
+#                            rows=top_artists)
+
+# @app.route("/library/albums")
+# def library_albums():
+#     stats = get_album_stats()
+#     top_albums = get_top_albums(limit=50)
+#     return render_template("library_albums.html",
+#                            active_tab="albums",
+#                            stats=stats,
+#                            rows=top_albums)
+
+# @app.route("/library/tracks")
+# def library_tracks():
+#     stats = get_track_stats()
+#     top_tracks = get_top_tracks(limit=50)
+#     return render_template("library_tracks.html",
+#                            active_tab="tracks",
+#                            stats=stats,
+#                            rows=top_tracks)
 
 
 if __name__ == "__main__":
