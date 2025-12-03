@@ -91,13 +91,13 @@ def index():
     print("current page:", page)
 
 
-#     return render_template(
-#         "table.html",
-#         rows=page_rows,
-#         page=page,
-#         total_pages=total_pages,
-#         total_rows=total_rows,
-#     )
+    return render_template(
+        "table.html",
+        rows=page_rows,
+        page=page,
+        total_pages=total_pages,
+        total_rows=total_rows,
+    )
 
 # @app.route("/library/scrobbles")
 # def library_scrobbles():
