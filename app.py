@@ -35,6 +35,51 @@ def get_latest_scrobbles():
     conn.close()
     return rows
 
+# def average_scrobbles_per_day():
+#     conn = get_db_connection()
+#     result = conn.execute(
+#         """
+#         SELECT COUNT(*) as total_scrobbles,
+#                (julianday('now') - julianday(MIN(strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime')))) AS days_active
+#         FROM scrobble
+#         """
+#     ).fetchone()
+#     conn.close()
+#     if result and result['days_active'] > 0:
+#         return result['total_scrobbles'] / result['days_active']
+#     return 0
+
+def average_scrobbles_per_day():
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        WITH bounds AS (
+            SELECT
+                MIN(uts) AS first_ts,
+                MAX(uts) AS last_ts
+            FROM scrobble
+        ),
+        calc AS (
+            SELECT
+                (SELECT COUNT(*) FROM scrobble) * 1.0
+                / ((last_ts - first_ts) / 86400.0 + 1)
+                AS per_day
+            FROM bounds
+        )
+        SELECT ROUND(per_day) AS per_day_rounded
+        FROM calc;
+        """
+    ).fetchone()
+    conn.close()
+       # row is a sqlite3.Row like {'per_day_rounded': 24}
+    if row is None:
+        return 0
+
+    # either of these is fine, depending on your preference:
+    # return int(row[0])
+    return int(row["per_day_rounded"])
+
+
 @app.route("/")
 def index():
     # all_rows = load_rows()
@@ -74,6 +119,7 @@ def index():
 def library_scrobbles():
     # query: total scrobbles, avg per day, latest tracks
     all_rows = get_latest_scrobbles()
+    per_day = average_scrobbles_per_day()
 
     per_page = 50
     page = request.args.get("page", 1, type=int)
@@ -102,6 +148,7 @@ def library_scrobbles():
                             page=page,
                             total_pages=total_pages,
                             total_rows=total_rows,
+                            per_day=per_day 
                         )
 
 
