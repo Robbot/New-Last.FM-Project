@@ -3,8 +3,8 @@
 
 {% block summary_header %}
 <div class="d-flex gap-4">
-  <div><strong>{{ stats.total_scrobbles }}</strong><br>Scrobbles</div>
-  <div><strong>{{ stats.per_day }}</strong><br>Scrobbles per day</div>
+  <div><strong>{{ total_rows }}</strong><br>Scrobbles</div>
+  <div><strong>{{ total_rows }}</strong><br>Scrobbles per day</div>
 </div>
 {% endblock %}
 
@@ -12,19 +12,19 @@
 <table class="table table-sm">
   <thead>
     <tr>
-      <th>Date</th>
-      <th>Artist</th>
       <th>Track</th>
       <th>Album</th>
+      <th>Artist</th>
+      <th>Date</th>
     </tr>
   </thead>
   <tbody>
     {% for row in rows %}
     <tr>
-      <td>{{ row.date }}</td>
-      <td>{{ row.artist }}</td>
       <td>{{ row.track }}</td>
-      <td>{{ row.album }}</td>
+      <td>{{ row.albmu }}</td>
+      <td>{{ row.artist }}</td>
+      <td>{{ row.date }}</td>
     </tr>
     {% endfor %}
   </tbody>
