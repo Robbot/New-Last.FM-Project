@@ -35,6 +35,7 @@ def get_latest_scrobbles():
     conn.close()
     return rows
 
+# keep this for possible future use when starting date range is needed
 # def average_scrobbles_per_day():
 #     conn = get_db_connection()
 #     result = conn.execute(
@@ -152,14 +153,49 @@ def library_scrobbles():
                         )
 
 
+def get_artist_stats():
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT COUNT(DISTINCT artist) AS total_artists,
+               COUNT(*) AS total_scrobbles
+        FROM scrobble
+        """
+    ).fetchone()
+    conn.close()
+   
+    if row is None:
+        return {"total_artists": 0, "total_scrobbles": 0}
+
+    return {
+        "total_artists": row["total_artists"],
+        "total_scrobbles": row["total_scrobbles"]
+    }
+
+def get_artists_details():
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT artist, COUNT(*) AS plays
+        FROM scrobble
+        GROUP BY artist
+        ORDER BY plays DESC
+        """
+    ).fetchall()
+    conn.close()
+    return rows
+
+
 @app.route("/library/artists")
 def library_artists():
     stats = get_artist_stats()
-    top_artists = get_top_artists(limit=50)
+    rows = get_artists_details()
+    # top_artists = get_top_artists(limit=50)
     return render_template("library_artists.html",
                            active_tab="artists",
                            stats=stats,
-                           rows=top_artists)
+                           rows=rows)
+                           
 
 @app.route("/library/albums")
 def library_albums():
