@@ -29,7 +29,10 @@
     {% for row in rows %}
     <tr>
       <td>{{ loop.index }}</td>
-      <td>{{ row["artist"] }}</td>
+      <td><a href="{{ url_for('artist_detail', artist_name=row['artist']) }}">
+            {{ row["artist"] }}
+          </a>
+      </td>
       <td>{{ row["plays"] }}</td>
     </tr>
     {% endfor %}

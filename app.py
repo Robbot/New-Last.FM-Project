@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, url_for
 from datetime import datetime, timezone
 import math
-from db import get_db_connection
+import db
+from flask import abort
 
 app = Flask(__name__)
 
@@ -21,7 +22,7 @@ def ms_epoch_to_date(ms_str: str) -> str:
 
 
 def get_latest_scrobbles():
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     rows = conn.execute(
         """
         SELECT artist,
@@ -37,7 +38,7 @@ def get_latest_scrobbles():
 
 # keep this for possible future use when starting date range is needed
 # def average_scrobbles_per_day():
-#     conn = get_db_connection()
+#     conn = db.get_db_connection()
 #     result = conn.execute(
 #         """
 #         SELECT COUNT(*) as total_scrobbles,
@@ -51,7 +52,7 @@ def get_latest_scrobbles():
 #     return 0
 
 def average_scrobbles_per_day():
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     row = conn.execute(
         """
         WITH bounds AS (
@@ -154,7 +155,7 @@ def library_scrobbles():
 
 
 def get_artist_stats():
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     row = conn.execute(
         """
         SELECT COUNT(DISTINCT artist) AS total_artists,
@@ -173,7 +174,7 @@ def get_artist_stats():
     }
 
 def get_artists_details():
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     rows = conn.execute(
         """
         SELECT artist, COUNT(*) AS plays
@@ -214,6 +215,24 @@ def library_tracks():
                            active_tab="tracks",
                            stats=stats,
                            rows=top_tracks)
+
+@app.route("/library/artist/<path:artist_name>")
+def artist_detail(artist_name):
+    stats = db.get_artist_overview(artist_name)
+    if stats is None:
+        abort(404)
+
+    albums = db.get_artist_albums(artist_name)
+    tracks = db.get_artist_tracks(artist_name)
+
+    return render_template(
+        "artist_detail.html",
+        active_tab="artists",      # keeps the Artists tab highlighted
+        artist_name=artist_name,
+        stats=stats,
+        albums=albums,
+        tracks=tracks,
+    )
 
 
 if __name__ == "__main__":
