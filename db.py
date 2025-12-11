@@ -34,6 +34,38 @@ def get_artist_overview(artist_name: str):
         "tracks": row["tracks"],
     }
 
+def get_artist_stats():
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT COUNT(DISTINCT artist) AS total_artists,
+               COUNT(*) AS total_scrobbles
+        FROM scrobble
+        """
+    ).fetchone()
+    conn.close()
+   
+    if row is None:
+        return {"total_artists": 0, "total_scrobbles": 0}
+
+    return {
+        "total_artists": row["total_artists"],
+        "total_scrobbles": row["total_scrobbles"]
+    }
+
+def get_artists_details():
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT artist, COUNT(*) AS plays
+        FROM scrobble
+        GROUP BY artist
+        ORDER BY plays DESC
+        """
+    ).fetchall()
+    conn.close()
+    return rows
+
 
 def get_artist_albums(artist_name: str):
     conn = get_db_connection()
@@ -67,6 +99,47 @@ def get_artist_tracks(artist_name: str):
         ORDER BY plays DESC
         """,
         (artist_name,),
+    ).fetchall()
+    conn.close()
+    return rows
+
+def get_album_stats():
+    """Total distinct albums and total album scrobbles."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(DISTINCT album) AS total_albums,
+            COUNT(*)              AS total_scrobbles
+        FROM scrobble
+        WHERE album IS NOT NULL AND album != ''
+        """
+    ).fetchone()
+    conn.close()
+
+    if row is None:
+        return {"total_albums": 0, "total_scrobbles": 0}
+
+    return {
+        "total_albums": row["total_albums"],
+        "total_scrobbles": row["total_scrobbles"],
+    }
+
+
+def get_top_albums():
+    """Albums sorted by plays (scrobbles) desc."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            album,
+            artist,
+            COUNT(*) AS plays
+        FROM scrobble
+        WHERE album IS NOT NULL AND album != ''
+        GROUP BY album, artist
+        ORDER BY plays DESC
+        """,
     ).fetchall()
     conn.close()
     return rows

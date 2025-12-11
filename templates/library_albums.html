@@ -1,0 +1,40 @@
+{% extends "base_library.html" %}
+
+{% block summary_header %}
+<div class="d-flex gap-4">
+  <div>
+    <strong>{{ stats.total_albums }}</strong><br>
+    Albums scrobbled
+  </div>
+  <div>
+    <strong>{{ stats.total_scrobbles }}</strong><br>
+    Total scrobbles
+  </div>
+</div>
+{% endblock %}
+
+{% block main_content %}
+<h2>Most played albums</h2>
+<p>{{ top_albums|length }} albums in list</p>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Album</th>
+      <th>Artist</th>
+      <th>Scrobbles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in top_albums %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ row["album"] }}</td>
+      <td>{{ row["artist"] }}</td>
+      <td>{{ row["plays"] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

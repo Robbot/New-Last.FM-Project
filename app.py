@@ -154,43 +154,11 @@ def library_scrobbles():
                         )
 
 
-def get_artist_stats():
-    conn = db.get_db_connection()
-    row = conn.execute(
-        """
-        SELECT COUNT(DISTINCT artist) AS total_artists,
-               COUNT(*) AS total_scrobbles
-        FROM scrobble
-        """
-    ).fetchone()
-    conn.close()
-   
-    if row is None:
-        return {"total_artists": 0, "total_scrobbles": 0}
-
-    return {
-        "total_artists": row["total_artists"],
-        "total_scrobbles": row["total_scrobbles"]
-    }
-
-def get_artists_details():
-    conn = db.get_db_connection()
-    rows = conn.execute(
-        """
-        SELECT artist, COUNT(*) AS plays
-        FROM scrobble
-        GROUP BY artist
-        ORDER BY plays DESC
-        """
-    ).fetchall()
-    conn.close()
-    return rows
-
 
 @app.route("/library/artists")
 def library_artists():
-    stats = get_artist_stats()
-    rows = get_artists_details()
+    stats = db.get_artist_stats()
+    rows = db.get_artists_details()
     # top_artists = get_top_artists(limit=50)
     return render_template("library_artists.html",
                            active_tab="artists",
@@ -200,17 +168,18 @@ def library_artists():
 
 @app.route("/library/albums")
 def library_albums():
-    stats = get_album_stats()
-    top_albums = get_top_albums(limit=50)
+    stats = db.get_album_stats()
+    top_albums = db.get_top_albums()
     return render_template("library_albums.html",
                            active_tab="albums",
                            stats=stats,
-                           rows=top_albums)
+                           top_albums=top_albums)
+
 
 @app.route("/library/tracks")
 def library_tracks():
-    stats = get_track_stats()
-    top_tracks = get_top_tracks(limit=50)
+    stats = db.get_track_stats()
+    top_tracks = db.get_top_tracks(limit=50)
     return render_template("library_tracks.html",
                            active_tab="tracks",
                            stats=stats,
@@ -233,7 +202,6 @@ def artist_detail(artist_name):
         albums=albums,
         tracks=tracks,
     )
-
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8001)
