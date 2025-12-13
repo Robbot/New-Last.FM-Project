@@ -10,6 +10,51 @@ def get_db_connection() ->sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_latest_scrobbles():
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT artist,
+               album,
+               track,
+               strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
+        FROM scrobble
+        ORDER BY uts DESC
+        """
+    ).fetchall()
+    conn.close()
+    return rows
+
+def average_scrobbles_per_day():
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        WITH bounds AS (
+            SELECT
+                MIN(uts) AS first_ts,
+                MAX(uts) AS last_ts
+            FROM scrobble
+        ),
+        calc AS (
+            SELECT
+                (SELECT COUNT(*) FROM scrobble) * 1.0
+                / ((last_ts - first_ts) / 86400.0 + 1)
+                AS per_day
+            FROM bounds
+        )
+        SELECT ROUND(per_day) AS per_day_rounded
+        FROM calc;
+        """
+    ).fetchone()
+    conn.close()
+       # row is a sqlite3.Row like {'per_day_rounded': 24}
+    if row is None:
+        return 0
+
+    # either of these is fine, depending on your preference:
+    # return int(row[0])
+    return int(row["per_day_rounded"])
+
 def get_artist_overview(artist_name: str):
     conn = get_db_connection()
     row = conn.execute(

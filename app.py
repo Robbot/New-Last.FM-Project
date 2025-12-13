@@ -7,34 +7,21 @@ from flask import abort
 app = Flask(__name__)
 
 
-def ms_epoch_to_date(ms_str: str) -> str:
-    ms_str = ms_str.strip().strip('"')
-    if not ms_str:
-        return ""
-    try:
-        ms = int(ms_str)
-    except ValueError:
-        return ""
+# def ms_epoch_to_date(ms_str: str) -> str:
+#     ms_str = ms_str.strip().strip('"')
+#     if not ms_str:
+#         return ""
+#     try:
+#         ms = int(ms_str)
+#     except ValueError:
+#         return ""
 
-    seconds = ms / 1000.0
-    dt = datetime.fromtimestamp(seconds, tz=timezone.utc)
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+#     seconds = ms / 1000.0
+#     dt = datetime.fromtimestamp(seconds, tz=timezone.utc)
+#     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def get_latest_scrobbles():
-    conn = db.get_db_connection()
-    rows = conn.execute(
-        """
-        SELECT artist,
-               album,
-               track,
-               strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
-        FROM scrobble
-        ORDER BY uts DESC
-        """
-    ).fetchall()
-    conn.close()
-    return rows
+
 
 # keep this for possible future use when starting date range is needed
 # def average_scrobbles_per_day():
@@ -51,41 +38,10 @@ def get_latest_scrobbles():
 #         return result['total_scrobbles'] / result['days_active']
 #     return 0
 
-def average_scrobbles_per_day():
-    conn = db.get_db_connection()
-    row = conn.execute(
-        """
-        WITH bounds AS (
-            SELECT
-                MIN(uts) AS first_ts,
-                MAX(uts) AS last_ts
-            FROM scrobble
-        ),
-        calc AS (
-            SELECT
-                (SELECT COUNT(*) FROM scrobble) * 1.0
-                / ((last_ts - first_ts) / 86400.0 + 1)
-                AS per_day
-            FROM bounds
-        )
-        SELECT ROUND(per_day) AS per_day_rounded
-        FROM calc;
-        """
-    ).fetchone()
-    conn.close()
-       # row is a sqlite3.Row like {'per_day_rounded': 24}
-    if row is None:
-        return 0
-
-    # either of these is fine, depending on your preference:
-    # return int(row[0])
-    return int(row["per_day_rounded"])
-
-
 @app.route("/")
 def index():
     # all_rows = load_rows()
-    all_rows = get_latest_scrobbles()
+    all_rows = db.get_latest_scrobbles()
 
     per_page = 50
     page = request.args.get("page", 1, type=int)
@@ -120,8 +76,8 @@ def index():
 @app.route("/library/scrobbles")
 def library_scrobbles():
     # query: total scrobbles, avg per day, latest tracks
-    all_rows = get_latest_scrobbles()
-    per_day = average_scrobbles_per_day()
+    all_rows = db.get_latest_scrobbles()
+    per_day = db.average_scrobbles_per_day()
 
     per_page = 50
     page = request.args.get("page", 1, type=int)
