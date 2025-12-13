@@ -1,0 +1,46 @@
+{# templates/library_tracks.html #}
+{% extends "base_library.html" %}
+
+{% block summary_header %}
+<div class="d-flex gap-4">
+  <div>
+    <strong>{{ stats.total_tracks }}</strong><br>
+    Unique tracks
+  </div>
+</div>
+{% endblock %}
+
+{% block main_content %}   
+<h2>Most played tracks</h2> 
+<p>{{ top_tracks|length }} tracks in list</p>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Track</th>
+      <th>Artist</th>
+      <th>Scrobbles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in top_tracks %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>
+        <a href="{{ url_for('track_detail', artist_name=row['artist'], track_name=row['track']) }}">
+          {{ row["track"] }}
+          </a>
+      </td>
+      <td>{{ row["artist"] }}</td>
+      <td>{{ row["plays"] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p>stats={{ stats }}</p>
+<p>top_tracks defined? {{ top_tracks is defined }}</p>
+<p>top_tracks length={{ top_tracks|length if top_tracks is defined else 'N/A' }}</p>
+
+{% endblock %}

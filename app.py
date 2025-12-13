@@ -135,11 +135,34 @@ def library_albums():
 @app.route("/library/tracks")
 def library_tracks():
     stats = db.get_track_stats()
-    top_tracks = db.get_top_tracks(limit=50)
+    top_tracks = db.get_top_tracks()
     return render_template("library_tracks.html",
                            active_tab="tracks",
                            stats=stats,
-                           rows=top_tracks)
+                           top_tracks=top_tracks)
+
+@app.route("/library/track/<path:artist_name>/<path:track_name>")
+def track_detail(artist_name, track_name):
+    # stats = db.get_track_overview(track_name)
+    # if stats is None:
+    #     abort(404)
+
+    # albums = db.get_track_albums(track_name)
+    # artists = db.get_track_artists(track_name)
+
+    # return render_template(
+    #     "track_detail.html",
+    #     active_tab="tracks",      # keeps the Tracks tab highlighted
+    #     track_name=track_name,
+    #     artist_name=artist_name,
+    #     stats=stats,
+    #     albums=albums,
+    #     artists=artists,
+    # )
+
+    return f"Track detail page for {artist_name} - {track_name} (not implemented yet)"
+# TODO: replace plain string with track_detail.html + DB stats
+
 
 @app.route("/library/artist/<path:artist_name>")
 def artist_detail(artist_name):
