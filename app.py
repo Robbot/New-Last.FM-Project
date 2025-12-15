@@ -113,7 +113,7 @@ def library_scrobbles():
 
 @app.route("/library/artists")
 def library_artists():
-    stats = db.get_artist_stats()
+    stats = db.get_library_stats()
     rows = db.get_artists_details()
     # top_artists = get_top_artists(limit=50)
     return render_template("library_artists.html",
@@ -121,6 +121,23 @@ def library_artists():
                            stats=stats,
                            rows=rows)
                            
+@app.route("/library/artist/<path:artist_name>")
+def artist_detail(artist_name):
+    rows = db.get_artist_overview(artist_name)
+    if rows is None:
+        abort(404)
+
+    stats = db.get_artist_stats(artist_name)
+    rows = db.get_top_tracks_for_artist(artist_name)
+
+
+    return render_template(
+        "artist_detail.html",
+        active_tab="artists",      # keeps the Artists tab highlighted
+        artist_name=artist_name,
+        rows=rows,
+        stats = stats
+    )
 
 @app.route("/library/albums")
 def library_albums():
@@ -174,23 +191,6 @@ def artist_detail(artist_name):
         artist_name=artist_name
     )
 
-@app.route("/library/artist/<path:artist_name>")
-def artist_detail(artist_name):
-    stats = db.get_artist_overview(artist_name)
-    if stats is None:
-        abort(404)
-
-    albums = db.get_artist_albums(artist_name)
-    tracks = db.get_artist_tracks(artist_name)
-
-    return render_template(
-        "artist_detail.html",
-        active_tab="artists",      # keeps the Artists tab highlighted
-        artist_name=artist_name,
-        stats=stats,
-        albums=albums,
-        tracks=tracks,
-    )
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8001)

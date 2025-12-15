@@ -79,7 +79,7 @@ def get_artist_overview(artist_name: str):
         "tracks": row["tracks"],
     }
 
-def get_artist_stats():
+def get_library_stats():
     conn = get_db_connection()
     row = conn.execute(
         """
@@ -97,6 +97,12 @@ def get_artist_stats():
         "total_artists": row["total_artists"],
         "total_scrobbles": row["total_scrobbles"]
     }
+
+def get_artist_stats(artist_name: str):
+    pass
+
+def get_top_tracks_for_artist(artist_name: str):
+    pass
 
 def get_artists_details():
     conn = get_db_connection()
