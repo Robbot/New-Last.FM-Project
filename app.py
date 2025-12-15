@@ -149,19 +149,24 @@ def track_detail(artist_name, track_name):
 
     # albums = db.get_track_albums(track_name)
     # artists = db.get_track_artists(track_name)
+    rows = [
+    {"artist": artist_name, "track": "Example Track 1", "plays": 42},
+    {"artist": artist_name, "track": "Example Track 2", "plays": 17},
+    {"artist": artist_name, "track": "Example Track 3", "plays": 5},
+        ]
 
-    # return render_template(
-    #     "track_detail.html",
-    #     active_tab="tracks",      # keeps the Tracks tab highlighted
-    #     track_name=track_name,
-    #     artist_name=artist_name,
-    #     stats=stats,
-    #     albums=albums,
-    #     artists=artists,
-    # )
 
-    return f"Track detail page for {artist_name} - {track_name} (not implemented yet)"
-# TODO: replace plain string with track_detail.html + DB stats
+    return render_template(
+        "track_detail.html",
+        active_tab="tracks",      # keeps the Tracks tab highlighted
+        track_name=track_name,
+        artist_name=artist_name,
+        # stats=stats,
+        # albums=albums,
+        # artists=artists,
+        rows=rows,
+    )
+
 def artist_detail(artist_name):
     return render_template(
         "artist_detail.html",

@@ -1,0 +1,34 @@
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Track</th>
+      <th>Artist</th>
+      <th>Plays</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ loop.index }}</td>
+
+        <td>
+          <a href="{{ url_for('track_detail',
+                              artist_name=row['artist'],
+                              track_name=row['track']) }}">
+            {{ row['track'] }}
+          </a>
+        </td>
+
+        <td>
+          <a href="{{ url_for('artist_detail', artist_name=row['artist']) }}">
+            {{ row['artist'] }}
+          </a>
+        </td>
+
+        <td>{{ row['plays'] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
