@@ -1,5 +1,5 @@
 # New-Last.FM-Project
-Enhanced version of statistics scrobbled by Last.fm portal of music which I am listen to it.
+Enhanced version of statistics scrobbled by Last.fm portal of music which I am listen to.
 
 At first stage I wish to duplicate the Last.fm portal with my data, then I will convert and merge additional periods of scrobbled data to MediaMonkey and Plex, which is not included in Last.fm
 Later I am going add extra features not available within Last.fm like more graphs, more statistics and creating Spotify playlists.
