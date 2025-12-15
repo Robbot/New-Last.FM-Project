@@ -162,7 +162,12 @@ def track_detail(artist_name, track_name):
 
     return f"Track detail page for {artist_name} - {track_name} (not implemented yet)"
 # TODO: replace plain string with track_detail.html + DB stats
-
+def artist_detail(artist_name):
+    return render_template(
+        "artist_detail.html",
+        active_tab="artists",
+        artist_name=artist_name
+    )
 
 @app.route("/library/artist/<path:artist_name>")
 def artist_detail(artist_name):
