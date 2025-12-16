@@ -99,10 +99,33 @@ def get_library_stats():
     }
 
 def get_artist_stats(artist_name: str):
-    pass
+    conn = get_db_connection()
+    row = conn.execute("""
+        SELECT
+            COUNT(*) AS scrobbles,
+            COUNT(DISTINCT album) AS albums,
+            COUNT(DISTINCT track) AS tracks
+        FROM scrobble
+        WHERE artist = ?
+    """, (artist_name,)).fetchone()
+    conn.close()
 
-def get_top_tracks_for_artist(artist_name: str):
-    pass
+    return row
+
+def get_top_tracks_for_artist(artist_name):
+    conn = get_db_connection()
+    rows = conn.execute("""
+        SELECT
+            artist,
+            track,
+            COUNT(*) AS plays
+        FROM scrobble
+        WHERE artist = ?
+        GROUP BY track
+        ORDER BY plays DESC
+    """, (artist_name,)).fetchall()
+    conn.close()
+    return rows
 
 def get_artists_details():
     conn = get_db_connection()

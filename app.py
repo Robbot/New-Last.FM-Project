@@ -115,7 +115,7 @@ def library_scrobbles():
 def library_artists():
     stats = db.get_library_stats()
     rows = db.get_artists_details()
-    # top_artists = get_top_artists(limit=50)
+
     return render_template("library_artists.html",
                            active_tab="artists",
                            stats=stats,
@@ -123,20 +123,18 @@ def library_artists():
                            
 @app.route("/library/artist/<path:artist_name>")
 def artist_detail(artist_name):
-    rows = db.get_artist_overview(artist_name)
-    if rows is None:
-        abort(404)
-
     stats = db.get_artist_stats(artist_name)
-    rows = db.get_top_tracks_for_artist(artist_name)
 
+    albums_rows = db.get_artist_albums(artist_name)          # NEW or existing query
+    tracks_rows = db.get_top_tracks_for_artist(artist_name) # your new function
 
     return render_template(
         "artist_detail.html",
-        active_tab="artists",      # keeps the Artists tab highlighted
+        active_tab="artists",
         artist_name=artist_name,
-        rows=rows,
-        stats = stats
+        stats=stats,
+        albums_rows=albums_rows,
+        tracks_rows=tracks_rows,
     )
 
 @app.route("/library/albums")

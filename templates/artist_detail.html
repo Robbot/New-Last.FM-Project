@@ -18,6 +18,30 @@
 {% endblock %}
 
 {% block main_content %}
+<h3>Albums</h3>
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Album</th>
+      <th>Scrobbles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in albums_rows %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ row["album"] }}</td>
+        <td>{{ row["plays"] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
 <h3>Top tracks</h3>
-{% include "_tracks_table.html" %}
+{% with rows=tracks_rows %}
+  {% include "_tracks_table.html" %}
+{% endwith %}
 {% endblock %}
+
