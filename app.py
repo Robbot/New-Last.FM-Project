@@ -164,12 +164,7 @@ def track_detail(artist_name, track_name):
 
     # albums = db.get_track_albums(track_name)
     # artists = db.get_track_artists(track_name)
-    rows = [
-    {"artist": artist_name, "track": "Example Track 1", "plays": 42},
-    {"artist": artist_name, "track": "Example Track 2", "plays": 17},
-    {"artist": artist_name, "track": "Example Track 3", "plays": 5},
-        ]
-
+    stats = db.get_track_stats(artist_name, track_name)
 
     return render_template(
         "track_detail.html",
@@ -179,6 +174,7 @@ def track_detail(artist_name, track_name):
         # stats=stats,
         # albums=albums,
         # artists=artists,
+        stats = stats,
         rows=rows,
     )
 

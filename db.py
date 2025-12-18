@@ -237,6 +237,20 @@ def get_track_stats():
         "most_tracks": row["total_tracks"]
     }
 
+def get_track_stats_second(artist_name: str, track_name: str):
+    conn = get_db_connection()
+    row = conn.execute(
+         """
+        SELECT
+            COUNT(DISTINCT track) AS total_tracks
+        FROM scrobble
+        WHERE track IS NOT NULL AND track != ''
+        Group BY track
+        Order BY total_tracks DESC
+        """
+    ).fetchone()
+    conn.close()
+
 def get_top_tracks():
     """Tracks sorted by plays (scrobbles) desc."""
     conn = get_db_connection()
@@ -255,3 +269,26 @@ def get_top_tracks():
     ).fetchall()
     conn.close()
     return rows
+
+def get_track_overview(artist_name: str, track_name: str):
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS plays,
+        FROM scrobble
+        WHERE 
+            LOWER(TRIM(artist)) = LOWER(TRIM(?))
+            and LOWER(TRIM(track)) = LOWER(TRIM(?))
+        """,
+        (artist_name, track_name),
+    ).fetchone()
+    conn.close()
+
+    if row is None or row["scrobbles"] == 0:
+        return None
+
+    return {
+        "scrobbles": row["scrobbles"],
+        "albums": row["albums"],
+    }
