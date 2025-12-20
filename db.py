@@ -237,19 +237,41 @@ def get_track_stats():
         "most_tracks": row["total_tracks"]
     }
 
-def get_track_stats_second(artist_name: str, track_name: str):
+def get_track_stats_detail(artist_name: str, track_name: str):
     conn = get_db_connection()
     row = conn.execute(
          """
         SELECT
-            COUNT(DISTINCT track) AS total_tracks
+            COUNT(*) AS plays
         FROM scrobble
-        WHERE track IS NOT NULL AND track != ''
-        Group BY track
-        Order BY total_tracks DESC
-        """
+        WHERE lower(trim(artist)) = lower(trim(?)) and lower(trim(track)) = lower(trim(?))
+        """,
+        (artist_name, track_name),
     ).fetchone()
     conn.close()
+    return row
+
+def get_recent_scrobbles_for_track(artist_name: str, track_name: str, limit: int = 50):
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+            artist,
+            album,
+            track,
+            strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
+        FROM scrobble
+        WHERE
+            LOWER(TRIM(artist)) = LOWER(TRIM(?))
+            AND LOWER(TRIM(track))  = LOWER(TRIM(?))
+        ORDER BY uts DESC
+        LIMIT ?
+        """,
+        (artist_name, track_name, limit),
+    ).fetchall()
+    conn.close()
+    return rows
+
 
 def get_top_tracks():
     """Tracks sorted by plays (scrobbles) desc."""

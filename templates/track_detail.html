@@ -1,3 +1,24 @@
-<h1>Top tracks</h1>
-{% include "_tracks_table.html" with context %}
-{{ stats['plays'] }} 
+<h1>Track details</h1>
+<p>artist={{ artist_name }}</p>
+<p>track={{ track_name }}</p>
+<p>plays={{ stats["plays"] }}</p>
+
+<h2>Recent scrobbles</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Track name</th>
+      <th>Album</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in recent %}
+      <tr>
+        <td>{{ track_name }}</td>
+        <td>{{ row["album"] }}</td>
+        <td>{{ row["date"] }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

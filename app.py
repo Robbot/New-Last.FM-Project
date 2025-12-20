@@ -158,14 +158,9 @@ def library_tracks():
 
 @app.route("/library/track/<path:artist_name>/<path:track_name>")
 def track_detail(artist_name, track_name):
-    # stats = db.get_track_overview(track_name)
-    # if stats is None:
-    #     abort(404)
-
-    # albums = db.get_track_albums(track_name)
-    # artists = db.get_track_artists(track_name)
-    stats = db.get_track_stats(artist_name, track_name)
-
+    stats = db.get_track_stats_detail(artist_name, track_name)
+    recent = db.get_recent_scrobbles_for_track(artist_name, track_name, limit=50)
+   
     return render_template(
         "track_detail.html",
         active_tab="tracks",      # keeps the Tracks tab highlighted
@@ -174,8 +169,8 @@ def track_detail(artist_name, track_name):
         # stats=stats,
         # albums=albums,
         # artists=artists,
-        stats = stats,
-        rows=rows,
+        stats=stats,
+        recent=recent,
     )
 
 def artist_detail(artist_name):
