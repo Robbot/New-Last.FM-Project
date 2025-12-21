@@ -6,6 +6,10 @@ from flask import abort
 
 app = Flask(__name__)
 
+from app.artists.routes import artists_bp
+app.register_blueprint(artists_bp)
+
+
 
 # def ms_epoch_to_date(ms_str: str) -> str:
 #     ms_str = ms_str.strip().strip('"')
@@ -121,21 +125,6 @@ def library_artists():
                            stats=stats,
                            rows=rows)
                            
-@app.route("/library/artist/<path:artist_name>")
-def artist_detail(artist_name):
-    stats = db.get_artist_stats(artist_name)
-
-    albums_rows = db.get_artist_albums(artist_name)          # NEW or existing query
-    tracks_rows = db.get_top_tracks_for_artist(artist_name) # your new function
-
-    return render_template(
-        "artist_detail.html",
-        active_tab="artists",
-        artist_name=artist_name,
-        stats=stats,
-        albums_rows=albums_rows,
-        tracks_rows=tracks_rows,
-    )
 
 @app.route("/library/albums")
 def library_albums():
@@ -173,12 +162,6 @@ def track_detail(artist_name, track_name):
         recent=recent,
     )
 
-def artist_detail(artist_name):
-    return render_template(
-        "artist_detail.html",
-        active_tab="artists",
-        artist_name=artist_name
-    )
 
 
 if __name__ == "__main__":
