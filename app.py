@@ -11,38 +11,6 @@ app.register_blueprint(artists_bp)
 app.register_blueprint(artists_library_bp)
 
 
-
-# def ms_epoch_to_date(ms_str: str) -> str:
-#     ms_str = ms_str.strip().strip('"')
-#     if not ms_str:
-#         return ""
-#     try:
-#         ms = int(ms_str)
-#     except ValueError:
-#         return ""
-
-#     seconds = ms / 1000.0
-#     dt = datetime.fromtimestamp(seconds, tz=timezone.utc)
-#     return dt.strftime("%Y-%m-%d %H:%M:%S")
-
-
-
-
-# keep this for possible future use when starting date range is needed
-# def average_scrobbles_per_day():
-#     conn = db.get_db_connection()
-#     result = conn.execute(
-#         """
-#         SELECT COUNT(*) as total_scrobbles,
-#                (julianday('now') - julianday(MIN(strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime')))) AS days_active
-#         FROM scrobble
-#         """
-#     ).fetchone()
-#     conn.close()
-#     if result and result['days_active'] > 0:
-#         return result['total_scrobbles'] / result['days_active']
-#     return 0
-
 @app.route("/")
 def index():
     # all_rows = load_rows()
