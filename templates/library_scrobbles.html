@@ -41,7 +41,7 @@
     <span class="current">Page {{ page }} of {{ total_pages }}</span>
 
     {% if page < total_pages %}
-        <a href="{{ url_for('index', page=page+1) }}">{{page + 1}} ›</a>
-        <a href="{{ url_for('index', page=total_pages) }}">Last »</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=page+1) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=total_pages) }}">Last »</a>
     {% endif %}
 </div>
