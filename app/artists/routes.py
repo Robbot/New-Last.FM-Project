@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template
 import db
 
+# 1) artists details: /artist/<artist_name>
 artists_bp = Blueprint("artists", __name__, url_prefix="/artist")
 
 @artists_bp.get("/<artist_name>")
@@ -19,4 +20,20 @@ def artist_detail(artist_name: str):
         stats=stats,
         albums_rows=albums_rows,
         tracks_rows=tracks_rows,
+    )
+
+# 2) artists list: /library/artists
+
+artists_library_bp = Blueprint("artists_library", __name__, url_prefix="/library")
+
+@artists_library_bp.get("/artists")
+def library_artists():
+    stats = db.get_library_stats()
+    rows = db.get_artists_details()
+
+    return render_template(
+        "library_artists.html",
+        active_tab="artists",
+        stats=stats,
+        rows=rows,
     )

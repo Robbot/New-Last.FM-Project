@@ -6,8 +6,9 @@ from flask import abort
 
 app = Flask(__name__)
 
-from app.artists.routes import artists_bp
+from app.artists.routes import artists_bp, artists_library_bp
 app.register_blueprint(artists_bp)
+app.register_blueprint(artists_library_bp)
 
 
 
@@ -112,19 +113,7 @@ def library_scrobbles():
                             total_rows=total_rows,
                             per_day=per_day 
                         )
-
-
-
-@app.route("/library/artists")
-def library_artists():
-    stats = db.get_library_stats()
-    rows = db.get_artists_details()
-
-    return render_template("library_artists.html",
-                           active_tab="artists",
-                           stats=stats,
-                           rows=rows)
-                           
+                 
 
 @app.route("/library/albums")
 def library_albums():
