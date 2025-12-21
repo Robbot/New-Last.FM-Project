@@ -1,3 +1,3 @@
 from flask import Blueprint
-artists_bp = Blueprint("artists", __name__)
+albums_bp = Blueprint("albums", __name__)
 from . import routes  # noqa

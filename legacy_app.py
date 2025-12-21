@@ -46,78 +46,10 @@ def index():
         total_rows=total_rows,
     )
 
-@app.route("/library/scrobbles")
-def library_scrobbles():
-    # query: total scrobbles, avg per day, latest tracks
-    all_rows = db.get_latest_scrobbles()
-    per_day = db.average_scrobbles_per_day()
 
-    per_page = 50
-    page = request.args.get("page", 1, type=int)
-
-    total_rows = len(all_rows)
-    total_pages = max(1, math.ceil(total_rows / per_page))
-    
-    # clamp page within range
-    if page < 1:
-        page = 1
-    if page > total_pages:
-        page = total_pages
-
-    start = (page - 1) * per_page
-    end = start + per_page
-    page_rows = all_rows[start:end]
-
-    print("total_rows:", total_rows)
-    print("per_page:", per_page)
-    print("total_pages:", total_pages)
-    print("current page:", page)
-
-    return render_template("library_scrobbles.html",
-                            active_tab="scrobbles",
-                            rows=page_rows,
-                            page=page,
-                            total_pages=total_pages,
-                            total_rows=total_rows,
-                            per_day=per_day 
-                        )
                  
 
-@app.route("/library/albums")
-def library_albums():
-    stats = db.get_album_stats()
-    top_albums = db.get_top_albums()
-    return render_template("library_albums.html",
-                           active_tab="albums",
-                           stats=stats,
-                           top_albums=top_albums)
 
-
-@app.route("/library/tracks")
-def library_tracks():
-    stats = db.get_track_stats()
-    top_tracks = db.get_top_tracks()
-    return render_template("library_tracks.html",
-                           active_tab="tracks",
-                           stats=stats,
-                           top_tracks=top_tracks)
-
-@app.route("/library/track/<path:artist_name>/<path:track_name>")
-def track_detail(artist_name, track_name):
-    stats = db.get_track_stats_detail(artist_name, track_name)
-    recent = db.get_recent_scrobbles_for_track(artist_name, track_name)
-   
-    return render_template(
-        "track_detail.html",
-        active_tab="tracks",      # keeps the Tracks tab highlighted
-        track_name=track_name,
-        artist_name=artist_name,
-        # stats=stats,
-        # albums=albums,
-        # artists=artists,
-        stats=stats,
-        recent=recent,
-    )
 
 
 

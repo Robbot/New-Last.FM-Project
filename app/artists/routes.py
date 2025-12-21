@@ -1,17 +1,16 @@
-from flask import Blueprint, render_template
+from flask import render_template, abort
 import db
+from . import artists_bp
 
-# 1) artists details: /artist/<artist_name>
-artists_bp = Blueprint("artists", __name__, url_prefix="/artist")
 
-@artists_bp.get("/<artist_name>")
+@artists_bp.route("/library/artists/<path:artist_name>")
 def artist_detail(artist_name: str):
  
     stats = db.get_artist_stats(artist_name)
+    if stats is None:
+        abort(404, description="Artist not found")
     albums_rows = db.get_artist_albums(artist_name)          # NEW or existing query
     tracks_rows = db.get_top_tracks_for_artist(artist_name) # your new function
-
-
 
     return render_template(
         "artist_detail.html",
@@ -22,11 +21,8 @@ def artist_detail(artist_name: str):
         tracks_rows=tracks_rows,
     )
 
-# 2) artists list: /library/artists
 
-artists_library_bp = Blueprint("artists_library", __name__, url_prefix="/library")
-
-@artists_library_bp.get("/artists")
+@artists_bp.route("/library/artists")
 def library_artists():
     stats = db.get_library_stats()
     rows = db.get_artists_details()
