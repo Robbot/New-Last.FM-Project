@@ -34,8 +34,8 @@
 <div class="pagination">
     
     {% if page > 1 %}
-        <a href="{{ url_for('index', page=1) }}">« First</a>
-        <a href="{{ url_for('index', page=page-1) }}">‹ {{page - 1}}</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=1) }}">« First</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=page-1) }}">‹ {{page - 1}}</a>
     {% endif %}
 
     <span class="current">Page {{ page }} of {{ total_pages }}</span>

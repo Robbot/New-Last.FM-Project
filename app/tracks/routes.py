@@ -10,10 +10,10 @@ def library_tracks():
 
 @tracks_bp.route("/library/track/<path:artist_name>/<path:track_name>")
 def track_detail(artist_name, track_name):
-    stats = db.get_track_stats_details(artist_name, track_name)
+    stats = db.get_track_stats_detail(artist_name, track_name)
     if stats is None:
         abort(404)
-    recent = db.get_recent_scrobbles_for_track(artist_name, track_name, limit=50)
+    recent = db.get_recent_scrobbles_for_track(artist_name, track_name)
     return render_template(
         "track_detail.html",
         active_tab="tracks",
