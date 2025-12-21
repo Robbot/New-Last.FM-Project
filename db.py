@@ -251,7 +251,7 @@ def get_track_stats_detail(artist_name: str, track_name: str):
     conn.close()
     return row
 
-def get_recent_scrobbles_for_track(artist_name: str, track_name: str, limit: int = 50):
+def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
     conn = get_db_connection()
     rows = conn.execute(
         """
@@ -265,9 +265,8 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str, limit: int
             LOWER(TRIM(artist)) = LOWER(TRIM(?))
             AND LOWER(TRIM(track))  = LOWER(TRIM(?))
         ORDER BY uts DESC
-        LIMIT ?
         """,
-        (artist_name, track_name, limit),
+        (artist_name, track_name),
     ).fetchall()
     conn.close()
     return rows

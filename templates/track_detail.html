@@ -1,7 +1,15 @@
+{# templates/artist_detail.html #}
+{% extends "base_library.html" %}
+
+
+{% block summary_header %}
 <h1>Track details</h1>
 <p>artist={{ artist_name }}</p>
 <p>track={{ track_name }}</p>
 <p>plays={{ stats["plays"] }}</p>
+{% endblock %}
+
+{% block main_content %}
 
 <h2>Recent scrobbles</h2>
 <table class="table">
@@ -22,3 +30,4 @@
     {% endfor %}
   </tbody>
 </table>
+{% endblock %}

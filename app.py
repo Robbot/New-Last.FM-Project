@@ -159,7 +159,7 @@ def library_tracks():
 @app.route("/library/track/<path:artist_name>/<path:track_name>")
 def track_detail(artist_name, track_name):
     stats = db.get_track_stats_detail(artist_name, track_name)
-    recent = db.get_recent_scrobbles_for_track(artist_name, track_name, limit=50)
+    recent = db.get_recent_scrobbles_for_track(artist_name, track_name)
    
     return render_template(
         "track_detail.html",
