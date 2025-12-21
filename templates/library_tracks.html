@@ -28,7 +28,7 @@
     <tr>
       <td>{{ loop.index }}</td>
       <td>
-        <a href="{{ url_for('track_detail', artist_name=row['artist'], track_name=row['track']) }}">
+        <a href="{{ url_for('tracks.track_detail', artist_name=row['artist'], track_name=row['track']) }}">
           {{ row["track"] }}
           </a>
       </td>

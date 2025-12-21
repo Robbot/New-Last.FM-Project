@@ -14,11 +14,11 @@
 <ul class="nav nav-tabs">
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'scrobbles' %}active{% endif %}"
-       href="{{ url_for('library_scrobbles') }}">Scrobbles</a>
+       href="{{ url_for('scrobbles.library_scrobbles') }}">Scrobbles</a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'artists' %}active{% endif %}"
-       href="{{ url_for('artists_library.library_artists') }}">Artists</a>
+       href="{{ url_for('artists.library_artists') }}">Artists</a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'albums' %}active{% endif %}"
@@ -26,7 +26,7 @@
   </li>
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'tracks' %}active{% endif %}"
-       href="{{ url_for('library_tracks') }}">Tracks</a>
+       href="{{ url_for('tracks.library_tracks') }}">Tracks</a>
   </li>
 </ul>
 
