@@ -3,8 +3,8 @@
 
 {% block summary_header %}
 <div class="d-flex gap-4">
-  <div><strong>{{ total_rows }}</strong><br>Scrobbles</div>
-  <div><strong>{{ per_day }}</strong><br>Scrobbles per day</div>
+  <div><strong>{{ total_rows }}</strong>&nbsp;Scrobbles</div>
+  <div><strong>{{ per_day }}</strong>&nbsp;Scrobbles per day</div>
 </div>
 {% endblock %}
 
@@ -29,7 +29,7 @@
     {% endfor %}
   </tbody>
 </table>
-{% endblock %}
+
 
 <div class="pagination">
     
@@ -45,3 +45,4 @@
         <a href="{{ url_for('scrobbles.library_scrobbles', page=total_pages) }}">Last »</a>
     {% endif %}
 </div>
+{% endblock %}
