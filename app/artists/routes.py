@@ -1,4 +1,5 @@
-from flask import render_template, abort
+import math
+from flask import render_template, abort, request
 import db
 from . import artists_bp
 
@@ -27,9 +28,34 @@ def library_artists():
     stats = db.get_library_stats()
     rows = db.get_artists_details()
 
+    per_page = 50
+    page = request.args.get("page", 1, type=int)
+    total_rows = len(rows)
+    total_pages = max(1, math.ceil(total_rows / per_page))
+
+
+    # clamp page within range
+    if page < 1:
+        page = 1    
+    if page > total_pages:
+        page = total_pages
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    rows = rows[start:end]
+
+    print("total_rows:", total_rows)
+    print("per_page:", per_page)
+    print("total_pages:", total_pages)
+    print("current page:", page)
+
+        
+
     return render_template(
         "library_artists.html",
         active_tab="artists",
         stats=stats,
         rows=rows,
+        page=page,
+        total_pages=total_pages,
     )
