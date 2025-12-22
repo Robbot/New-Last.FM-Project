@@ -30,7 +30,7 @@
   </tbody>
 </table>
 
-
+<div class="pagination-wrapper">
 <div class="pagination">
     
     {% if page > 1 %}
@@ -44,5 +44,6 @@
         <a href="{{ url_for('scrobbles.library_scrobbles', page=page+1) }}">{{page + 1}} ›</a>
         <a href="{{ url_for('scrobbles.library_scrobbles', page=total_pages) }}">Last »</a>
     {% endif %}
+</div>
 </div>
 {% endblock %}
