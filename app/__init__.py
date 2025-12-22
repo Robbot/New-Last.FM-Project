@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, redirect, url_for
 
 def create_app():
     app = Flask(__name__)
@@ -13,5 +13,10 @@ def create_app():
     app.register_blueprint(artists_bp)
     app.register_blueprint(albums_bp)
     app.register_blueprint(tracks_bp)
+
+    @app.route("/")
+    def index():
+        return redirect(url_for("scrobbles.library_scrobbles"))
     
     return app
+
