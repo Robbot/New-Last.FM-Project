@@ -32,13 +32,12 @@
 
 <div class="pagination-wrapper">
 <div class="pagination">
-    
     {% if page > 1 %}
         <a href="{{ url_for('scrobbles.library_scrobbles', page=1) }}">« First</a>
         <a href="{{ url_for('scrobbles.library_scrobbles', page=page-1) }}">‹ {{page - 1}}</a>
     {% endif %}
 
-    <span class="current">Page {{ page }} of {{ total_pages }}</span>
+    Page {{ page }} of {{ total_pages }}
 
     {% if page < total_pages %}
         <a href="{{ url_for('scrobbles.library_scrobbles', page=page+1) }}">{{page + 1}} ›</a>
