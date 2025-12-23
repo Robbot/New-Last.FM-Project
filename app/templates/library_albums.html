@@ -41,4 +41,20 @@
     {% endfor %}
   </tbody>
 </table>
+
+<div class="pagination-wrapper">
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('albums.library_albums', page=1) }}">« First</a>
+        <a href="{{ url_for('albums.library_albums', page=page-1) }}">‹ {{page - 1}}</a>
+    {% endif %}
+
+    Page {{ page }} of {{ total_pages }}
+
+    {% if page < total_pages %}
+        <a href="{{ url_for('albums.library_albums', page=page+1) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('albums.library_albums', page=total_pages) }}">Last »</a>
+    {% endif %}
+</div>
+</div>
 {% endblock %}
