@@ -43,8 +43,20 @@
   </tbody>
 </table>
 
-<p>stats={{ stats }}</p>
-<p>top_tracks defined? {{ top_tracks is defined }}</p>
-<p>top_tracks length={{ top_tracks|length if top_tracks is defined else 'N/A' }}</p>
+<div class="pagination-wrapper">
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('tracks.library_tracks', page=1) }}">« First</a>
+        <a href="{{ url_for('tracks.library_tracks', page=page-1) }}">‹ {{page - 1}}</a>
+    {% endif %}
+
+    Page {{ page }} of {{ total_pages }}
+
+    {% if page < total_pages %}
+        <a href="{{ url_for('tracks.library_tracks', page=page+1) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('tracks.library_tracks', page=total_pages) }}">Last »</a>
+    {% endif %}
+</div>
+</div>
 
 {% endblock %}
