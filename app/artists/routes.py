@@ -58,4 +58,5 @@ def library_artists():
         rows=rows,
         page=page,
         total_pages=total_pages,
+        per_page=per_page,
     )

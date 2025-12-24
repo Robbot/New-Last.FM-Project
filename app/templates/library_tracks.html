@@ -26,7 +26,7 @@
   <tbody>
     {% for row in top_tracks %}
     <tr>
-      <td>{{ loop.index }}</td>
+      <td>{{ (page - 1) * per_page + loop.index }}</td>
       <td>
         <a href="{{ url_for('tracks.track_detail', artist_name=row['artist'], track_name=row['track']) }}">
           {{ row["track"] }}

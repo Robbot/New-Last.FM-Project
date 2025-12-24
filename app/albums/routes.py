@@ -36,4 +36,5 @@ def library_albums():
            top_albums=top_albums,
            page=page,
            total_pages=total_pages,
+           per_page=per_page,
     )

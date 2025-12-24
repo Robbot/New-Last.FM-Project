@@ -34,6 +34,7 @@ def library_tracks():
         top_tracks=top_tracks,
         page=page,
         total_pages=total_pages,
+        per_page=per_page,
     )
 
 @tracks_bp.route("/library/track/<path:artist_name>/<path:track_name>")
