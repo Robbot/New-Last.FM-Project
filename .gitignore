@@ -1,7 +1,7 @@
 config.ini
 wsgi.py
 .python-version
-files/lastfmstats.sqlite
+files/*
 ### VisualStudioCode template
 .vscode/*
 !.vscode/settings.json
