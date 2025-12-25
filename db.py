@@ -386,3 +386,53 @@ def get_album_art(artist_name, album_name):
         (artist_name, album_name),
     ).fetchone()
     conn.close()
+
+def album_tracks_exist(artist_name, album_name):
+    db = get_db()
+    row = db.execute(
+        """
+        SELECT 1
+        FROM album_tracks
+        WHERE artist = ?
+          AND album  = ?
+        LIMIT 1
+        """,
+        (artist_name, album_name),
+    ).fetchone()
+    return row is not None
+
+def upsert_album_tracks(artist_name, album_name, tracks):
+    """
+    tracks = list of dicts:
+      [{"track": "The Grudge", "track_number": 1}, ...]
+    """
+    db = get_db()
+    db.executemany(
+        """
+        INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number)
+        VALUES (?, ?, ?, ?)
+        """,
+        [(artist_name, album_name, t["track"], t["track_number"]) for t in tracks],
+    )
+    db.commit()
+
+def get_album_tracks(artist_name, album_name):
+    db = get_db()
+    cur = db.execute(
+        """
+        SELECT
+            at.track_number,
+            COALESCE(s.track, at.track) AS track_name,
+            COALESCE(s.plays, 0) AS plays
+        FROM album_tracks at
+        LEFT JOIN scrobble_stats s
+          ON s.artist = at.artist
+         AND s.album  = at.album
+         AND s.track  = at.track
+        WHERE at.artist = ?
+          AND at.album  = ?
+        ORDER BY at.track_number ASC
+        """,
+        (artist_name, album_name),
+    )
+    return cur.fetchall()

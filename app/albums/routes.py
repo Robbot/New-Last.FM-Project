@@ -1,4 +1,5 @@
-from flask import render_template, request
+from flask import abort, render_template, request, current_app
+from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
 import db
 import math
 from . import albums_bp
@@ -43,9 +44,24 @@ def library_albums():
 @albums_bp.route("/library/artists/<artist_name>/albums/<album_name>")
 def artist_album_detail(artist_name: str, album_name: str):
 
-    rows = db.get_album_tracks(artist_name, album_name)
+    if not db.album_tracks_exist(artist_name, album_name):
+        api_key = current_app.config["LASTFM_API_KEY"]
+        tracks = fetch_album_tracklist_lastfm(api_key, artist_name, album_name)
+        db.upsert_album_tracks(artist_name, album_name, tracks)
 
-    album_mbid = art_row["album_mbid"] if art_row else ""
+
+
+    rows = db.get_album_tracks(artist_name, album_name)
+    if not rows:
+        abort(404)
+
+    total = db.get_album_total_plays(artist_name, album_name)
+    art_row = db.get_album_art(artist_name, album_name)
+    
+    album_mbid = art_row["album_mbid"] if art_row and art_row["album_mbid"] else None
+    image_xlarge = art_row["image_xlarge"] if art_row else None
+
+    cache_key = album_mbid or f"{artist_name}_{album_name}"
     cover_url = ensure_album_art_cached(album_mbid)
 
     return render_template(
