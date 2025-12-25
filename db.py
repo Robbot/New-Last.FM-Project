@@ -1,3 +1,4 @@
+from os import abort
 import sqlite3
 from pathlib import Path
 
@@ -313,3 +314,75 @@ def get_track_overview(artist_name: str, track_name: str):
         "scrobbles": row["scrobbles"],
         "albums": row["albums"],
     }
+
+def get_album_tracks(artist_name: str, album_name: str):
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT
+          at.track_number AS track_number,
+          s.track         AS track_name,
+          COALESCE(s.plays, 0) AS plays
+        FROM album_tracks at
+        LEFT JOIN scrobble_stats s
+          ON s.artist = at.artist
+         AND s.album  = at.album
+         AND s.track  = at.track
+        WHERE at.artist = ?
+          AND at.album  = ?
+        ORDER BY at.track_number ASC
+        """,
+        (artist_name, album_name),
+    ).fetchall()
+    conn.close()
+
+    if not rows:
+        # Fallback: if you *do* store track_number directly in stats:
+        rows = db.execute(
+            """
+            SELECT
+              track_number,
+              track AS track_name,
+              COALESCE(plays, 0) AS plays
+            FROM scrobble_stats
+            WHERE artist = ?
+              AND album  = ?
+            ORDER BY track_number ASC
+            """,
+            (artist_name, album_name),
+        ).fetchall()
+
+    if not rows:
+        abort(404)
+
+    # 2) Total album plays
+def get_album_total_plays(artist_name, album_name):
+    
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT COALESCE(SUM(plays), 0) AS total
+        FROM scrobble_stats
+        WHERE artist = ?
+          AND album  = ?
+        """,
+        (artist_name, album_name),
+        one=True,
+    )
+    return row["total"] if row else 0
+
+    # 3) Album art MBID lookup from album_art table
+def get_album_art(artist_name, album_name):
+    
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT album_mbid, image_xlarge
+        FROM album_art
+        WHERE artist = ?
+          AND album  = ?
+        LIMIT 1
+        """,
+        (artist_name, album_name),
+    ).fetchone()
+    conn.close()

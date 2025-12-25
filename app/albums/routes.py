@@ -38,3 +38,21 @@ def library_albums():
            total_pages=total_pages,
            per_page=per_page,
     )
+
+
+@albums_bp.route("/library/artists/<artist_name>/albums/<album_name>")
+def artist_album_detail(artist_name: str, album_name: str):
+
+    rows = db.get_album_tracks(artist_name, album_name)
+
+    album_mbid = art_row["album_mbid"] if art_row else ""
+    cover_url = ensure_album_art_cached(album_mbid)
+
+    return render_template(
+        "album_detail.html",
+        artist_name=artist_name,
+        album_name=album_name,
+        total_plays=total,
+        tracks=rows,
+        cover_url=cover_url,
+    )
