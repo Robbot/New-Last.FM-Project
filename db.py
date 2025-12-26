@@ -359,16 +359,16 @@ def get_album_tracks(artist_name: str, album_name: str):
 def get_album_total_plays(artist_name, album_name):
     
     conn = get_db_connection()
-    rows = conn.execute(
+    row = conn.execute(
         """
-        SELECT COALESCE(SUM(plays), 0) AS total
-        FROM scrobble_stats
+        SELECT COUNT(*) AS total
+        FROM scrobble
         WHERE artist = ?
           AND album  = ?
         """,
         (artist_name, album_name),
-        one=True,
-    )
+    ).fetchone()
+ 
     return row["total"] if row else 0
 
     # 3) Album art MBID lookup from album_art table
@@ -388,8 +388,8 @@ def get_album_art(artist_name, album_name):
     conn.close()
 
 def album_tracks_exist(artist_name, album_name):
-    db = get_db()
-    row = db.execute(
+    conn = get_db_connection()
+    row = conn.execute(
         """
         SELECT 1
         FROM album_tracks
@@ -406,26 +406,25 @@ def upsert_album_tracks(artist_name, album_name, tracks):
     tracks = list of dicts:
       [{"track": "The Grudge", "track_number": 1}, ...]
     """
-    db = get_db()
-    db.executemany(
+    conn = get_db_connection()
+    conn.executemany(
         """
         INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number)
         VALUES (?, ?, ?, ?)
         """,
         [(artist_name, album_name, t["track"], t["track_number"]) for t in tracks],
     )
-    db.commit()
+    conn.commit()
 
 def get_album_tracks(artist_name, album_name):
-    db = get_db()
-    cur = db.execute(
+    conn = get_db_connection()
+    cur = conn.execute(
         """
         SELECT
             at.track_number,
-            COALESCE(s.track, at.track) AS track_name,
-            COALESCE(s.plays, 0) AS plays
+            COALESCE(s.track, at.track) AS track_name
         FROM album_tracks at
-        LEFT JOIN scrobble_stats s
+        LEFT JOIN scrobble s
           ON s.artist = at.artist
          AND s.album  = at.album
          AND s.track  = at.track

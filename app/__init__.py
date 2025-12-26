@@ -1,4 +1,5 @@
 from flask import Flask, redirect, url_for
+from .services.config import get_api_key
 
 def create_app():
     app = Flask(__name__)
@@ -13,6 +14,10 @@ def create_app():
     app.register_blueprint(artists_bp)
     app.register_blueprint(albums_bp)
     app.register_blueprint(tracks_bp)
+
+    api_key, username = get_api_key()
+    app.config["api_key"] = api_key
+    app.config["lastfm_username"] = username
 
     @app.route("/")
     def index():

@@ -45,7 +45,7 @@ def library_albums():
 def artist_album_detail(artist_name: str, album_name: str):
 
     if not db.album_tracks_exist(artist_name, album_name):
-        api_key = current_app.config["LASTFM_API_KEY"]
+        api_key = current_app.config["api_key"]
         tracks = fetch_album_tracklist_lastfm(api_key, artist_name, album_name)
         db.upsert_album_tracks(artist_name, album_name, tracks)
 
