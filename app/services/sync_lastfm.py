@@ -16,7 +16,7 @@ from pathlib import Path
 from config import get_api_key  # your helper: returns (api_key, username)
 
 # ---------- Constants ----------
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 
