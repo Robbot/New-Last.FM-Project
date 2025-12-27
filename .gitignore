@@ -753,3 +753,4 @@ fabric.properties
 
 /files
 files/lastfmstats.sqlite
+/app/static/covers

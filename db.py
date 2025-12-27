@@ -1,6 +1,9 @@
 from os import abort
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlparse
+import requests
+from flask import current_app, url_for
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -315,47 +318,8 @@ def get_track_overview(artist_name: str, track_name: str):
         "albums": row["albums"],
     }
 
-def get_album_tracks(artist_name: str, album_name: str):
-    conn = get_db_connection()
-    rows = conn.execute(
-        """
-        SELECT
-          at.track_number AS track_number,
-          s.track         AS track_name,
-          COALESCE(s.plays, 0) AS plays
-        FROM album_tracks at
-        LEFT JOIN scrobble_stats s
-          ON s.artist = at.artist
-         AND s.album  = at.album
-         AND s.track  = at.track
-        WHERE at.artist = ?
-          AND at.album  = ?
-        ORDER BY at.track_number ASC
-        """,
-        (artist_name, album_name),
-    ).fetchall()
-    conn.close()
 
-    if not rows:
-        # Fallback: if you *do* store track_number directly in stats:
-        rows = db.execute(
-            """
-            SELECT
-              track_number,
-              track AS track_name,
-              COALESCE(plays, 0) AS plays
-            FROM scrobble_stats
-            WHERE artist = ?
-              AND album  = ?
-            ORDER BY track_number ASC
-            """,
-            (artist_name, album_name),
-        ).fetchall()
-
-    if not rows:
-        abort(404)
-
-    # 2) Total album plays
+    # Total album plays
 def get_album_total_plays(artist_name, album_name):
     
     conn = get_db_connection()
@@ -416,22 +380,120 @@ def upsert_album_tracks(artist_name, album_name, tracks):
     )
     conn.commit()
 
-def get_album_tracks(artist_name, album_name):
+def get_album_tracks(artist_name: str, album_name: str):
+    """
+    Returns exactly ONE row per track, ordered by album track number,
+    with correct play counts.
+    """
     conn = get_db_connection()
-    cur = conn.execute(
+    rows = conn.execute(
         """
         SELECT
             at.track_number,
-            COALESCE(s.track, at.track) AS track_name
+            at.track AS track_name,
+            COALESCE(p.plays, 0) AS plays
         FROM album_tracks at
-        LEFT JOIN scrobble s
-          ON s.artist = at.artist
-         AND s.album  = at.album
-         AND s.track  = at.track
+        LEFT JOIN (
+            SELECT
+                track,
+                COUNT(*) AS plays
+            FROM scrobble
+            WHERE artist = ?
+              AND album  = ?
+            GROUP BY track
+        ) p
+          ON p.track = at.track
         WHERE at.artist = ?
           AND at.album  = ?
         ORDER BY at.track_number ASC
         """,
+        (artist_name, album_name, artist_name, album_name),
+    ).fetchall()
+    conn.close()
+    return rows
+
+def _guess_ext_from_url(url: str) -> str:
+    path = urlparse(url).path.lower()
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        if path.endswith(ext):
+            return ".jpg" if ext == ".jpeg" else ext
+    return ".jpg"
+
+def ensure_album_art_cached(artist_name: str, album_name: str) -> str | None:
+    """
+    - Looks up album_art.image_xlarge for (artist_name, album_name)
+    - Downloads it once into: <app static>/covers/<key>.<ext>
+    - Returns a local static URL to be used in templates
+    """
+    conn = get_db_connection()
+
+    art_row = conn.execute(
+        """
+        SELECT album_mbid, image_xlarge
+        FROM album_art
+        WHERE artist = ?
+          AND album  = ?
+        LIMIT 1
+        """,
         (artist_name, album_name),
-    )
-    return cur.fetchall()
+    ).fetchone()
+
+    if not art_row:
+        return None
+
+    cdn_url = (art_row["image_xlarge"] or "").strip()
+    if not cdn_url:
+        return None
+
+    album_mbid = (art_row["album_mbid"] or "").strip()
+
+    # Prefer MBID for stable filename; otherwise slug artist+album
+    cache_key = album_mbid if album_mbid else f"{_safe_slug(artist_name)}__{_safe_slug(album_name)}"
+    ext = _guess_ext_from_url(cdn_url)
+
+    covers_rel_dir = Path("covers")
+    covers_abs_dir = Path(current_app.static_folder) / covers_rel_dir
+    covers_abs_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"{cache_key}{ext}"
+    abs_path = covers_abs_dir / filename
+
+    # Already cached
+    if abs_path.exists() and abs_path.stat().st_size > 0:
+        return url_for("static", filename=f"covers/{filename}")
+
+    # Download once
+    try:
+        r = requests.get(
+            cdn_url,
+            timeout=12,
+            stream=True,
+            headers={"User-Agent": "Scrobbles/1.0"},
+        )
+        if r.status_code != 200:
+            return None
+
+        # Refine extension from Content-Type if needed
+        ct = (r.headers.get("Content-Type") or "").lower()
+        if "image/png" in ct:
+            ext = ".png"
+        elif "image/webp" in ct:
+            ext = ".webp"
+        elif "image/jpeg" in ct or "image/jpg" in ct:
+            ext = ".jpg"
+
+        filename = f"{cache_key}{ext}"
+        abs_path = covers_abs_dir / filename
+
+        with open(abs_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=1024 * 64):
+                if chunk:
+                    f.write(chunk)
+
+        if abs_path.exists() and abs_path.stat().st_size > 0:
+            return url_for("static", filename=f"covers/{filename}")
+
+        return None
+
+    except requests.RequestException:
+        return None

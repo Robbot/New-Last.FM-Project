@@ -62,7 +62,7 @@ def artist_album_detail(artist_name: str, album_name: str):
     image_xlarge = art_row["image_xlarge"] if art_row else None
 
     cache_key = album_mbid or f"{artist_name}_{album_name}"
-    cover_url = ensure_album_art_cached(album_mbid)
+    cover_url = db.ensure_album_art_cached(artist_name, album_name)
 
     return render_template(
         "album_detail.html",
