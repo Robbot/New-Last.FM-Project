@@ -1,4 +1,11 @@
-<h1>{{ artist_name }} — {{ album_name }}</h1>
+{# templates/album_detail.html #}
+{% extends "base_library.html" %}
+
+{% block summary_header %}
+<h2>{{ artist_name }} — {{ album_name }}</h2>
+{% endblock %}
+
+{% block main_content %}
 
 <div style="display:flex; gap:16px; align-items:flex-start;">
   <div style="width:220px;">
@@ -37,3 +44,4 @@
     {% endfor %}
   </tbody>
 </table>
+{% endblock %}
