@@ -66,6 +66,7 @@ def artist_album_detail(artist_name: str, album_name: str):
 
     return render_template(
         "album_detail.html",
+        active_tab="albums",
         artist_name=artist_name,
         album_name=album_name,
         total_plays=total,
