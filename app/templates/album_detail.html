@@ -2,7 +2,9 @@
 {% extends "base_library.html" %}
 
 {% block summary_header %}
-<h2>{{ artist_name }} — {{ album_name }}</h2>
+<h2>
+  <a href="{{ url_for('artists.artist_detail', artist_name=artist_name) }}">
+    {{ artist_name }}</a> — {{ album_name }}</h2>
 {% endblock %}
 
 {% block main_content %}
