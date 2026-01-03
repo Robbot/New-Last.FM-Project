@@ -11,5 +11,3 @@ TO DO
 Authentication: Add user accounts for personalised stats.
 Mobile Optimisation: Make the app mobile-friendly.
 Backup: Implement periodic database backups.in the year 2026!
-ejbdccuungfnlibidcefteunuitgrfulieleethkdrbe
-S
