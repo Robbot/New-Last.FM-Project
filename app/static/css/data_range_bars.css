@@ -1,0 +1,135 @@
+/* static/css/date_range_bars.css */
+.drb {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.drb__left, .drb__right {
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.drb__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.drb__title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.drb__crumbs {
+  font-size: 13px;
+  color: #666;
+}
+
+.drb__crumbs button {
+  border: 0;
+  background: transparent;
+  color: #d51007;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.drb__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drb__barRow {
+  display: grid;
+  grid-template-columns: 90px 1fr 70px;
+  gap: 10px;
+  align-items: center;
+}
+
+.drb__label {
+  font-size: 13px;
+  color: #222;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drb__barTrack {
+  position: relative;
+  height: 18px;
+  background: #f2f2f2;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.drb__barFill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: rgba(213, 16, 7, 0.35);
+}
+
+.drb__count {
+  font-size: 12px;
+  color: #444;
+  text-align: right;
+}
+
+.drb__clickable {
+  cursor: pointer;
+}
+
+.drb__barRow:hover .drb__barFill {
+  filter: brightness(0.95);
+}
+
+.drb__resultsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+
+.drb__resultsTitle {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.drb__rangeLabel {
+  font-size: 13px;
+  color: #666;
+}
+
+.drb__resultsSection {
+  margin-bottom: 14px;
+}
+
+.drb__resultsSection h4 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.drb__list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.drb__small {
+  font-size: 13px;
+  color: #222;
+}
+
+.drb__muted {
+  color: #777;
+}

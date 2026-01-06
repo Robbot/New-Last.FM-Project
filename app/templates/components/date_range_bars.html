@@ -1,0 +1,26 @@
+<!-- templates/components/date_range_bars.html -->
+<div
+  class="drb"
+  data-drb
+  data-artist="{{ artist_name|default('') }}"
+  data-album="{{ album_name|default('') }}"
+  data-track="{{ track_name|default('') }}"
+>
+  <div class="drb__left">
+    <div class="drb__header">
+      <div class="drb__title">Date Range</div>
+      <div class="drb__crumbs" data-drb-crumbs></div>
+    </div>
+
+    <div class="drb__bars" data-drb-bars></div>
+  </div>
+
+  <div class="drb__right">
+    <div class="drb__resultsHeader">
+      <div class="drb__resultsTitle">Results</div>
+      <div class="drb__rangeLabel" data-drb-rangeLabel></div>
+    </div>
+
+    <div class="drb__results" data-drb-results></div>
+  </div>
+</div>
