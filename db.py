@@ -1,5 +1,5 @@
-from os import abort
 import sqlite3
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
@@ -51,7 +51,7 @@ def average_scrobbles_per_day():
         """
     ).fetchone()
     conn.close()
-       # row is a sqlite3.Row like {'per_day_rounded': 24}
+    # row is a sqlite3.Row like {'per_day_rounded': 24}
     if row is None:
         return 0
 
@@ -93,7 +93,7 @@ def get_library_stats():
         """
     ).fetchone()
     conn.close()
-   
+
     if row is None:
         return {"total_artists": 0, "total_scrobbles": 0}
 
@@ -224,21 +224,21 @@ def get_top_albums():
 def get_track_stats():
     conn = get_db_connection()
     row = conn.execute(
-         """
+        """
         SELECT
-            COUNT(DISTINCT track) AS total_tracks
+            COUNT(DISTINCT track) AS total_tracks,
+            COUNT(*) AS total_scrobbles
         FROM scrobble
         WHERE track IS NOT NULL AND track != ''
-        Group BY track
-        Order BY total_tracks DESC
         """
     ).fetchone()
     conn.close()
 
     if row is None:
-        return {"total_tracks": 0}
+        return {"total_tracks": 0, "total_scrobbles": 0}
     return {
-        "most_tracks": row["total_tracks"]
+        "total_tracks": row["total_tracks"],
+        "total_scrobbles": row["total_scrobbles"]
     }
 
 def get_track_stats_detail(artist_name: str, track_name: str):
@@ -301,20 +301,21 @@ def get_track_overview(artist_name: str, track_name: str):
         """
         SELECT
             COUNT(*) AS plays,
+            COUNT(DISTINCT album) AS albums
         FROM scrobble
-        WHERE 
+        WHERE
             LOWER(TRIM(artist)) = LOWER(TRIM(?))
-            and LOWER(TRIM(track)) = LOWER(TRIM(?))
+            AND LOWER(TRIM(track)) = LOWER(TRIM(?))
         """,
         (artist_name, track_name),
     ).fetchone()
     conn.close()
 
-    if row is None or row["scrobbles"] == 0:
+    if row is None or row["plays"] == 0:
         return None
 
     return {
-        "scrobbles": row["scrobbles"],
+        "plays": row["plays"],
         "albums": row["albums"],
     }
 
@@ -411,6 +412,14 @@ def get_album_tracks(artist_name: str, album_name: str):
     ).fetchall()
     conn.close()
     return rows
+
+def _safe_slug(text: str) -> str:
+    """Convert text to safe filename slug."""
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[-\s]+', '_', text)
+    return text[:100]
+
 
 def _guess_ext_from_url(url: str) -> str:
     path = urlparse(url).path.lower()

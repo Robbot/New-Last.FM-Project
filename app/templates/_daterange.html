@@ -1,0 +1,23 @@
+<!-- _daterange.html -->
+<div class="drb__right" data-drb {% if artist %}data-artist="{{ artist }}"{% endif %} {% if album %}data-album="{{ album }}"{% endif %} {% if track %}data-track="{{ track }}"{% endif %}>
+  <!-- Left: Date bars -->
+  <div class="drb__header">
+    <div class="drb__title">Listening History</div>
+    <div class="drb__crumbs" data-drb-crumbs>All time</div>
+  </div>
+  <div class="drb__bars" data-drb-bars>
+    Loading...
+  </div>
+
+  <!-- Divider -->
+  <hr style="margin: 16px 0; border: 0; border-top: 1px solid #e6e6e6;">
+
+  <!-- Right: Results panel -->
+  <div class="drb__resultsHeader">
+    <div class="drb__resultsTitle">Statistics</div>
+    <div class="drb__rangeLabel" data-drb-rangeLabel>—</div>
+  </div>
+  <div data-drb-results>
+    <!-- Results will be injected here by JS -->
+  </div>
+</div>

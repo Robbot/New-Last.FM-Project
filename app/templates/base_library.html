@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}My Listening stats{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css', v=1) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/data_range_bars.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -34,8 +35,19 @@
   {% block summary_header %}{% endblock %}
 </div>
 
-<div class="mt-3">
-  {% block main_content %}{% endblock %}
+<div class="drb">
+  <!-- Main content area -->
+  <div class="drb__left">
+    {% block main_content %}{% endblock %}
+  </div>
+
+  <!-- Date range sidebar -->
+  {% set artist = artist_name | default('') %}
+  {% set album = album_name | default('') %}
+  {% set track = track_name | default('') %}
+  {% include '_daterange.html' %}
 </div>
+
+<script src="{{ url_for('static', filename='js/date_range_bars.js') }}"></script>
 </body>
 </html>
