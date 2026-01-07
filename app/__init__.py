@@ -8,12 +8,14 @@ def create_app():
     from .artists import artists_bp
     from .albums import albums_bp
     from .tracks import tracks_bp
+    from .daterange import daterange_bp
 
 
     app.register_blueprint(scrobbles_bp)
     app.register_blueprint(artists_bp)
     app.register_blueprint(albums_bp)
     app.register_blueprint(tracks_bp)
+    app.register_blueprint(daterange_bp)
 
     api_key, username = get_api_key()
     app.config["api_key"] = api_key

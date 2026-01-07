@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from flask import request, jsonify
 from datetime import datetime, timezone
-
-from app.db import get_db_connection
+import db
+from . import daterange_bp
 
 
 def _coerce_int(s: str | None, default: int | None = None) -> int | None:
@@ -14,6 +14,16 @@ def _coerce_int(s: str | None, default: int | None = None) -> int | None:
         return int(s)
     except ValueError:
         return default
+    
+@daterange_bp.route("", methods=["GET"])
+@daterange_bp.route("/", methods=["GET"])
+def datarange_index():
+    # example: parse query params safely
+    year = _coerce_int(request.args.get("year"))
+    month = _coerce_int(request.args.get("month"))
+    day = _coerce_int(request.args.get("day"))
+
+    return jsonify({"year": year, "month": month, "day": day})
 
 
 def _build_filters(args) -> tuple[str, list]:
@@ -54,7 +64,7 @@ def years():
     """
     Returns: [{year: 2011, count: 123}, ...]
     """
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
 
     # Assumption: scrobble has a datetime column named played_at in ISO format
@@ -87,7 +97,7 @@ def months():
     if not year:
         return jsonify({"error": "Missing year"}), 400
 
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
 
     rows = conn.execute(
@@ -118,7 +128,7 @@ def days():
     if not year or not month:
         return jsonify({"error": "Missing year or month"}), 400
 
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
 
     rows = conn.execute(
@@ -167,7 +177,7 @@ def results():
     dt_from = f"{date_from} 00:00:00"
     dt_to = f"{date_to} 23:59:59"
 
-    conn = get_db_connection()
+    conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
 
     # Top artists in range
