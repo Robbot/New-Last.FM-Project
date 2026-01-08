@@ -129,7 +129,6 @@
     });
   }
 
-  // ✅ Updated: removed "Statistics" (Top artists / Top albums) entirely.
   function renderResults(root, payload, state) {
     const label = root.querySelector("[data-drb-rangeLabel]");
     const results = root.querySelector("[data-drb-results]");
@@ -139,41 +138,87 @@
 
     const isDaily = state.level === "daily";
 
-    // Non-daily: keep results area clean (no statistics panels)
-    if (!isDaily) {
+    // Top Artists
+    const secA = document.createElement("div");
+    secA.className = "drb__resultsSection";
+    const hA = document.createElement("h4");
+    hA.textContent = "Top artists";
+    secA.appendChild(hA);
+
+    const ulA = document.createElement("ol");
+    ulA.className = "drb__list";
+    (payload.top_artists || []).slice(0, 15).forEach(r => {
+      const li = document.createElement("li");
+      li.className = "drb__small";
+      li.textContent = `${r.artist} — ${r.plays}`;
+      ulA.appendChild(li);
+    });
+
+    if (!ulA.childNodes.length) {
       const p = document.createElement("div");
       p.className = "drb__small drb__muted";
-      p.textContent = "Select a day to see scrobbles.";
-      results.appendChild(p);
-      return;
+      p.textContent = "No artists in this range.";
+      secA.appendChild(p);
+    } else {
+      secA.appendChild(ulA);
     }
+
+    // Top Albums
+    const secB = document.createElement("div");
+    secB.className = "drb__resultsSection";
+    const hB = document.createElement("h4");
+    hB.textContent = "Top albums";
+    secB.appendChild(hB);
+
+    const ulB = document.createElement("ol");
+    ulB.className = "drb__list";
+    (payload.top_albums || []).slice(0, 15).forEach(r => {
+      const li = document.createElement("li");
+      li.className = "drb__small";
+      li.textContent = `${r.artist} — ${r.album} — ${r.plays}`;
+      ulB.appendChild(li);
+    });
+
+    if (!ulB.childNodes.length) {
+      const p = document.createElement("div");
+      p.className = "drb__small drb__muted";
+      p.textContent = "No albums in this range.";
+      secB.appendChild(p);
+    } else {
+      secB.appendChild(ulB);
+    }
+
+    results.appendChild(secA);
+    results.appendChild(secB);
 
     // Daily: show raw scrobbles list (so user sees what actually happened that day)
-    const secC = document.createElement("div");
-    secC.className = "drb__resultsSection";
-    const hC = document.createElement("h4");
-    hC.textContent = "Scrobbles that day";
-    secC.appendChild(hC);
+    if (isDaily) {
+      const secC = document.createElement("div");
+      secC.className = "drb__resultsSection";
+      const hC = document.createElement("h4");
+      hC.textContent = "Scrobbles that day";
+      secC.appendChild(hC);
 
-    const rows = payload.rows || [];
-    if (!rows.length) {
-      const p = document.createElement("div");
-      p.className = "drb__small drb__muted";
-      p.textContent = "No scrobbles on this day for the current selection.";
-      secC.appendChild(p);
-    } else {
-      const ul = document.createElement("ul");
-      ul.className = "drb__list";
-      rows.slice(0, 200).forEach(r => {
-        const li = document.createElement("li");
-        li.className = "drb__small";
-        li.textContent = `${r.played_at} — ${r.artist} — ${r.album} — ${r.track}`;
-        ul.appendChild(li);
-      });
-      secC.appendChild(ul);
+      const rows = payload.rows || [];
+      if (!rows.length) {
+        const p = document.createElement("div");
+        p.className = "drb__small drb__muted";
+        p.textContent = "No scrobbles on this day for the current selection.";
+        secC.appendChild(p);
+      } else {
+        const ul = document.createElement("ul");
+        ul.className = "drb__list";
+        rows.slice(0, 200).forEach(r => {
+          const li = document.createElement("li");
+          li.className = "drb__small";
+          li.textContent = `${r.played_at} — ${r.artist} — ${r.album} — ${r.track}`;
+          ul.appendChild(li);
+        });
+        secC.appendChild(ul);
+      }
+
+      results.appendChild(secC);
     }
-
-    results.appendChild(secC);
   }
 
   async function fetchAndRenderResults(root, state, from, to) {
@@ -208,12 +253,12 @@
           state.day = null;
           await refresh(root, state);
 
-          // Results for whole year (now: just range label + muted text)
+          // Also update results for whole year
           await fetchAndRenderResults(root, state, `${state.year}-01-01`, `${state.year}-12-31`);
         }
       );
 
-      // Initial results = all time (now: just range label + muted text)
+      // Optional: initial results = all time (compute from first/last year)
       if (data.length) {
         const first = data[0].year;
         const last = data[data.length - 1].year;
@@ -239,13 +284,15 @@
           state.day = null;
           await refresh(root, state);
 
+          // Results for month range (use JS to compute last day safely)
           const y = state.year;
           const m = state.month;
-          const lastDay = new Date(y, m, 0).getDate();
+          const lastDay = new Date(y, m, 0).getDate(); // day 0 of next month = last day of current month
           await fetchAndRenderResults(root, state, ymd(y, m, 1), ymd(y, m, lastDay));
         }
       );
 
+      // If arriving here by crumb, show year results
       await fetchAndRenderResults(root, state, `${state.year}-01-01`, `${state.year}-12-31`);
       return;
     }
@@ -267,7 +314,7 @@
           state.level = "daily"; // lowest level
           renderCrumbs(root, state);
 
-          // Daily does NOT render more bars
+          // Daily does NOT render more bars (per your requirement)
           const bars = root.querySelector("[data-drb-bars]");
           bars.innerHTML = "";
 
@@ -277,6 +324,7 @@
         }
       );
 
+      // Default results for whole month
       const y = state.year;
       const m = state.month;
       const lastDay = new Date(y, m, 0).getDate();
@@ -285,6 +333,7 @@
     }
 
     if (state.level === "daily") {
+      // Already handled on click; keep safe fallback
       const from = ymd(state.year, state.month, state.day);
       await fetchAndRenderResults(root, state, from, from);
     }
