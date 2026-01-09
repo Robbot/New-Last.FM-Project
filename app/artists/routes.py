@@ -2,21 +2,26 @@ import math
 from flask import render_template, abort, request
 import db
 from . import artists_bp
+from app.utils.range import compute_range
 
 
 @artists_bp.route("/library/artists/<path:artist_name>")
 def artist_detail(artist_name: str):
+
+    start = (request.args.get("start") or "").strip()
+    end   = (request.args.get("end") or "").strip()
  
-    stats = db.get_artist_stats(artist_name)
+    stats = db.get_artist_stats(artist_name, start=start, end=end)
     if stats is None:
         abort(404, description="Artist not found")
-    albums_rows = db.get_artist_albums(artist_name)          # NEW or existing query
-    tracks_rows = db.get_top_tracks_for_artist(artist_name) # your new function
+    albums_rows = db.get_artist_albums(artist_name, start=start, end=end)          # NEW or existing query
+    tracks_rows = db.get_top_tracks_for_artist(artist_name, start=start, end=end) # your new function
 
     return render_template(
         "artist_detail.html",
         active_tab="artists",
         artist_name=artist_name,
+        start=start, end=end,
         stats=stats,
         albums_rows=albums_rows,
         tracks_rows=tracks_rows,

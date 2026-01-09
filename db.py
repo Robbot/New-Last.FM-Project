@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import requests
 from flask import current_app, url_for
+from datetime import datetime, timezone, timedelta
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -13,6 +14,19 @@ def get_db_connection() ->sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
+    """
+    Convert inclusive [start, end] in YYYY-MM-DD to epoch bounds:
+    uts >= start_epoch AND uts < end_epoch_exclusive
+    """
+    if not start or not end:
+        return None, None
+
+    s = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    e = datetime.strptime(end, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+
+    return int(s.timestamp()), int(e.timestamp())
 
 def get_latest_scrobbles():
     conn = get_db_connection()
@@ -102,23 +116,36 @@ def get_library_stats():
         "total_scrobbles": row["total_scrobbles"]
     }
 
-def get_artist_stats(artist_name: str):
+def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
     conn = get_db_connection()
-    row = conn.execute("""
+
+    start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
+
+    sql = """
         SELECT
             COUNT(*) AS scrobbles,
             COUNT(DISTINCT album) AS albums,
             COUNT(DISTINCT track) AS tracks
         FROM scrobble
         WHERE artist = ?
-    """, (artist_name,)).fetchone()
-    conn.close()
+    """
+                       
+    params = [artist_name]
 
+    # Apply date filter only when both start/end are present
+    if start_epoch is not None and end_epoch is not None:
+        sql += " AND uts >= ? AND uts < ?"
+        params.extend([start_epoch, end_epoch])
+
+    row = conn.execute(sql, params).fetchone()             
+    conn.close()
     return row
 
-def get_top_tracks_for_artist(artist_name):
+def get_top_tracks_for_artist(artist_name: str, start: str = "", end: str = ""):
     conn = get_db_connection()
-    rows = conn.execute("""
+    start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
+
+    sql = """
         SELECT
             artist,
             track,
@@ -127,7 +154,22 @@ def get_top_tracks_for_artist(artist_name):
         WHERE artist = ?
         GROUP BY track
         ORDER BY plays DESC
-    """, (artist_name,)).fetchall()
+    """
+    params = [artist_name]
+
+   
+    if start_epoch is not None and end_epoch is not None:
+        sql += " AND uts >= ? AND uts < ?"
+        params.extend([start_epoch, end_epoch])
+
+    sql += """
+        GROUP BY track
+        ORDER BY scrobbles DESC
+        LIMIT ?
+    """
+    params.append(limit)
+
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
 
