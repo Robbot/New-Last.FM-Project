@@ -141,7 +141,13 @@ def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
     conn.close()
     return row
 
-def get_top_tracks_for_artist(artist_name: str, start: str = "", end: str = ""):
+def get_top_tracks_for_artist(
+        artist_name: str, 
+        start: str = "",
+        end: str = "",
+        limit: int = 50
+    ):
+    
     conn = get_db_connection()
     start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
 
@@ -152,8 +158,6 @@ def get_top_tracks_for_artist(artist_name: str, start: str = "", end: str = ""):
             COUNT(*) AS plays
         FROM scrobble
         WHERE artist = ?
-        GROUP BY track
-        ORDER BY plays DESC
     """
     params = [artist_name]
 
@@ -163,8 +167,8 @@ def get_top_tracks_for_artist(artist_name: str, start: str = "", end: str = ""):
         params.extend([start_epoch, end_epoch])
 
     sql += """
-        GROUP BY track
-        ORDER BY scrobbles DESC
+        GROUP BY artist, track
+        ORDER BY plays DESC, track ASC
         LIMIT ?
     """
     params.append(limit)
@@ -187,20 +191,31 @@ def get_artists_details():
     return rows
 
 
-def get_artist_albums(artist_name: str):
+def get_artist_albums(artist_name: str, start: str = "", end: str = ""):
     conn = get_db_connection()
-    rows = conn.execute(
-        """
+
+    start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
+
+    sql = """
         SELECT
             album,
             COUNT(*) AS plays
         FROM scrobble
         WHERE artist = ?
+        """
+    params = [artist_name]
+    
+    if start_epoch is not None and end_epoch is not None:
+        sql += " AND uts >= ? AND uts < ?"
+        params.extend([start_epoch, end_epoch])
+
+    sql += """
         GROUP BY album
-        ORDER BY plays DESC
-        """,
-        (artist_name,),
-    ).fetchall()
+        ORDER BY plays DESC, album ASC
+        """
+    
+    rows = conn.execute(sql, params).fetchall()
+
     conn.close()
     return rows
 

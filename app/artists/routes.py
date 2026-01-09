@@ -8,10 +8,13 @@ from app.utils.range import compute_range
 @artists_bp.route("/library/artists/<path:artist_name>")
 def artist_detail(artist_name: str):
 
-    start = (request.args.get("start") or "").strip()
-    end   = (request.args.get("end") or "").strip()
+    from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
+    to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
+    rangetype = (request.args.get("rangetype") or "").strip()
+    start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
  
     stats = db.get_artist_stats(artist_name, start=start, end=end)
+    
     if stats is None:
         abort(404, description="Artist not found")
     albums_rows = db.get_artist_albums(artist_name, start=start, end=end)          # NEW or existing query
