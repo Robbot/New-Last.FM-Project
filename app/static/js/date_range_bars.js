@@ -264,31 +264,7 @@ function navigateFromState(root, state) {
       return;
     }
 
-    const secC = document.createElement("div");
-    secC.className = "drb__resultsSection";
-    const hC = document.createElement("h4");
-    hC.textContent = "Scrobbles that day";
-    secC.appendChild(hC);
-
-    const rows = payload.rows || [];
-    if (!rows.length) {
-      const p = document.createElement("div");
-      p.className = "drb__small drb__muted";
-      p.textContent = "No scrobbles on this day for the current selection.";
-      secC.appendChild(p);
-    } else {
-      const ul = document.createElement("ul");
-      ul.className = "drb__list";
-      rows.slice(0, 200).forEach(r => {
-        const li = document.createElement("li");
-        li.className = "drb__small";
-        li.textContent = `${r.played_at} — ${r.artist} — ${r.album} — ${r.track}`;
-        ul.appendChild(li);
-      });
-      secC.appendChild(ul);
-    }
-
-    results.appendChild(secC);
+    return;
   }
 
   async function fetchAndRenderResults(root, state, from, to) {
