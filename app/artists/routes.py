@@ -33,8 +33,22 @@ def artist_detail(artist_name: str):
 
 @artists_bp.route("/library/artists")
 def library_artists():
+    from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
+    to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
+    rangetype = (request.args.get("rangetype") or "").strip()
+
+    print("=" * 60)
+    print(f"Artists - URL params: from={from_arg}, to={to_arg}, rangetype={rangetype}")
+
+    start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
+
+    print(f"Artists - Computed range: start={start}, end={end}")
+
     stats = db.get_library_stats()
-    rows = db.get_artists_details()
+    rows = db.get_artists_details(start=start, end=end)
+
+    print(f"Artists - Total rows returned: {len(rows)}")
+    print("=" * 60)
 
     per_page = 50
     page = request.args.get("page", 1, type=int)
@@ -44,13 +58,13 @@ def library_artists():
 
     # clamp page within range
     if page < 1:
-        page = 1    
+        page = 1
     if page > total_pages:
         page = total_pages
-    
-    start = (page - 1) * per_page
-    end = start + per_page
-    rows = rows[start:end]
+
+    offset = (page - 1) * per_page
+    limit = offset + per_page
+    rows = rows[offset:limit]
 
     print("total_rows:", total_rows)
     print("per_page:", per_page)

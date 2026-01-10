@@ -43,6 +43,7 @@
   // /library/artists?page=1&from=2025-01-01&rangetype=year
   // /library/artists?page=1&from=2022-01-01&to=2022-10-27
   function navigateWithRange(root, from, to, rangeType) {
+    console.log("navigateWithRange called:", { from, to, rangeType });
     const url = new URL(window.location.href);
 
     // Reset paging whenever the time window changes
@@ -64,6 +65,7 @@
       url.searchParams.set(k, v);
     }
 
+    console.log("Navigating to:", url.toString());
     window.location.href = url.toString();
   }
 function lastDayOfMonth(y, m) {
@@ -316,6 +318,7 @@ function navigateFromState(root, state) {
         "count",
         async (item) => {
           // Clicking a year should change the Artists page range and reload
+          console.log("Year bar clicked:", item.year);
           const from = `${item.year}-01-01`;
           navigateWithRange(root, from, null, "year");
         }
@@ -387,6 +390,7 @@ function navigateFromState(root, state) {
   }
 
   function initOne(root) {
+    console.log("Date range bars initializing...");
     // Default state
     const state = {
       level: "years",

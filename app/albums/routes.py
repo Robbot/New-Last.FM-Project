@@ -3,25 +3,34 @@ from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
 import db
 import math
 from . import albums_bp
+from app.utils.range import compute_range
 
 @albums_bp.route("/library/albums")
 def library_albums():
+    from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
+    to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
+    rangetype = (request.args.get("rangetype") or "").strip()
+    start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
+
+    print(f"Albums - Date params: from={from_arg}, to={to_arg}, rangetype={rangetype}")
+    print(f"Albums - Computed range: start={start}, end={end}")
+
     stats = db.get_album_stats()
-    top_albums = db.get_top_albums()
+    top_albums = db.get_top_albums(start=start, end=end)
 
     per_page = 50
     page = request.args.get("page", 1, type=int)
     total_rows = len(top_albums)
-    total_pages = max(1, math.ceil(total_rows / per_page))  
+    total_pages = max(1, math.ceil(total_rows / per_page))
 
     if page < 1:
         page = 1
     if page > total_pages:
         page = total_pages
 
-    start = (page - 1) * per_page
-    end = start + per_page
-    top_albums = top_albums[start:end]
+    offset = (page - 1) * per_page
+    limit = offset + per_page
+    top_albums = top_albums[offset:limit]
 
     print("total_rows:", total_rows)
     print("per_page:", per_page)

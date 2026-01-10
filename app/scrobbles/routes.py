@@ -2,11 +2,17 @@ import math
 from flask import Blueprint, render_template, request
 import db
 from . import scrobbles_bp
+from app.utils.range import compute_range
 
 @scrobbles_bp.route("/library/scrobbles")
 def library_scrobbles():
+    from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
+    to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
+    rangetype = (request.args.get("rangetype") or "").strip()
+    start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
+
     # query: total scrobbles, avg per day, latest tracks
-    all_rows = db.get_latest_scrobbles()
+    all_rows = db.get_latest_scrobbles(start=start, end=end)
     per_day = db.average_scrobbles_per_day()
 
     per_page = 50
@@ -21,9 +27,9 @@ def library_scrobbles():
     if page > total_pages:
         page = total_pages
 
-    start = (page - 1) * per_page
-    end = start + per_page
-    page_rows = all_rows[start:end]
+    offset = (page - 1) * per_page
+    limit = offset + per_page
+    page_rows = all_rows[offset:limit]
 
     print("total_rows:", total_rows)
     print("per_page:", per_page)

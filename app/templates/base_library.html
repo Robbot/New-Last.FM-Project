@@ -15,21 +15,42 @@
 <ul class="nav nav-tabs">
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'scrobbles' %}active{% endif %}"
-       href="{{ url_for('scrobbles.library_scrobbles') }}">Scrobbles</a>
+       href="{{ url_for('scrobbles.library_scrobbles') }}" data-nav-tab>Scrobbles</a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'artists' %}active{% endif %}"
-       href="{{ url_for('artists.library_artists') }}">Artists</a>
+       href="{{ url_for('artists.library_artists') }}" data-nav-tab>Artists</a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'albums' %}active{% endif %}"
-       href="{{ url_for('albums.library_albums') }}">Albums</a>
+       href="{{ url_for('albums.library_albums') }}" data-nav-tab>Albums</a>
   </li>
   <li class="nav-item">
     <a class="nav-link {% if active_tab == 'tracks' %}active{% endif %}"
-       href="{{ url_for('tracks.library_tracks') }}">Tracks</a>
+       href="{{ url_for('tracks.library_tracks') }}" data-nav-tab>Tracks</a>
   </li>
 </ul>
+
+<script>
+// Preserve date range parameters when clicking navigation tabs
+document.addEventListener('DOMContentLoaded', function() {
+  const currentUrl = new URL(window.location.href);
+  const from = currentUrl.searchParams.get('from');
+  const to = currentUrl.searchParams.get('to');
+  const rangetype = currentUrl.searchParams.get('rangetype');
+
+  // Only modify tabs if date parameters exist
+  if (from || to || rangetype) {
+    document.querySelectorAll('[data-nav-tab]').forEach(function(link) {
+      const linkUrl = new URL(link.href);
+      if (from) linkUrl.searchParams.set('from', from);
+      if (to) linkUrl.searchParams.set('to', to);
+      if (rangetype) linkUrl.searchParams.set('rangetype', rangetype);
+      link.href = linkUrl.toString();
+    });
+  }
+});
+</script>
 
 <div class="mt-3">
   {% block summary_header %}{% endblock %}

@@ -28,18 +28,31 @@ def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
 
     return int(s.timestamp()), int(e.timestamp())
 
-def get_latest_scrobbles():
+def get_latest_scrobbles(start: str = "", end: str = ""):
     conn = get_db_connection()
-    rows = conn.execute(
-        """
+
+    sql = """
         SELECT artist,
                album,
                track,
                strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
         FROM scrobble
-        ORDER BY uts DESC
-        """
-    ).fetchall()
+    """
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ WHERE date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    # Order chronologically when filtering by date, reverse chronologically otherwise
+    if start and end:
+        sql += " ORDER BY uts ASC"
+    else:
+        sql += " ORDER BY uts DESC"
+
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
 
@@ -119,8 +132,6 @@ def get_library_stats():
 def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
     conn = get_db_connection()
 
-    start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
-
     sql = """
         SELECT
             COUNT(*) AS scrobbles,
@@ -129,27 +140,27 @@ def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
         FROM scrobble
         WHERE artist = ?
     """
-                       
+
     params = [artist_name]
 
-    # Apply date filter only when both start/end are present
-    if start_epoch is not None and end_epoch is not None:
-        sql += " AND uts >= ? AND uts < ?"
-        params.extend([start_epoch, end_epoch])
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
 
-    row = conn.execute(sql, params).fetchone()             
+    row = conn.execute(sql, params).fetchone()
     conn.close()
     return row
 
 def get_top_tracks_for_artist(
-        artist_name: str, 
+        artist_name: str,
         start: str = "",
         end: str = "",
         limit: int = 50
     ):
-    
+
     conn = get_db_connection()
-    start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
 
     sql = """
         SELECT
@@ -161,10 +172,11 @@ def get_top_tracks_for_artist(
     """
     params = [artist_name]
 
-   
-    if start_epoch is not None and end_epoch is not None:
-        sql += " AND uts >= ? AND uts < ?"
-        params.extend([start_epoch, end_epoch])
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
 
     sql += """
         GROUP BY artist, track
@@ -177,16 +189,33 @@ def get_top_tracks_for_artist(
     conn.close()
     return rows
 
-def get_artists_details():
+def get_artists_details(start: str = "", end: str = ""):
     conn = get_db_connection()
-    rows = conn.execute(
-        """
+
+    print(f"DB get_artists_details - Input: start={start}, end={end}")
+
+    sql = """
         SELECT artist, COUNT(*) AS plays
         FROM scrobble
+    """
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ WHERE date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+        print(f"DB get_artists_details - Using date filter")
+    else:
+        print(f"DB get_artists_details - NO date filter applied")
+
+    sql += """
         GROUP BY artist
         ORDER BY plays DESC
-        """
-    ).fetchall()
+    """
+
+    rows = conn.execute(sql, params).fetchall()
+    print(f"DB get_artists_details - Returned {len(rows)} rows")
     conn.close()
     return rows
 
@@ -194,28 +223,27 @@ def get_artists_details():
 def get_artist_albums(artist_name: str, start: str = "", end: str = ""):
     conn = get_db_connection()
 
-    start_epoch, end_epoch = _ymd_to_epoch_bounds(start, end)
-
     sql = """
         SELECT
             album,
             COUNT(*) AS plays
         FROM scrobble
         WHERE artist = ?
-        """
+    """
     params = [artist_name]
-    
-    if start_epoch is not None and end_epoch is not None:
-        sql += " AND uts >= ? AND uts < ?"
-        params.extend([start_epoch, end_epoch])
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
 
     sql += """
         GROUP BY album
         ORDER BY plays DESC, album ASC
-        """
-    
-    rows = conn.execute(sql, params).fetchall()
+    """
 
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
 
@@ -260,21 +288,32 @@ def get_album_stats():
         "total_scrobbles": row["total_scrobbles"],
     }
 
-def get_top_albums():
+def get_top_albums(start: str = "", end: str = ""):
     """Albums sorted by plays (scrobbles) desc."""
     conn = get_db_connection()
-    rows = conn.execute(
-        """
+
+    sql = """
         SELECT
             album,
             artist,
             COUNT(*) AS plays
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
+    """
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    sql += """
         GROUP BY album, artist
         ORDER BY plays DESC
-        """,
-    ).fetchall()
+    """
+
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
 
@@ -333,11 +372,11 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
     return rows
 
 
-def get_top_tracks():
+def get_top_tracks(start: str = "", end: str = ""):
     """Tracks sorted by plays (scrobbles) desc."""
     conn = get_db_connection()
-    rows = conn.execute(
-        """
+
+    sql = """
         SELECT
             track,
             artist,
@@ -345,10 +384,21 @@ def get_top_tracks():
             COUNT(*) AS plays
         FROM scrobble
         WHERE track IS NOT NULL AND track != ''
+    """
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    sql += """
         GROUP BY track, artist, album
         ORDER BY plays DESC
-        """,
-    ).fetchall()
+    """
+
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
 
