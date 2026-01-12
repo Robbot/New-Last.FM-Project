@@ -5,8 +5,10 @@ import sqlite3
 import time
 import re
 import requests
+from pathlib import Path
 
-DB_PATH = "lastfmstats.sqlite"           # <- adjust if your DB is elsewhere
+BASE_DIR = Path(__file__).resolve().parents[2]  # app/services → project root
+DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 TABLE = "album_art"
 MBID_COL = "album_mbid"
 YEAR_COL = "year_col"                   # <- your column name
