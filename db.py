@@ -28,6 +28,27 @@ def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
 
     return int(s.timestamp()), int(e.timestamp())
 
+def get_album_release_year(artist_name: str, album_name: str, table: str = "album_art", col: str ="year_col") -> str | None:
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            f"""
+            SELECT {col}
+            FROM {table}
+            WHERE artist = ?
+              AND album  = ?
+            LIMIT 1
+            """,
+            (artist_name, album_name),
+        ).fetchone()
+        if not row:
+            return None
+        y = row[col]
+        return str(y) if y is not None else None
+    finally:
+        conn.close()
+
+
 def get_latest_scrobbles(start: str = "", end: str = ""):
     conn = get_db_connection()
 

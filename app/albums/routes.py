@@ -66,6 +66,8 @@ def artist_album_detail(artist_name: str, album_name: str):
 
     total = db.get_album_total_plays(artist_name, album_name)
     art_row = db.get_album_art(artist_name, album_name)
+
+    release_year = db.get_album_release_year(artist_name, album_name)
     
     album_mbid = art_row["album_mbid"] if art_row and art_row["album_mbid"] else None
     image_xlarge = art_row["image_xlarge"] if art_row else None
@@ -78,6 +80,7 @@ def artist_album_detail(artist_name: str, album_name: str):
         active_tab="albums",
         artist_name=artist_name,
         album_name=album_name,
+        release_year=release_year,
         total_plays=total,
         tracks=rows,
         cover_url=cover_url,

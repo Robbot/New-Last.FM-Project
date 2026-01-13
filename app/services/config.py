@@ -1,7 +1,7 @@
 import configparser
 from pathlib import Path
 
-def get_api_key() -> tuple[str, str, str, str]:
+def get_api_key() -> tuple[str, str]:
     config = configparser.ConfigParser()
 
     # Path to config.ini next to this file, regardless of current working dir
@@ -14,7 +14,6 @@ def get_api_key() -> tuple[str, str, str, str]:
     section = config["last.fm"]          # your existing section name
     api_key = section["api_key"]
     username = section["username"]
-    client_id = section["client_id"]    
-    secret = section["secret"]
+  
 
-    return api_key, username, client_id, secret
+    return api_key, username
