@@ -4,6 +4,7 @@ def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str
     """
     Returns list of dicts with track_number and track name in album order.
     Uses Last.fm method album.getInfo.
+    Returns empty list if API fails or album not found.
     """
     url = "https://ws.audioscrobbler.com/2.0/"
     params = {
@@ -15,9 +16,13 @@ def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str
         "autocorrect": 1,
     }
 
-    r = requests.get(url, params=params, timeout=12, headers={"User-Agent": "Scrobbles/1.0"})
-    r.raise_for_status()
-    data = r.json()
+    try:
+        r = requests.get(url, params=params, timeout=12, headers={"User-Agent": "Scrobbles/1.0"})
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        print(f"Last.fm API error for {artist_name} - {album_name}: {e}")
+        return []
 
     album = data.get("album")
     if not album:

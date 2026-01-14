@@ -125,4 +125,4 @@ def main(limit: int | None = None) -> int:
 
 if __name__ == "__main__":
     # set limit=20 for a test run; set None for full backfill
-    main(limit=20)
+    main(limit=None)

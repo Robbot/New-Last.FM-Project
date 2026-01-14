@@ -52,23 +52,24 @@ def library_albums():
 
 @albums_bp.route("/library/artists/<artist_name>/albums/<album_name>")
 def artist_album_detail(artist_name: str, album_name: str):
+    # Verify the album exists in our scrobbles
+    total = db.get_album_total_plays(artist_name, album_name)
+    if total == 0:
+        abort(404)
 
+    # Try to fetch tracklist if not already cached
     if not db.album_tracks_exist(artist_name, album_name):
         api_key = current_app.config["api_key"]
         tracks = fetch_album_tracklist_lastfm(api_key, artist_name, album_name)
-        db.upsert_album_tracks(artist_name, album_name, tracks)
+        if tracks:  # Only insert if we got tracks back
+            db.upsert_album_tracks(artist_name, album_name, tracks)
 
-
-
+    # Get tracklist from database (may be empty if Last.fm doesn't have it)
     rows = db.get_album_tracks(artist_name, album_name)
-    if not rows:
-        abort(404)
 
-    total = db.get_album_total_plays(artist_name, album_name)
     art_row = db.get_album_art(artist_name, album_name)
-
     release_year = db.get_album_release_year(artist_name, album_name)
-    
+
     album_mbid = art_row["album_mbid"] if art_row and art_row["album_mbid"] else None
     image_xlarge = art_row["image_xlarge"] if art_row else None
 

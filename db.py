@@ -466,7 +466,7 @@ def get_album_total_plays(artist_name, album_name):
 
     # 3) Album art MBID lookup from album_art table
 def get_album_art(artist_name, album_name):
-    
+
     conn = get_db_connection()
     rows = conn.execute(
         """
@@ -479,6 +479,7 @@ def get_album_art(artist_name, album_name):
         (artist_name, album_name),
     ).fetchone()
     conn.close()
+    return rows
 
 def album_tracks_exist(artist_name, album_name):
     conn = get_db_connection()
