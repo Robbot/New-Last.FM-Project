@@ -50,7 +50,7 @@ def library_albums():
     )
 
 
-@albums_bp.route("/library/artists/<artist_name>/albums/<album_name>")
+@albums_bp.route("/library/artists/<path:artist_name>/albums/<path:album_name>")
 def artist_album_detail(artist_name: str, album_name: str):
     # Verify the album exists in our scrobbles
     total = db.get_album_total_plays(artist_name, album_name)
