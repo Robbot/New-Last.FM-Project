@@ -13,7 +13,7 @@ import time
 import sqlite3
 import requests
 from pathlib import Path
-from config import get_api_key  # your helper: returns (api_key, username)
+from .config import get_api_key  # your helper: returns (api_key, username)
 
 # ---------- Constants ----------
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -55,16 +55,25 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     # Album artwork / metadata
     cur.execute("""
         CREATE TABLE IF NOT EXISTS album_art (
-            album_mbid       TEXT PRIMARY KEY,
+            artist           TEXT NOT NULL,
+            album            TEXT NOT NULL,
+            album_mbid       TEXT,
             artist_mbid      TEXT,
-            artist           TEXT,
-            album            TEXT,
             image_small      TEXT,
             image_medium     TEXT,
             image_large      TEXT,
             image_xlarge     TEXT,
-            last_updated  INTEGER
+            last_updated     INTEGER,
+            year_col         INTEGER,
+            PRIMARY KEY (artist, album)
         );
+    """)
+
+    # Add index on album_mbid for lookups when available
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_album_art_mbid
+        ON album_art(album_mbid)
+        WHERE album_mbid IS NOT NULL
     """)
 
     conn.commit()
@@ -174,8 +183,8 @@ def sync_lastfm() -> None:
                  album_mbid, track_name, track_mbid, uts)
             )
 
-            # Collect album_art info when album_mbid is present
-            if album_mbid:
+            # Collect album_art info for ALL albums (with or without MBID)
+            if album_name:  # Only skip if album name is missing/empty
                 images = t.get("image", []) or []
                 img_small = img_medium = img_large = img_xlarge = None
 
@@ -193,17 +202,19 @@ def sync_lastfm() -> None:
                     elif size in ("extralarge", "mega"):
                         img_xlarge = url
 
-                album_batch.append({
-                    "album_mbid": album_mbid,
-                    "artist_mbid": artist_mbid,
-                    "artist": artist_name,
-                    "album": album_name,
-                    "image_small": img_small,
-                    "image_medium": img_medium,
-                    "image_large": img_large,
-                    "image_xlarge": img_xlarge,
-                    "last_updated": now_ts,
-                })
+                # Only add to batch if we have at least one image URL
+                if img_small or img_medium or img_large or img_xlarge:
+                    album_batch.append({
+                        "artist": artist_name,
+                        "album": album_name,
+                        "album_mbid": album_mbid,
+                        "artist_mbid": artist_mbid,
+                        "image_small": img_small,
+                        "image_medium": img_medium,
+                        "image_large": img_large,
+                        "image_xlarge": img_xlarge,
+                        "last_updated": now_ts,
+                    })
 
         if not scrobble_batch:
             print("No new scrobbles on this page. Stopping.")
@@ -229,31 +240,30 @@ def sync_lastfm() -> None:
         print(f"Page {page}: inserted {new_rows} new scrobbles "
               f"(batch size {len(scrobble_batch)})")
 
-        # Optional: sort album_art batch by album_mbid then time
+        # Optional: sort album_art batch by (artist, album) then time
         if album_batch:
-            album_batch.sort(key=lambda a: (a["album_mbid"], a["last_updated"]))
+            album_batch.sort(key=lambda a: (a["artist"], a["album"], a["last_updated"]))
             for a in album_batch:
                 cur.execute(
                     """
                     INSERT INTO album_art (
-                        album_mbid, artist_mbid, artist, album,
+                        artist, album, album_mbid, artist_mbid,
                         image_small, image_medium, image_large, image_xlarge,
                         last_updated
                     )
                     VALUES (
-                        :album_mbid, :artist_mbid, :artist, :album,
+                        :artist, :album, :album_mbid, :artist_mbid,
                         :image_small, :image_medium, :image_large, :image_xlarge,
                         :last_updated
                     )
-                    ON CONFLICT(album_mbid) DO UPDATE SET
-                        artist_mbid     = excluded.artist_mbid,
-                        artist          = excluded.artist,
-                        album           = excluded.album,
+                    ON CONFLICT(artist, album) DO UPDATE SET
+                        album_mbid      = COALESCE(excluded.album_mbid, album_art.album_mbid),
+                        artist_mbid     = COALESCE(excluded.artist_mbid, album_art.artist_mbid),
                         image_small     = COALESCE(excluded.image_small, album_art.image_small),
                         image_medium    = COALESCE(excluded.image_medium, album_art.image_medium),
                         image_large     = COALESCE(excluded.image_large, album_art.image_large),
                         image_xlarge    = COALESCE(excluded.image_xlarge, album_art.image_xlarge),
-                        last_updated = excluded.last_updated;
+                        last_updated    = excluded.last_updated;
                     """,
                     a,
                 )

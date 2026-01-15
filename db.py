@@ -464,7 +464,7 @@ def get_album_total_plays(artist_name, album_name):
  
     return row["total"] if row else 0
 
-    # 3) Album art MBID lookup from album_art table
+    # 3) Album art lookup from album_art table
 def get_album_art(artist_name, album_name):
 
     conn = get_db_connection()
