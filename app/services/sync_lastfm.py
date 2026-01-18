@@ -25,19 +25,24 @@ BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 # ---------- Cleaning helpers ----------
 
 # Regex patterns to remove remastered/remaster suffixes
+# Order matters: more specific patterns (with year) must come before less specific ones
 # Matches variants like:
-#   - " - Remastered 2014"
-#   - " - Remaster 2009"
-#   - " - remastered 1995"
-#   - " - Remastered"
-#   - " 2014 Remaster"
-#   - " 2009 Remastered"
-#   - " Remastered"
-#   - "(Remastered)" or "[Remastered 2014]"
+#   - " - Remastered 2014", " - Remaster 2009" (word before year)
+#   - " - 2018 Remaster", " - 2009 Remastered" (year before word)
+#   - " - Remastered", " - Remaster" (no year)
+#   - " 2014 Remaster", " 2009 Remastered" (year before word, no dash)
+#   - " Remastered" (no dash, no year)
+#   - "(Remastered)", "[Remastered 2014]" (parenthetical, word before year)
+#   - "(2018 Remaster)", "[2009 Remastered]" (parenthetical, year before word)
 _REMASTER_PATTERNS = [
-    r" -\s+(?:Remastered?|remastered?)(?:\s+\d{4})?\s*$",  # " - Remastered 2014" or " - Remaster"
-    r"\s+(?:Remastered?|remastered?)(?:\s+\d{4})?\s*$",    # " 2014 Remaster" or " Remastered"
-    r"\s*[\(\[]\s*(?:Remastered?|remastered?)(?:\s+\d{4})?\s*[\)\]]\s*$",  # "(Remastered)" or "[Remastered 2014]"
+    # Year BEFORE word (more specific - must be first)
+    r" -\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*$",
+    r"\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*$",
+    r"\s*[\(\[]\s*\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*[\)\]]\s*$",
+    # Word BEFORE year (less specific - comes after)
+    r" -\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
+    r"\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
+    r"\s*[\(\[]\s*(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*[\)\]]\s*$",
 ]
 
 def clean_remastered_suffix(title: str) -> str:

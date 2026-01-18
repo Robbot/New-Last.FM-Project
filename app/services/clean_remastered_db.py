@@ -21,10 +21,16 @@ DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 
 # ---------- Regex patterns ----------
 # Same patterns used in sync_lastfm.py
+# Order matters: more specific patterns (with year) must come before less specific ones
 _REMASTER_PATTERNS = [
-    r" -\s+(?:Remastered?|remastered?)(?:\s+\d{4})?\s*$",  # " - Remastered 2014" or " - Remaster"
-    r"\s+(?:Remastered?|remastered?)(?:\s+\d{4})?\s*$",    # " 2014 Remaster" or " Remastered"
-    r"\s*[\(\[]\s*(?:Remastered?|remastered?)(?:\s+\d{4})?\s*[\)\]]\s*$",  # "(Remastered)" or "[Remastered 2014]"
+    # Year BEFORE word (more specific - must be first)
+    r" -\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*$",
+    r"\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*$",
+    r"\s*[\(\[]\s*\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*[\)\]]\s*$",
+    # Word BEFORE year (less specific - comes after)
+    r" -\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
+    r"\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
+    r"\s*[\(\[]\s*(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*[\)\]]\s*$",
 ]
 
 

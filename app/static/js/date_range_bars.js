@@ -58,11 +58,15 @@
     if (rangeType) url.searchParams.set("rangetype", rangeType);
     else url.searchParams.delete("rangetype");
 
-    // Preserve current selection context if needed
-    // (doesn't hurt even if your backend ignores these today)
-    const ctx = getContextParams(root);
-    for (const [k, v] of ctx.entries()) {
-      url.searchParams.set(k, v);
+    // Only add context params if we're NOT on a detail page
+    // (detail pages already have artist/album/track in the URL path)
+    const currentPath = window.location.pathname;
+    const isDetailPage = /\/(artists|albums|tracks)\/[^/]+\/(albums|tracks)\/[^/]+/.test(currentPath);
+    if (!isDetailPage) {
+      const ctx = getContextParams(root);
+      for (const [k, v] of ctx.entries()) {
+        url.searchParams.set(k, v);
+      }
     }
 
     console.log("Navigating to:", url.toString());
@@ -118,9 +122,16 @@ function navigateFromState(root, state) {
     url.searchParams.set("rangetype", range.rangetype);
   }
 
-  // preserve context params
-  const ctx = getContextParams(root);
-  for (const [k, v] of ctx.entries()) url.searchParams.set(k, v);
+  // Only add context params if we're NOT on a detail page
+  // (detail pages already have artist/album/track in the URL path)
+  const currentPath = window.location.pathname;
+  const isDetailPage = /\/(artists|albums|tracks)\/[^/]+\/(albums|tracks)\/[^/]+/.test(currentPath);
+  if (!isDetailPage) {
+    const ctx = getContextParams(root);
+    for (const [k, v] of ctx.entries()) {
+      url.searchParams.set(k, v);
+    }
+  }
 
   window.location.href = url.toString();
 }
