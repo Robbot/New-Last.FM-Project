@@ -11,14 +11,54 @@ Sync Last.fm scrobbles into SQLite.
 
 import time
 import sqlite3
+import re
 import requests
 from pathlib import Path
-from .config import get_api_key  # your helper: returns (api_key, username)
+from config import get_api_key  # your helper: returns (api_key, username)
 
 # ---------- Constants ----------
 BASE_DIR = Path(__file__).resolve().parents[2]
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 BASE_URL = "https://ws.audioscrobbler.com/2.0/"
+
+
+# ---------- Cleaning helpers ----------
+
+# Regex patterns to remove remastered/remaster suffixes
+# Matches variants like:
+#   - " - Remastered 2014"
+#   - " - Remaster 2009"
+#   - " - remastered 1995"
+#   - " - Remastered"
+#   - " 2014 Remaster"
+#   - " 2009 Remastered"
+#   - " Remastered"
+#   - "(Remastered)" or "[Remastered 2014]"
+_REMASTER_PATTERNS = [
+    r" -\s+(?:Remastered?|remastered?)(?:\s+\d{4})?\s*$",  # " - Remastered 2014" or " - Remaster"
+    r"\s+(?:Remastered?|remastered?)(?:\s+\d{4})?\s*$",    # " 2014 Remaster" or " Remastered"
+    r"\s*[\(\[]\s*(?:Remastered?|remastered?)(?:\s+\d{4})?\s*[\)\]]\s*$",  # "(Remastered)" or "[Remastered 2014]"
+]
+
+def clean_remastered_suffix(title: str) -> str:
+    """
+    Remove artificial remastered/remaster suffixes from album or track titles.
+    These are added by Last.fm/music services and are not part of the original title.
+
+    Args:
+        title: The original title from Last.fm API
+
+    Returns:
+        Cleaned title with remastered suffixes removed
+    """
+    if not title:
+        return title
+
+    cleaned = title
+    for pattern in _REMASTER_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+    return cleaned.strip()
 
 
 # ---------- DB helpers ----------
@@ -166,16 +206,16 @@ def sync_lastfm() -> None:
             artist_mbid = t["artist"].get("mbid") or None
 
             if isinstance(t.get("album"), dict):
-                album_name = t["album"]["#text"]
+                album_name = clean_remastered_suffix(t["album"]["#text"])
                 album_mbid = t["album"].get("mbid") or None
             else:
-                album_name = t.get("album", "")
+                album_name = clean_remastered_suffix(t.get("album", ""))
                 album_mbid = None
 
             if album_mbid == "":
                 album_mbid = None
 
-            track_name = t["name"]
+            track_name = clean_remastered_suffix(t["name"])
             track_mbid = t.get("mbid") or None
 
             scrobble_batch.append(
