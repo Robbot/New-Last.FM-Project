@@ -31,7 +31,7 @@
     <tr>
       <td>{{ (page - 1) * per_page + loop.index }}</td>
       <td>
-         <a href="{{ url_for('albums.artist_album_detail', artist_name=row['artist'], album_name=row['album']) }}">
+         <a href="{{ url_for('albums.artist_album_detail', artist_name=row['artist'], album_name=row['album'], from=request.args.get('from', ''), to=request.args.get('to', ''), rangetype=request.args.get('rangetype', '')) }}">
         {{ row.album }}</a>
       </td>
       <td>

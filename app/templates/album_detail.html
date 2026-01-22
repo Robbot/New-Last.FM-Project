@@ -21,13 +21,21 @@
   </div>
 
   <div>
-    <p><strong>Total plays:</strong> {{ total_plays }}</p>
+    {% if start and end %}
+      <p><strong>Plays ({{ start }} to {{ end }}):</strong> {{ total_plays }}</p>
+      <p style="color:#666;"><small>All-time plays: {{ all_time_total }}</small></p>
+    {% else %}
+      <p><strong>Total plays (All time):</strong> {{ total_plays }}</p>
+    {% endif %}
     <p><strong>Tracks:</strong> {{ tracks|length }}</p>
     <p><strong>Release date:</strong> {{ release_year }}</p>
   </div>
 </div>
 
 <h2>Tracklist</h2>
+{% if start and end %}
+  <p style="color:#666;"><small>Showing plays from {{ start }} to {{ end }}</small></p>
+{% endif %}
 {% if tracks %}
 <table class="table">
   <thead>

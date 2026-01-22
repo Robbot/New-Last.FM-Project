@@ -449,19 +449,26 @@ def get_track_overview(artist_name: str, track_name: str):
 
 
     # Total album plays
-def get_album_total_plays(artist_name, album_name):
-    
+def get_album_total_plays(artist_name, album_name, start: str = "", end: str = ""):
+
     conn = get_db_connection()
-    row = conn.execute(
-        """
+
+    sql = """
         SELECT COUNT(*) AS total
         FROM scrobble
         WHERE artist = ?
           AND album  = ?
-        """,
-        (artist_name, album_name),
-    ).fetchone()
- 
+    """
+    params = [artist_name, album_name]
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    row = conn.execute(sql, params).fetchone()
+
     return row["total"] if row else 0
 
     # 3) Album art lookup from album_art table
@@ -510,34 +517,48 @@ def upsert_album_tracks(artist_name, album_name, tracks):
     )
     conn.commit()
 
-def get_album_tracks(artist_name: str, album_name: str):
+def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: str = ""):
     """
     Returns exactly ONE row per track, ordered by album track number,
     with correct play counts.
     """
     conn = get_db_connection()
-    rows = conn.execute(
-        """
-        SELECT
-            at.track_number,
-            at.track AS track_name,
-            COALESCE(p.plays, 0) AS plays
-        FROM album_tracks at
-        LEFT JOIN (
+
+    # Build the play count subquery with optional date filtering
+    play_count_sql = """
             SELECT
                 track,
                 COUNT(*) AS plays
             FROM scrobble
             WHERE artist = ?
               AND album  = ?
-            GROUP BY track
+    """
+    play_count_params = [artist_name, album_name]
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        play_count_sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                               AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        play_count_params.extend([start, end])
+
+    play_count_sql += " GROUP BY track"
+
+    rows = conn.execute(
+        f"""
+        SELECT
+            at.track_number,
+            at.track AS track_name,
+            COALESCE(p.plays, 0) AS plays
+        FROM album_tracks at
+        LEFT JOIN (
+            {play_count_sql}
         ) p
           ON p.track = at.track
         WHERE at.artist = ?
           AND at.album  = ?
         ORDER BY at.track_number ASC
         """,
-        (artist_name, album_name, artist_name, album_name),
+        (*play_count_params, artist_name, album_name),
     ).fetchall()
     conn.close()
     return rows
