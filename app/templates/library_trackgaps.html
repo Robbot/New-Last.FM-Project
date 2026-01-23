@@ -1,0 +1,88 @@
+{% extends "base_library.html" %}
+
+{% block summary_header %}
+<div class="d-flex gap-4">
+  <div>
+    <strong>{{ track_gaps|length }}</strong><br>
+    Tracks shown
+  </div>
+</div>
+{% endblock %}
+
+{% block main_content %}
+<h2>Track gaps</h2>
+<p>Time since last play (longest to shortest)</p>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Track</th>
+      <th>Artist</th>
+      <th>Album</th>
+      <th>Last played</th>
+      <th>Time since</th>
+      <th>Plays</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in track_gaps %}
+    <tr>
+      <td>{{ (page - 1) * per_page + loop.index }}</td>
+      <td>
+        <a href="{{ url_for('tracks.track_detail', artist_name=row['artist'], track_name=row['track']) }}">
+          {{ row["track"] }}
+        </a>
+      </td>
+      <td>
+        <a href="{{ url_for('artists.artist_detail', artist_name=row['artist']) }}">
+          {{ row["artist"] }}
+        </a>
+      </td>
+      <td>
+        {% if row["album"] %}
+        <a href="{{ url_for('albums.artist_album_detail', artist_name=row['artist'], album_name=row['album'], from=request.args.get('from', ''), to=request.args.get('to', ''), rangetype=request.args.get('rangetype', '')) }}">
+          {{ row["album"] }}
+        </a>
+        {% else %}
+        —
+        {% endif %}
+      </td>
+      <td>
+        {{ row["last_play_uts"]|datetime_format }}
+      </td>
+      <td>
+        {% set seconds = row["seconds_since"] %}
+        {% set days = (seconds // 86400) %}
+        {% set hours = ((seconds % 86400) // 3600) %}
+        {% if days > 0 %}
+          {{ days }}d {% if hours > 0 %}{{ hours }}h{% endif %}
+        {% elif hours > 0 %}
+          {{ hours }}h
+        {% else %}
+          < 1h
+        {% endif %}
+      </td>
+      <td>{{ row["plays"] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="pagination-wrapper">
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('trackgaps.library_trackgaps', page=1) }}">« First</a>
+        <a href="{{ url_for('trackgaps.library_trackgaps', page=page-1) }}">‹ {{page - 1}}</a>
+    {% endif %}
+
+    Page {{ page }} of {{ total_pages }}
+
+    {% if page < total_pages %}
+        <a href="{{ url_for('trackgaps.library_trackgaps', page=page+1) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('trackgaps.library_trackgaps', page=total_pages) }}">Last »</a>
+    {% endif %}
+</div>
+</div>
+
+{% endblock %}

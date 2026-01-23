@@ -571,6 +571,51 @@ def _safe_slug(text: str) -> str:
     return text[:100]
 
 
+def get_track_gaps(start: str = "", end: str = ""):
+    """Tracks sorted by time since last play (longest gap first)."""
+    conn = get_db_connection()
+
+    sql = """
+        SELECT
+            track,
+            artist,
+            album,
+            MAX(uts) AS last_play_uts,
+            COUNT(*) AS plays
+        FROM scrobble
+        WHERE track IS NOT NULL AND track != ''
+    """
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    sql += """
+        GROUP BY track, artist, album
+        ORDER BY last_play_uts ASC
+    """
+
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    # Calculate seconds since last play for each track
+    current_ts = int(datetime.now(timezone.utc).timestamp())
+    result = []
+    for row in rows:
+        result.append({
+            "track": row["track"],
+            "artist": row["artist"],
+            "album": row["album"],
+            "last_play_uts": row["last_play_uts"],
+            "plays": row["plays"],
+            "seconds_since": current_ts - row["last_play_uts"],
+        })
+
+    return result
+
 def _guess_ext_from_url(url: str) -> str:
     path = urlparse(url).path.lower()
     for ext in (".jpg", ".jpeg", ".png", ".webp"):

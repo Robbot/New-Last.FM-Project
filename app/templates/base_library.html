@@ -29,6 +29,10 @@
     <a class="nav-link {% if active_tab == 'tracks' %}active{% endif %}"
        href="{{ url_for('tracks.library_tracks') }}" data-nav-tab>Tracks</a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'trackgaps' %}active{% endif %}"
+       href="{{ url_for('trackgaps.library_trackgaps') }}" data-nav-tab>Track gaps</a>
+  </li>
 </ul>
 
 <script>
