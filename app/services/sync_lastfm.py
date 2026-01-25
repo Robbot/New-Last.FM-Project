@@ -24,7 +24,7 @@ BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 
 # ---------- Cleaning helpers ----------
 
-# Regex patterns to remove remastered/remaster suffixes
+# Regex patterns to remove remastered/remaster and expanded edition suffixes
 # Order matters: more specific patterns (with year) must come before less specific ones
 # Matches variants like:
 #   - " - Remastered 2014", " - Remaster 2009" (word before year)
@@ -34,6 +34,7 @@ BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 #   - " Remastered" (no dash, no year)
 #   - "(Remastered)", "[Remastered 2014]" (parenthetical, word before year)
 #   - "(2018 Remaster)", "[2009 Remastered]" (parenthetical, year before word)
+#   - " - Expanded Edition", " (Expanded Edition)" (expanded edition variants)
 _REMASTER_PATTERNS = [
     # Year BEFORE word (more specific - must be first)
     r" -\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*$",
@@ -43,18 +44,22 @@ _REMASTER_PATTERNS = [
     r" -\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s*[\(\[]\s*(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*[\)\]]\s*$",
+    # Expanded Edition variants
+    r" -\s+(?:Expanded Edition|expanded edition)\s*$",
+    r"\s+(?:Expanded Edition|expanded edition)\s*$",
+    r"\s*[\(\[]\s*(?:Expanded Edition|expanded edition)\s*[\)\]]\s*$",
 ]
 
 def clean_remastered_suffix(title: str) -> str:
     """
-    Remove artificial remastered/remaster suffixes from album or track titles.
+    Remove artificial remastered/remaster and expanded edition suffixes from album or track titles.
     These are added by Last.fm/music services and are not part of the original title.
 
     Args:
         title: The original title from Last.fm API
 
     Returns:
-        Cleaned title with remastered suffixes removed
+        Cleaned title with remastered/remaster and expanded edition suffixes removed
     """
     if not title:
         return title

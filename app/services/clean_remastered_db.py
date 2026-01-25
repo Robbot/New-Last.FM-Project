@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Clean existing remastered/remaster suffixes from database.
+Clean existing remastered/remaster and expanded edition suffixes from database.
 
 This is a one-time migration script to remove artificial remastered/remaster
-suffixes from existing scrobble and album_art records that were inserted
-before the cleaning was added to sync_lastfm.py.
+and expanded edition suffixes from existing scrobble and album_art records
+that were inserted before the cleaning was added to sync_lastfm.py.
 
-Run this after deploying the remaster cleaning fix to clean historical data.
+Run this after deploying the remaster/expanded cleaning fix to clean historical data.
 """
 
 import sqlite3
@@ -31,11 +31,15 @@ _REMASTER_PATTERNS = [
     r" -\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s*[\(\[]\s*(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*[\)\]]\s*$",
+    # Expanded Edition variants
+    r" -\s+(?:Expanded Edition|expanded edition)\s*$",
+    r"\s+(?:Expanded Edition|expanded edition)\s*$",
+    r"\s*[\(\[]\s*(?:Expanded Edition|expanded edition)\s*[\)\]]\s*$",
 ]
 
 
 def clean_remastered_suffix(title: str) -> str:
-    """Remove artificial remastered/remaster suffixes from a title."""
+    """Remove artificial remastered/remaster and expanded edition suffixes from a title."""
     if not title:
         return title
 
@@ -109,6 +113,7 @@ def clean_album_art_table(conn: sqlite3.Connection) -> int:
         SELECT * FROM album_art
         WHERE album LIKE '%Remaster%' OR album LIKE '%remaster%'
            OR album LIKE '%Remastered%' OR album LIKE '%remastered%'
+           OR album LIKE '%Expanded Edition%' OR album LIKE '%expanded edition%'
     """)
     rows = cur.fetchall()
 
