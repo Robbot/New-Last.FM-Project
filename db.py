@@ -5,10 +5,52 @@ from urllib.parse import urlparse
 import requests
 from flask import current_app, url_for
 from datetime import datetime, timezone, timedelta
+import unicodedata
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
+
+
+def _normalize_for_matching(text: str) -> str:
+    """
+    Normalize text for fuzzy matching.
+    - Removes accents (é → e, ö → o, etc.)
+    - Lowercases
+    - Replaces special characters (hyphens) with spaces
+    - Removes other punctuation
+    - Fixes common typos
+    """
+    if not text:
+        return ""
+
+    # Remove accents by converting to ASCII
+    # e.g., "Café" → "Cafe", "ö" → "o"
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join([c for c in text if not unicodedata.combining(c)])
+
+    # Lowercase
+    text = text.lower()
+
+    # Replace hyphens with spaces (important for "Four-Calendar" → "Four Calendar")
+    text = re.sub(r'[–—\-]+', ' ', text)
+
+    # Remove common punctuation and special chars
+    text = re.sub(r'[\'".,:;!?(){}\[\]<>/]+', '', text)
+
+    # Normalize whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    # Common typos/fixes
+    typo_fixes = {
+        'calender': 'calendar',
+        'occured': 'occurred',
+        'seperate': 'separate',
+    }
+    for typo, correct in typo_fixes.items():
+        text = text.replace(typo, correct)
+
+    return text
 
 def get_db_connection() ->sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -524,6 +566,54 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
     """
     conn = get_db_connection()
 
+    # Normalize the album name for fuzzy matching
+    normalized_album = _normalize_for_matching(album_name)
+
+    # Step 1: Find all album name variations in album_tracks that match the normalized name
+    album_track_albums = conn.execute(
+        """
+        SELECT DISTINCT album
+        FROM album_tracks
+        WHERE artist = ?
+        """,
+        (artist_name,),
+    ).fetchall()
+
+    # Find the canonical album_tracks album name (first match)
+    canonical_album = None
+    for row in album_track_albums:
+        if _normalize_for_matching(row["album"]) == normalized_album:
+            canonical_album = row["album"]
+            break
+
+    # If no exact normalized match, try exact match first
+    if canonical_album is None:
+        for row in album_track_albums:
+            if row["album"] == album_name:
+                canonical_album = row["album"]
+                break
+
+    # If still no match, use the provided album_name and return empty results
+    if canonical_album is None:
+        conn.close()
+        return []
+
+    # Step 2: Find all scrobble albums that match the normalized album name
+    all_scrobble_albums = conn.execute(
+        """
+        SELECT DISTINCT album
+        FROM scrobble
+        WHERE artist = ?
+        """,
+        (artist_name,),
+    ).fetchall()
+
+    # Get all matching scrobble album names
+    matching_album_names = [album_name]  # Start with the input album
+    for row in all_scrobble_albums:
+        if _normalize_for_matching(row["album"]) == normalized_album and row["album"] != album_name:
+            matching_album_names.append(row["album"])
+
     # Common suffixes to strip for fuzzy matching (order matters - longer first)
     # These will be removed from both album_tracks and scrobble track names
     suffixes = [
@@ -544,7 +634,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         " - 200",
         " (200",
         " - Rem",
-        " (Rem",
+        " (Rem)",
         " - Remix",
         " (Remix)",
         " - Edit",
@@ -559,6 +649,8 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
 
     # Build the play count subquery with optional date filtering
     # Include normalized track name for matching
+    # Use IN clause to get scrobbles from all matching album name variations
+    placeholders = ','.join(['?' for _ in matching_album_names])
     play_count_sql = f"""
             SELECT
                 track,
@@ -566,9 +658,9 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
                 COUNT(*) AS plays
             FROM scrobble
             WHERE artist = ?
-              AND album  = ?
+              AND album IN ({placeholders})
     """
-    play_count_params = [artist_name, album_name]
+    play_count_params = [artist_name] + matching_album_names
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -598,7 +690,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
           AND at.album  = ?
         ORDER BY at.track_number ASC
         """,
-        (*play_count_params, artist_name, album_name),
+        (*play_count_params, artist_name, canonical_album),
     ).fetchall()
     conn.close()
     return rows
