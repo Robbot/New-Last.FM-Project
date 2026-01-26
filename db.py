@@ -553,7 +553,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         LEFT JOIN (
             {play_count_sql}
         ) p
-          ON p.track = at.track
+          ON LOWER(p.track) = LOWER(at.track)
         WHERE at.artist = ?
           AND at.album  = ?
         ORDER BY at.track_number ASC
