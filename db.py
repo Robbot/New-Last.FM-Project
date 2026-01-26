@@ -524,10 +524,45 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
     """
     conn = get_db_connection()
 
+    # Common suffixes to strip for fuzzy matching (order matters - longer first)
+    # These will be removed from both album_tracks and scrobble track names
+    suffixes = [
+        " - Single Version",
+        " (Single Version)",
+        " - Album Version",
+        " (Album Version)",
+        " - Original Version",
+        " (Original Version)",
+        " - Original Mix",
+        " (Original Mix)",
+        " - Radio Edit",
+        " (Radio Edit)",
+        " - Remastered",
+        " (Remastered)",
+        " - Remastered Version",
+        " (Remastered Version)",
+        " - 200",
+        " (200",
+        " - Rem",
+        " (Rem",
+        " - Remix",
+        " (Remix)",
+        " - Edit",
+        " (Edit)",
+    ]
+
+    # Build SQL to normalize track name by stripping suffixes
+    # We chain REPLACE calls: REPLACE(REPLACE(track, suffix1, ''), suffix2, '')
+    normalize_sql = "LOWER(track)"
+    for suffix in suffixes:
+        normalize_sql = f"REPLACE({normalize_sql}, LOWER('{suffix}'), '')"
+
     # Build the play count subquery with optional date filtering
-    play_count_sql = """
+    # Include normalized track name for matching
+    play_count_sql = f"""
             SELECT
                 track,
+                {normalize_sql} AS normalized_track,
                 COUNT(*) AS plays
             FROM scrobble
             WHERE artist = ?
@@ -541,7 +576,12 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
                                AND date(uts, 'unixepoch', 'localtime') <= ?"""
         play_count_params.extend([start, end])
 
-    play_count_sql += " GROUP BY track"
+    play_count_sql += " GROUP BY normalized_track"
+
+    # Also normalize album_tracks track name for matching
+    normalize_at_sql = "LOWER(at.track)"
+    for suffix in suffixes:
+        normalize_at_sql = f"REPLACE({normalize_at_sql}, LOWER('{suffix}'), '')"
 
     rows = conn.execute(
         f"""
@@ -553,7 +593,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         LEFT JOIN (
             {play_count_sql}
         ) p
-          ON LOWER(p.track) = LOWER(at.track)
+          ON {normalize_at_sql} = p.normalized_track
         WHERE at.artist = ?
           AND at.album  = ?
         ORDER BY at.track_number ASC
