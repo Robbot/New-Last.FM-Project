@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Flask-based web application for enhanced Last.fm scrobble statistics. The app syncs listening history from Last.fm into a local SQLite database and provides detailed views for artists, albums, tracks, and scrobbles with pagination and statistics.
+A Flask-based web application for enhanced Last.fm scrobble statistics. The app syncs listening history from Last.fm into a local SQLite database and provides detailed views for artists, albums, tracks, and scrobbles with pagination, statistics, and unique features like track gap analysis.
 
 ## Running the Application
 
@@ -19,6 +19,9 @@ python wsgi.py
 ```bash
 # Sync Last.fm scrobbles to database
 python -m app.services.sync_lastfm
+
+# Clean remastered/expanded suffixes from existing database records
+python -m app.services.clean_remastered_db
 
 # Activate virtual environment (if needed)
 source .venv/bin/activate
@@ -39,11 +42,16 @@ The Flask app uses a modular Blueprint architecture:
   - `app/artists/`: Artist library and artist detail pages
   - `app/albums/`: Album library and album detail pages
   - `app/tracks/`: Track library and track detail pages
+  - `app/trackgaps/`: Unique feature showing tracks sorted by time since last play
+  - `app/daterange/`: Date range filtering for all library views
 - **Database Layer (`db.py`)**: All database queries centralized in root-level module. Uses `sqlite3.Row` factory for dict-like access
 - **Services (`app/services/`)**: External integrations and utilities:
-  - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite
+  - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite with data cleaning
   - `fetch_tracklist.py`: Fetches album tracklists from Last.fm API
+  - `clean_remastered_db.py`: One-time migration script to clean remastered suffixes from existing data
   - `config.py`: Reads Last.fm API credentials from `config.ini`
+- **Utils (`app/utils/`)**: Helper functions for range calculations and date handling
+- **Static Files (`app/static/`)**: Contains `covers/` subdirectory for cached album artwork
 
 ### Data Flow
 
@@ -54,8 +62,12 @@ The Flask app uses a modular Blueprint architecture:
 ### Database Schema
 
 - **`scrobble`**: Main table with artist, album, track, timestamps (uts = Unix timestamp seconds UTC)
+  - Fields: `id`, `artist`, `artist_mbid`, `album`, `album_mbid`, `track`, `track_mbid`, `uts`
   - Unique constraint on `(uts, artist, album, track)` prevents duplicates
-- **`album_art`**: Album cover URLs keyed by `album_mbid` (MusicBrainz ID)
+- **`album_art`**: Album artwork and metadata
+  - Fields: `artist`, `album`, `album_mbid`, `artist_mbid`, `image_small`, `image_medium`, `image_large`, `image_xlarge`, `last_updated`, `year_col`
+  - Primary key on `(artist, album)`
+  - Index on `album_mbid` for lookups when available
 - **`album_tracks`**: Album tracklists with track numbers, populated on-demand from Last.fm API
 
 ### Important Patterns
@@ -63,7 +75,21 @@ The Flask app uses a modular Blueprint architecture:
 - **Pagination**: All list views use manual offset/limit pagination (50 items per page)
 - **Album Art Caching**: `db.ensure_album_art_cached()` downloads album covers once to `app/static/covers/` and returns Flask static URLs
 - **Lazy Loading**: Album tracklists are fetched from Last.fm API only when viewing album detail page, then cached in `album_tracks` table
-- **Last.fm API**: Requires API key + username in `app/services/config.ini` (or `config.ini` in root)
+- **Last.fm API**: Requires API key + username in `config.ini`
+- **Date Filtering**: All library views support optional date range filtering via `start`/`end` or `from`/`to` query parameters
+
+### Data Cleaning Features
+
+The application includes sophisticated data cleaning to handle inconsistencies from Last.fm:
+
+- **Remastered/Expanded Edition Suffix Stripping**: Automatically removes artificial suffixes like:
+  - " - Remastered 2014", " - 2009 Remastered", "(Remastered)"
+  - " - Expanded Edition", "(Expanded Edition)"
+- **Case-Insensitive Matching**: For track/album lookups to handle capitalization variations
+- **Unicode Normalization**: Normalizes text to handle different character encodings
+- **Common Variation Handling**: Strips suffixes like " - Single Version", " - Album Version", " - Remix"
+
+Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively applied via `clean_remastered_db.py`.
 
 ### Configuration
 
@@ -75,3 +101,5 @@ The Flask app uses a modular Blueprint architecture:
 - **`base_library.html`**: Base template with navigation tabs
 - All library views extend `base_library.html` and set `active_tab` context variable
 - `_tracks_table.html`: Reusable partial for track tables
+- Custom Jinja filter `datetime_format`: Formats Unix timestamps to readable datetime strings (UTC)
+- Templates use static file serving for cached album covers from `app/static/covers/`
