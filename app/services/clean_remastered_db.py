@@ -3,8 +3,8 @@
 Clean existing remastered/remaster and expanded edition suffixes from database.
 
 This is a one-time migration script to remove artificial remastered/remaster
-and expanded edition suffixes from existing scrobble and album_art records
-that were inserted before the cleaning was added to sync_lastfm.py.
+and expanded edition suffixes from existing scrobble, album_art, and album_tracks
+records that were inserted before the cleaning was added to sync_lastfm.py.
 
 Run this after deploying the remaster/expanded cleaning fix to clean historical data.
 """
@@ -174,6 +174,70 @@ def clean_album_art_table(conn: sqlite3.Connection) -> int:
     return updated_count
 
 
+def clean_album_tracks_table(conn: sqlite3.Connection) -> int:
+    """
+    Clean track names in the album_tracks table.
+    Returns the number of rows updated.
+    """
+    cur = conn.cursor()
+
+    # Get all rows that need cleaning
+    cur.execute("""
+        SELECT * FROM album_tracks
+        WHERE track LIKE '%Remaster%' OR track LIKE '%remaster%'
+           OR track LIKE '%Remastered%' OR track LIKE '%remastered%'
+           OR track LIKE '%Expanded Edition%' OR track LIKE '%expanded edition%'
+           OR track LIKE '%Stereo Mix%' OR track LIKE '%Mono Mix%'
+           OR track LIKE '% - Remix%' OR track LIKE '%(Remix)%'
+           OR track LIKE '% - Mix%' OR track LIKE '%(Mix)%'
+           OR track LIKE '%Single Version%' OR track LIKE '%Album Version%'
+    """)
+    rows = cur.fetchall()
+
+    updated_count = 0
+    tracks_to_delete = []
+
+    for row in rows:
+        artist = row["artist"]
+        album = row["album"]
+        track = row["track"]
+        track_number = row["track_number"]
+        # Check if duration column exists (may not be in all rows)
+        duration = row["duration"] if "duration" in row.keys() else None
+
+        # Clean track name
+        cleaned_track = clean_remastered_suffix(track)
+
+        # Skip if no changes needed
+        if cleaned_track == track:
+            continue
+
+        # Use INSERT OR REPLACE to handle cases where cleaned track already exists
+        # First, delete the old entry if we're going to replace it
+        cur.execute("""
+            DELETE FROM album_tracks
+            WHERE artist = ? AND album = ? AND track_number = ?
+        """, (artist, album, track_number))
+
+        # Insert the cleaned version
+        if duration is not None:
+            cur.execute("""
+                INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number, duration)
+                VALUES (?, ?, ?, ?, ?)
+            """, (artist, album, cleaned_track, track_number, duration))
+        else:
+            cur.execute("""
+                INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number)
+                VALUES (?, ?, ?, ?)
+            """, (artist, album, cleaned_track, track_number))
+
+        updated_count += 1
+        print(f"  Updated album_tracks: {artist} - {album} | '{track}' -> '{cleaned_track}'")
+
+    conn.commit()
+    return updated_count
+
+
 def main():
     print("Starting remaster cleanup...")
     print(f"Database: {DB_PATH}")
@@ -202,7 +266,12 @@ def main():
         album_art_updated = clean_album_art_table(conn)
         print(f"Album art table: {album_art_updated} rows updated")
 
-        total_updated = scrobble_updated + album_art_updated
+        # Clean album_tracks table
+        print("\n--- Cleaning album_tracks table ---")
+        album_tracks_updated = clean_album_tracks_table(conn)
+        print(f"Album tracks table: {album_tracks_updated} rows updated")
+
+        total_updated = scrobble_updated + album_art_updated + album_tracks_updated
         print(f"\nDone. Total rows updated: {total_updated}")
         print(f"Backup saved at: {backup_path}")
 
