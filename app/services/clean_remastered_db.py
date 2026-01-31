@@ -35,6 +35,13 @@ _REMASTER_PATTERNS = [
     r" -\s+(?:Expanded Edition|expanded edition)\s*$",
     r"\s+(?:Expanded Edition|expanded edition)\s*$",
     r"\s*[\(\[]\s*(?:Expanded Edition|expanded edition)\s*[\)\]]\s*$",
+    # Mix/version suffixes (e.g., "2007 Stereo Mix", "2009 Remaster", "2011 Mix")
+    r" -\s+\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*$",
+    r"\s+[\(\[]\s*\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*[\)\]]\s*$",
+    r"\s+\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*$",
+    # Single Version, Album Version, Remix variations (without year)
+    r" -\s+(?:Single Version|Album Version|Remix|Mix)\s*$",
+    r"\s*[\(\[]\s*(?:Single Version|Album Version|Remix|Mix)\s*[\)\]]\s*$",
 ]
 
 
@@ -114,6 +121,10 @@ def clean_album_art_table(conn: sqlite3.Connection) -> int:
         WHERE album LIKE '%Remaster%' OR album LIKE '%remaster%'
            OR album LIKE '%Remastered%' OR album LIKE '%remastered%'
            OR album LIKE '%Expanded Edition%' OR album LIKE '%expanded edition%'
+           OR album LIKE '%Stereo Mix%' OR album LIKE '%Mono Mix%'
+           OR album LIKE '% - Remix%' OR album LIKE '%(Remix)%'
+           OR album LIKE '% - Mix%' OR album LIKE '%(Mix)%'
+           OR album LIKE '%Single Version%' OR album LIKE '%Album Version%'
     """)
     rows = cur.fetchall()
 
