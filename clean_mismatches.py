@@ -255,9 +255,21 @@ def prompt_action():
 
     while True:
         choice = input("\nYour choice [y/s/a/n/q/d]? ").strip().lower()
-        if choice in ['y', 'yes', 's', 'scrob', 'a', 'alb', 'n', 'no', 'q', 'quit', 'd', 'done']:
-            return choice
-        print("Invalid choice. Please try again.")
+        # Normalize to single character for consistency
+        if choice in ['y', 'yes']:
+            return 'y'
+        elif choice in ['s', 'scrob']:
+            return 's'
+        elif choice in ['a', 'alb']:
+            return 'a'
+        elif choice in ['n', 'no']:
+            return 'n'
+        elif choice in ['q', 'quit']:
+            return 'q'
+        elif choice in ['d', 'done']:
+            return 'd'
+        else:
+            print("Invalid choice. Please try again.")
 
 
 def apply_changes(conn, album_changes, track_changes):
@@ -332,7 +344,13 @@ def apply_changes(conn, album_changes, track_changes):
 
 
 def batch_review_mismatches(mismatches, category):
-    """Review mismatches with options for batch processing."""
+    """Review mismatches with options for batch processing.
+
+    Returns:
+        - None: User pressed 'd' (done) - stop all processing and apply changes
+        - []: User pressed 'q' (quit) - exit without saving
+        - list: List of approved changes for this batch
+    """
     if not mismatches:
         return []
 
@@ -345,17 +363,23 @@ def batch_review_mismatches(mismatches, category):
 
         choice = prompt_action()
 
-        if choice in ['q', 'quit']:
+        if choice == 'q':
+            # Signal to stop all processing and exit without saving
+            # Optionally save pending changes first
             if approved:
                 save = input(f"\nYou have {len(approved)} pending changes. Save before quitting? [y/N]: ").strip().lower()
                 if save == 'y':
-                    return approved
-            return []
+                    # Return tuple to indicate "quit with save"
+                    return ('QUIT', approved)
+            # Return tuple to indicate "quit without saving"
+            return ('QUIT', [])
 
-        if choice in ['d', 'done']:
-            return approved
+        if choice == 'd':
+            # Signal to stop all processing and apply approved changes
+            # Return tuple to indicate "done with all processing"
+            return ('DONE', approved)
 
-        if choice in ['n', 'no']:
+        if choice == 'n':
             index += 1
             continue
 
@@ -428,6 +452,8 @@ def main():
         return
 
     all_approved = []
+    done_processing = False
+    quit_without_saving = False
 
     # Process albums
     if choice in ['1', '3']:
@@ -435,34 +461,86 @@ def main():
         for mtype in ['album_tracks has suffix, scrobble cleaned', 'duplicate suffix in album_tracks', 'case difference']:
             if mtype in album_by_type:
                 print(f"\n--- Processing album mismatches: {mtype} ({len(album_by_type[mtype])} items) ---")
-                approved = batch_review_mismatches(album_by_type[mtype], 'album')
-                all_approved.extend([('album', a) for a in approved])
+                result = batch_review_mismatches(album_by_type[mtype], 'album')
+                # Check if user pressed 'd' (done) or 'q' (quit)
+                if isinstance(result, tuple):
+                    if result[0] == 'QUIT':
+                        if result[1]:  # User chose to save pending changes
+                            all_approved.extend([('album', a) for a in result[1]])
+                        quit_without_saving = not result[1]
+                        done_processing = True
+                        break
+                    elif result[0] == 'DONE':
+                        all_approved.extend([('album', a) for a in result[1]])
+                        done_processing = True
+                        break
+                all_approved.extend([('album', a) for a in result])
 
         # Process remaining types
-        for mtype in sorted(album_by_type.keys()):
-            if mtype not in ['album_tracks has suffix, scrobble cleaned', 'duplicate suffix in album_tracks', 'case difference']:
-                print(f"\n--- Processing album mismatches: {mtype} ({len(album_by_type[mtype])} items) ---")
-                approved = batch_review_mismatches(album_by_type[mtype], 'album')
-                all_approved.extend([('album', a) for a in approved])
+        if not done_processing:
+            for mtype in sorted(album_by_type.keys()):
+                if mtype not in ['album_tracks has suffix, scrobble cleaned', 'duplicate suffix in album_tracks', 'case difference']:
+                    print(f"\n--- Processing album mismatches: {mtype} ({len(album_by_type[mtype])} items) ---")
+                    result = batch_review_mismatches(album_by_type[mtype], 'album')
+                    # Check if user pressed 'd' (done) or 'q' (quit)
+                    if isinstance(result, tuple):
+                        if result[0] == 'QUIT':
+                            if result[1]:  # User chose to save pending changes
+                                all_approved.extend([('album', a) for a in result[1]])
+                            quit_without_saving = not result[1]
+                            done_processing = True
+                            break
+                        elif result[0] == 'DONE':
+                            all_approved.extend([('album', a) for a in result[1]])
+                            done_processing = True
+                            break
+                    all_approved.extend([('album', a) for a in result])
 
     # Process tracks
-    if choice in ['2', '3']:
+    if choice in ['2', '3'] and not done_processing:
         # Process most common types first
         for mtype in ['album_tracks has suffix, scrobble cleaned', 'duplicate suffix in album_tracks', 'case difference']:
             if mtype in track_by_type:
                 print(f"\n--- Processing track mismatches: {mtype} ({len(track_by_type[mtype])} items) ---")
-                approved = batch_review_mismatches(track_by_type[mtype], 'track')
-                all_approved.extend([('track', a) for a in approved])
+                result = batch_review_mismatches(track_by_type[mtype], 'track')
+                # Check if user pressed 'd' (done) or 'q' (quit)
+                if isinstance(result, tuple):
+                    if result[0] == 'QUIT':
+                        if result[1]:  # User chose to save pending changes
+                            all_approved.extend([('track', a) for a in result[1]])
+                        quit_without_saving = not result[1]
+                        done_processing = True
+                        break
+                    elif result[0] == 'DONE':
+                        all_approved.extend([('track', a) for a in result[1]])
+                        done_processing = True
+                        break
+                all_approved.extend([('track', a) for a in result])
 
         # Process remaining types
-        for mtype in sorted(track_by_type.keys()):
-            if mtype not in ['album_tracks has suffix, scrobble cleaned', 'duplicate suffix in album_tracks', 'case difference']:
-                print(f"\n--- Processing track mismatches: {mtype} ({len(track_by_type[mtype])} items) ---")
-                approved = batch_review_mismatches(track_by_type[mtype], 'track')
-                all_approved.extend([('track', a) for a in approved])
+        if not done_processing:
+            for mtype in sorted(track_by_type.keys()):
+                if mtype not in ['album_tracks has suffix, scrobble cleaned', 'duplicate suffix in album_tracks', 'case difference']:
+                    print(f"\n--- Processing track mismatches: {mtype} ({len(track_by_type[mtype])} items) ---")
+                    result = batch_review_mismatches(track_by_type[mtype], 'track')
+                    # Check if user pressed 'd' (done) or 'q' (quit)
+                    if isinstance(result, tuple):
+                        if result[0] == 'QUIT':
+                            if result[1]:  # User chose to save pending changes
+                                all_approved.extend([('track', a) for a in result[1]])
+                            quit_without_saving = not result[1]
+                            done_processing = True
+                            break
+                        elif result[0] == 'DONE':
+                            all_approved.extend([('track', a) for a in result[1]])
+                            done_processing = True
+                            break
+                    all_approved.extend([('track', a) for a in result])
 
     # Apply changes
-    if all_approved:
+    if quit_without_saving:
+        print("\nQuit without saving changes.")
+    elif all_approved:
         album_changes = [a for t, a in all_approved if t == 'album']
         track_changes = [a for t, a in all_approved if t == 'track']
         apply_changes(conn, album_changes, track_changes)
@@ -470,7 +548,8 @@ def main():
         print("\nNo changes approved.")
 
     conn.close()
-    print("\nDone!")
+    if not quit_without_saving:
+        print("\nDone!")
 
 
 if __name__ == '__main__':
