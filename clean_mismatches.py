@@ -402,12 +402,12 @@ def main():
 
     print("\nMismatch types found:")
     print("\nAlbum mismatches:")
-    for mtype, count in sorted(album_by_type.items(), key=lambda x: -x[1]):
-        print(f"  - {mtype}: {count}")
+    for mtype, mismatches in sorted(album_by_type.items(), key=lambda x: -len(x[1])):
+        print(f"  - {mtype}: {len(mismatches)}")
 
     print("\nTrack mismatches:")
-    for mtype, count in sorted(track_by_type.items(), key=lambda x: -x[1]):
-        print(f"  - {mtype}: {count}")
+    for mtype, mismatches in sorted(track_by_type.items(), key=lambda x: -len(x[1])):
+        print(f"  - {mtype}: {len(mismatches)}")
 
     # Ask which category to process
     print("\n" + "="*70)
