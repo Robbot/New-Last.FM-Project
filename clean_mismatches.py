@@ -463,8 +463,8 @@ def main():
 
     # Apply changes
     if all_approved:
-        album_changes = [a['change'] for t, a in all_approved if t == 'album']
-        track_changes = [a['change'] for t, a in all_approved if t == 'track']
+        album_changes = [a for t, a in all_approved if t == 'album']
+        track_changes = [a for t, a in all_approved if t == 'track']
         apply_changes(conn, album_changes, track_changes)
     else:
         print("\nNo changes approved.")
