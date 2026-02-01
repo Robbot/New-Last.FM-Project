@@ -304,12 +304,29 @@ def apply_changes(conn, album_changes, track_changes):
             else:  # 'a' - keep album_tracks as is, update scrobble
                 new_album = change['album_tracks_album']
 
+            # Check if target album already exists (would cause UNIQUE constraint violation)
             cursor.execute("""
-                UPDATE album_tracks
-                SET album = ?
+                SELECT 1 FROM album_tracks
                 WHERE artist = ? AND album = ?
-            """, (new_album, change['artist'], change['album_tracks_album']))
-            print(f"Updated album_tracks: '{change['album_tracks_album']}' -> '{new_album}'")
+                LIMIT 1
+            """, (change['artist'], new_album))
+            target_exists = cursor.fetchone() is not None
+
+            if target_exists:
+                # Delete the old rows that would become duplicates
+                cursor.execute("""
+                    DELETE FROM album_tracks
+                    WHERE artist = ? AND album = ?
+                """, (change['artist'], change['album_tracks_album']))
+                print(f"Deleted duplicate album_tracks rows: '{change['album_tracks_album']}'")
+            else:
+                # No conflict, safe to update
+                cursor.execute("""
+                    UPDATE album_tracks
+                    SET album = ?
+                    WHERE artist = ? AND album = ?
+                """, (new_album, change['artist'], change['album_tracks_album']))
+                print(f"Updated album_tracks: '{change['album_tracks_album']}' -> '{new_album}'")
 
     # Apply track changes
     for change in track_changes:
@@ -332,12 +349,29 @@ def apply_changes(conn, album_changes, track_changes):
             else:  # 'a'
                 new_track = change['album_tracks_track']
 
+            # Check if target track already exists (would cause UNIQUE constraint violation)
             cursor.execute("""
-                UPDATE album_tracks
-                SET track = ?
+                SELECT 1 FROM album_tracks
                 WHERE artist = ? AND album = ? AND track = ?
-            """, (new_track, change['artist'], change['album'], change['album_tracks_track']))
-            print(f"Updated album_tracks track: '{change['album_tracks_track']}' -> '{new_track}'")
+                LIMIT 1
+            """, (change['artist'], change['album'], new_track))
+            target_exists = cursor.fetchone() is not None
+
+            if target_exists:
+                # Delete the old row that would become a duplicate
+                cursor.execute("""
+                    DELETE FROM album_tracks
+                    WHERE artist = ? AND album = ? AND track = ?
+                """, (change['artist'], change['album'], change['album_tracks_track']))
+                print(f"Deleted duplicate album_tracks row: '{change['album_tracks_track']}'")
+            else:
+                # No conflict, safe to update
+                cursor.execute("""
+                    UPDATE album_tracks
+                    SET track = ?
+                    WHERE artist = ? AND album = ? AND track = ?
+                """, (new_track, change['artist'], change['album'], change['album_tracks_track']))
+                print(f"Updated album_tracks track: '{change['album_tracks_track']}' -> '{new_track}'")
 
     conn.commit()
     print(f"\n✓ Successfully applied {total} changes!")
