@@ -33,6 +33,17 @@
 </div>
 
 <h2>Tracklist</h2>
+<div style="margin-bottom: 16px;">
+  <strong>Sort by:</strong>
+  {% set query_params = {'from': from_arg, 'to': to_arg, 'rangetype': rangetype} %}
+  {% if sort_by == 'tracklist' %}
+    <span style="font-weight:bold; color:#333;">Tracklist</span>
+    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='plays', **query_params) }}" style="margin-left:12px; color:#666;">Popularity</a>
+  {% else %}
+    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='tracklist', **query_params) }}" style="color:#666;">Tracklist</a>
+    <span style="margin-left:12px; font-weight:bold; color:#333;">Popularity</span>
+  {% endif %}
+</div>
 {% if start and end %}
   <p style="color:#666;"><small>Showing plays from {{ start }} to {{ end }}</small></p>
 {% endif %}

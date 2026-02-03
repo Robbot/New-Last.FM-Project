@@ -58,6 +58,11 @@ def artist_album_detail(artist_name: str, album_name: str):
     rangetype = (request.args.get("rangetype") or "").strip()
     start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
 
+    # Process sort parameter (default: tracklist)
+    sort_by = (request.args.get("sort") or "tracklist").strip()
+    if sort_by not in ("tracklist", "plays"):
+        sort_by = "tracklist"
+
     # First check if album has any plays in the database (all-time)
     all_time_total = db.get_album_total_plays(artist_name, album_name)
     if all_time_total == 0:
@@ -74,7 +79,7 @@ def artist_album_detail(artist_name: str, album_name: str):
             db.upsert_album_tracks(artist_name, album_name, tracks)
 
     # Get tracklist from database (may be empty if Last.fm doesn't have it)
-    rows = db.get_album_tracks(artist_name, album_name, start=start or "", end=end or "")
+    rows = db.get_album_tracks(artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
 
     art_row = db.get_album_art(artist_name, album_name)
     release_year = db.get_album_release_year(artist_name, album_name)
@@ -100,4 +105,5 @@ def artist_album_detail(artist_name: str, album_name: str):
         from_arg=from_arg,
         to_arg=to_arg,
         rangetype=rangetype,
+        sort_by=sort_by,
     )

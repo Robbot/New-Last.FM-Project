@@ -559,10 +559,10 @@ def upsert_album_tracks(artist_name, album_name, tracks):
     )
     conn.commit()
 
-def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: str = ""):
+def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: str = "", sort_by: str = "tracklist"):
     """
-    Returns exactly ONE row per track, ordered by album track number,
-    with correct play counts.
+    Returns exactly ONE row per track, ordered by album track number (default)
+    or by play count (if sort_by='plays'), with correct play counts.
     """
     conn = get_db_connection()
 
@@ -688,7 +688,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
           ON {normalize_at_sql} = p.normalized_track
         WHERE at.artist = ?
           AND at.album  = ?
-        ORDER BY at.track_number ASC
+        ORDER BY { 'at.track_number ASC' if sort_by == 'tracklist' else 'COALESCE(p.plays, 0) DESC, at.track_number ASC' }
         """,
         (*play_count_params, artist_name, canonical_album),
     ).fetchall()
