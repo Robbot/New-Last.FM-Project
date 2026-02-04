@@ -7,6 +7,5 @@ Later, I am going add extra features not available within Last.fm like more grap
 The basic prototype webpage is already running at https://scrobble.rojek.ie
 New feature added which is counting the songs not played since the longest time but present in the database under additional tab called Track Gaps.
 
-TO DO
-5. Future Enhancements
+Future Enhancements
 Authentication: Add user accounts for personalised stats.
