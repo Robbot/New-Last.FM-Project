@@ -23,6 +23,15 @@ python -m app.services.sync_lastfm
 # Clean remastered/expanded suffixes from existing database records
 python -m app.services.clean_remastered_db
 
+# Clean track name case inconsistencies (e.g., "Of Wolf and Man" vs "Of Wolf And Man")
+python -m app.services.clean_track_case_db
+
+# Backfill album years from Last.fm API
+python -m app.services.backfill_album_years
+
+# Backup database
+python -m app.services.backup_db
+
 # Activate virtual environment (if needed)
 source .venv/bin/activate
 
@@ -49,6 +58,9 @@ The Flask app uses a modular Blueprint architecture:
   - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite with data cleaning
   - `fetch_tracklist.py`: Fetches album tracklists from Last.fm API
   - `clean_remastered_db.py`: One-time migration script to clean remastered suffixes from existing data
+  - `clean_track_case_db.py`: Normalizes track name case inconsistencies (e.g., "Of Wolf and Man" vs "Of Wolf And Man")
+  - `backfill_album_years.py` / `backfill_album_years_enhanced.py`: Populate album years from Last.fm API
+  - `backup_db.py`: Database backup utility
   - `config.py`: Reads Last.fm API credentials from `config.ini`
 - **Utils (`app/utils/`)**: Helper functions for range calculations and date handling
 - **Static Files (`app/static/`)**: Contains `covers/` subdirectory for cached album artwork
@@ -64,6 +76,7 @@ The Flask app uses a modular Blueprint architecture:
 - **`scrobble`**: Main table with artist, album, track, timestamps (uts = Unix timestamp seconds UTC)
   - Fields: `id`, `artist`, `artist_mbid`, `album`, `album_mbid`, `track`, `track_mbid`, `uts`
   - Unique constraint on `(uts, artist, album, track)` prevents duplicates
+  - All timestamps stored in UTC
 - **`album_art`**: Album artwork and metadata
   - Fields: `artist`, `album`, `album_mbid`, `artist_mbid`, `image_small`, `image_medium`, `image_large`, `image_xlarge`, `last_updated`, `year_col`
   - Primary key on `(artist, album)`
@@ -83,13 +96,15 @@ The Flask app uses a modular Blueprint architecture:
 The application includes sophisticated data cleaning to handle inconsistencies from Last.fm:
 
 - **Remastered/Expanded Edition Suffix Stripping**: Automatically removes artificial suffixes like:
-  - " - Remastered 2014", " - 2009 Remastered", "(Remastered)"
+  - " - Remastered 2014", " - 2009 Remastered", "(Remastered)", "[2014 Remaster]"
   - " - Expanded Edition", "(Expanded Edition)"
+  - " - 2007 Stereo Mix", " - Single Version", " - Album Version", " - Remix"
 - **Case-Insensitive Matching**: For track/album lookups to handle capitalization variations
-- **Unicode Normalization**: Normalizes text to handle different character encodings
+- **Unicode Normalization**: Normalizes text to handle different character encodings (removes accents: é → e, ö → o)
 - **Common Variation Handling**: Strips suffixes like " - Single Version", " - Album Version", " - Remix"
+- **Fuzzy Matching Function** (`db.py:_normalize_for_matching`): Lowercases, removes accents, replaces hyphens with spaces, fixes common typos
 
-Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively applied via `clean_remastered_db.py`.
+Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively applied via `clean_remastered_db.py` or `clean_track_case_db.py`.
 
 ### Configuration
 
@@ -103,3 +118,4 @@ Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively app
 - `_tracks_table.html`: Reusable partial for track tables
 - Custom Jinja filter `datetime_format`: Formats Unix timestamps to readable datetime strings (UTC)
 - Templates use static file serving for cached album covers from `app/static/covers/`
+- Date range parameters (`from`, `to`, `rangetype`) are preserved across navigation links
