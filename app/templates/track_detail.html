@@ -4,9 +4,9 @@
 
 {% block summary_header %}
 <h1>Track details</h1>
-<p>artist={{ artist_name }}</p>
-<p>track={{ track_name }}</p>
-<p>plays={{ stats["plays"] }}</p>
+<p>artist: <a href="{{ url_for('artists.artist_detail', artist_name=artist_name) }}">{{ artist_name }}</a></p>
+<p>track: {{ track_name }}</p>
+<p>plays: {{ stats["plays"] }}</p>
 {% endblock %}
 
 {% block main_content %}
