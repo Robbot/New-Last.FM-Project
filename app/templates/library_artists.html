@@ -17,12 +17,30 @@
 {% block main_content %}
 <h2>Most played artists</h2>
 
+{# Helper macro for sortable column header #}
+{% macro sortable_header(label, sort_by_value) %}
+  {% set current_by = current_sort.by %}
+  {% set current_order = current_sort.order %}
+  {% set new_order = "asc" if current_by != sort_by_value or current_order == "desc" else "desc" %}
+  {% set show_arrow = current_by == sort_by_value %}
+  {% set arrow_symbol = "↑" if show_arrow and new_order == "desc" else ("↓" if show_arrow and new_order == "asc" else "") %}
+
+  <th class="sortable-header" data-column="{{ sort_by_value }}">
+    <a href="{{ url_for('artists.library_artists', sort_by=sort_by_value, sort_order=new_order, page=1) }}"
+       class="sortable-link">
+      {{ label }}
+      <span class="sort-arrow">{{ arrow_symbol }}</span>
+    </a>
+  </th>
+{% endmacro %}
+
 <table class="table table-sm">
   <thead>
     <tr>
-      <th>#</th>
-      <th>Artist</th>
-      <th>Scrobbles</th>
+      {{ sortable_header("#", "rank") }}
+      {{ sortable_header("Artist", "artist") }}
+      {{ sortable_header("Scrobbles", "plays") }}
+      {{ sortable_header("Tracks", "tracks") }}
     </tr>
   </thead>
   <tbody>
@@ -34,6 +52,7 @@
           </a>
       </td>
       <td>{{ row["plays"] }}</td>
+      <td>{{ row["tracks"] }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -42,16 +61,50 @@
 <div class="pagination-wrapper">
 <div class="pagination">
     {% if page > 1 %}
-        <a href="{{ url_for('artists.library_artists', page=1) }}">« First</a>
-        <a href="{{ url_for('artists.library_artists', page=page-1) }}">‹ {{page - 1}}</a>
+        <a href="{{ url_for('artists.library_artists', page=1, sort_by=current_sort.by, sort_order=current_sort.order) }}">« First</a>
+        <a href="{{ url_for('artists.library_artists', page=page-1, sort_by=current_sort.by, sort_order=current_sort.order) }}">‹ {{page - 1}}</a>
     {% endif %}
 
     Page {{ page }} of {{ total_pages }}
 
     {% if page < total_pages %}
-        <a href="{{ url_for('artists.library_artists', page=page+1) }}">{{page + 1}} ›</a>
-        <a href="{{ url_for('artists.library_artists', page=total_pages) }}">Last »</a>
+        <a href="{{ url_for('artists.library_artists', page=page+1, sort_by=current_sort.by, sort_order=current_sort.order) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('artists.library_artists', page=total_pages, sort_by=current_sort.by, sort_order=current_sort.order) }}">Last »</a>
     {% endif %}
 </div>
 </div>
+
+<style>
+.sortable-header {
+  position: relative;
+  cursor: pointer;
+}
+
+.sortable-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sortable-link:hover {
+  text-decoration: underline;
+}
+
+.sort-arrow {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-size: 0.9em;
+  margin-left: 2px;
+}
+
+.sortable-header:hover .sort-arrow {
+  opacity: 1;
+}
+
+.sort-arrow:not(:empty) {
+  opacity: 1;
+}
+</style>
 {% endblock %}

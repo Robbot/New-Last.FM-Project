@@ -36,16 +36,18 @@ def library_artists():
     from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
     to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
     rangetype = (request.args.get("rangetype") or "").strip()
+    sort_by = (request.args.get("sort_by") or "plays").strip()
+    sort_order = (request.args.get("sort_order") or "desc").strip()
 
     print("=" * 60)
-    print(f"Artists - URL params: from={from_arg}, to={to_arg}, rangetype={rangetype}")
+    print(f"Artists - URL params: from={from_arg}, to={to_arg}, rangetype={rangetype}, sort_by={sort_by}, sort_order={sort_order}")
 
     start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
 
     print(f"Artists - Computed range: start={start}, end={end}")
 
     stats = db.get_library_stats()
-    rows = db.get_artists_details(start=start, end=end)
+    rows = db.get_artists_details(start=start, end=end, sort_by=sort_by, sort_order=sort_order)
 
     print(f"Artists - Total rows returned: {len(rows)}")
     print("=" * 60)
@@ -71,7 +73,9 @@ def library_artists():
     print("total_pages:", total_pages)
     print("current page:", page)
 
-        
+    # Determine current sort state for each column
+    current_sort = {"by": sort_by, "order": sort_order}
+
 
     return render_template(
         "library_artists.html",
@@ -81,4 +85,5 @@ def library_artists():
         page=page,
         total_pages=total_pages,
         per_page=per_page,
+        current_sort=current_sort,
     )

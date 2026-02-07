@@ -252,13 +252,22 @@ def get_top_tracks_for_artist(
     conn.close()
     return rows
 
-def get_artists_details(start: str = "", end: str = ""):
+def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", sort_order: str = "desc"):
     conn = get_db_connection()
 
-    print(f"DB get_artists_details - Input: start={start}, end={end}")
+    print(f"DB get_artists_details - Input: start={start}, end={end}, sort_by={sort_by}, sort_order={sort_order}")
+
+    # Validate sort_by and sort_order
+    valid_sort_columns = {"rank", "artist", "plays", "tracks"}
+    valid_sort_orders = {"asc", "desc"}
+
+    if sort_by not in valid_sort_columns:
+        sort_by = "plays"
+    if sort_order not in valid_sort_orders:
+        sort_order = "desc"
 
     sql = """
-        SELECT artist, COUNT(*) AS plays
+        SELECT artist, COUNT(*) AS plays, COUNT(DISTINCT track) AS tracks
         FROM scrobble
     """
     params = []
@@ -272,10 +281,15 @@ def get_artists_details(start: str = "", end: str = ""):
     else:
         print(f"DB get_artists_details - NO date filter applied")
 
-    sql += """
-        GROUP BY artist
-        ORDER BY plays DESC
-    """
+    sql += " GROUP BY artist"
+
+    # Apply sorting
+    if sort_by == "artist":
+        sql += f" ORDER BY artist {sort_order.upper()}"
+    elif sort_by == "tracks":
+        sql += f" ORDER BY tracks {sort_order.upper()}, artist ASC"
+    else:  # plays or rank (default)
+        sql += f" ORDER BY plays {sort_order.upper()}, artist ASC"
 
     rows = conn.execute(sql, params).fetchall()
     print(f"DB get_artists_details - Returned {len(rows)} rows")
