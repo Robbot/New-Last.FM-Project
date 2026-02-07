@@ -1,0 +1,32 @@
+/* Sortable table column styles */
+.sortable-header {
+  position: relative;
+  cursor: pointer;
+}
+
+.sortable-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sortable-link:hover {
+  text-decoration: underline;
+}
+
+.sort-arrow {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-size: 0.9em;
+  margin-left: 2px;
+}
+
+.sortable-header:hover .sort-arrow {
+  opacity: 1;
+}
+
+.sort-arrow:not(:empty) {
+  opacity: 1;
+}
