@@ -155,4 +155,61 @@ tbody tr:hover {
     background: #f0f4f8;
 }
 
-/* what's going on here? */
+/* Album detail styles */
+.album-detail-container {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.album-cover {
+    width: 220px;
+}
+
+.album-cover-img {
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.album-cover-placeholder {
+    width: 220px;
+    height: 220px;
+    border-radius: 10px;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-muted {
+    color: #666;
+}
+
+.mb-4 {
+    margin-bottom: 16px;
+}
+
+.fw-bold {
+    font-weight: bold;
+}
+
+.text-dark {
+    color: #333;
+}
+
+.ms-3 {
+    margin-left: 12px;
+}
+
+.sort-link {
+    color: #666;
+}
+
+/* Date range divider */
+.drb-divider {
+    margin: 16px 0;
+    border: 0;
+    border-top: 1px solid #e6e6e6;
+}

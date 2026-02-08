@@ -9,12 +9,12 @@
 
 {% block main_content %}
 
-<div style="display:flex; gap:16px; align-items:flex-start;">
-  <div style="width:220px;">
+<div class="album-detail-container">
+  <div class="album-cover">
     {% if cover_url %}
-      <img src="{{ cover_url }}" alt="Album art" style="width:220px; height:220px; object-fit:cover; border-radius:10px;">
+      <img src="{{ cover_url }}" alt="Album art" class="album-cover-img">
     {% else %}
-      <div style="width:220px; height:220px; border-radius:10px; background:#eee; display:flex; align-items:center; justify-content:center;">
+      <div class="album-cover-placeholder">
         no cover
       </div>
     {% endif %}
@@ -23,7 +23,7 @@
   <div>
     {% if start and end %}
       <p><strong>Plays ({{ start }} to {{ end }}):</strong> {{ total_plays }}</p>
-      <p style="color:#666;"><small>All-time plays: {{ all_time_total }}</small></p>
+      <p class="text-muted"><small>All-time plays: {{ all_time_total }}</small></p>
     {% else %}
       <p><strong>Total plays (All time):</strong> {{ total_plays }}</p>
     {% endif %}
@@ -33,19 +33,19 @@
 </div>
 
 <h2>Tracklist</h2>
-<div style="margin-bottom: 16px;">
+<div class="mb-4">
   <strong>Sort by:</strong>
   {% set query_params = {'from': from_arg, 'to': to_arg, 'rangetype': rangetype} %}
   {% if sort_by == 'tracklist' %}
-    <span style="font-weight:bold; color:#333;">Tracklist</span>
-    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='plays', **query_params) }}" style="margin-left:12px; color:#666;">Popularity</a>
+    <span class="fw-bold text-dark">Tracklist</span>
+    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='plays', **query_params) }}" class="ms-3 sort-link">Popularity</a>
   {% else %}
-    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='tracklist', **query_params) }}" style="color:#666;">Tracklist</a>
-    <span style="margin-left:12px; font-weight:bold; color:#333;">Popularity</span>
+    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='tracklist', **query_params) }}" class="sort-link">Tracklist</a>
+    <span class="ms-3 fw-bold text-dark">Popularity</span>
   {% endif %}
 </div>
 {% if start and end %}
-  <p style="color:#666;"><small>Showing plays from {{ start }} to {{ end }}</small></p>
+  <p class="text-muted"><small>Showing plays from {{ start }} to {{ end }}</small></p>
 {% endif %}
 {% if tracks %}
 <table class="table">
