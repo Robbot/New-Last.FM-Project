@@ -1,5 +1,6 @@
 from flask import abort, render_template, request, current_app
 from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
+from app.services.fetch_wikipedia import fetch_album_wikipedia_url
 import db
 import math
 from . import albums_bp
@@ -90,6 +91,14 @@ def artist_album_detail(artist_name: str, album_name: str):
     cache_key = album_mbid or f"{artist_name}_{album_name}"
     cover_url = db.ensure_album_art_cached(artist_name, album_name)
 
+    # Fetch Wikipedia URL
+    wikipedia_url = db.get_album_wikipedia_url(artist_name, album_name)
+    if not wikipedia_url:
+        # Try to fetch from Wikipedia API
+        wikipedia_url = fetch_album_wikipedia_url(artist_name, album_name)
+        if wikipedia_url:
+            db.set_album_wikipedia_url(artist_name, album_name, wikipedia_url)
+
     return render_template(
         "album_detail.html",
         active_tab="albums",
@@ -100,6 +109,7 @@ def artist_album_detail(artist_name: str, album_name: str):
         all_time_total=all_time_total,
         tracks=rows,
         cover_url=cover_url,
+        wikipedia_url=wikipedia_url,
         start=start,
         end=end,
         from_arg=from_arg,

@@ -769,6 +769,48 @@ def _guess_ext_from_url(url: str) -> str:
             return ".jpg" if ext == ".jpeg" else ext
     return ".jpg"
 
+def get_album_wikipedia_url(artist_name: str, album_name: str) -> str | None:
+    """Get the Wikipedia URL for an album from the database."""
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT wikipedia_url
+            FROM album_art
+            WHERE artist = ?
+              AND album  = ?
+            LIMIT 1
+            """,
+            (artist_name, album_name),
+        ).fetchone()
+        if row and row["wikipedia_url"]:
+            return row["wikipedia_url"]
+        return None
+    finally:
+        conn.close()
+
+
+def set_album_wikipedia_url(artist_name: str, album_name: str, wikipedia_url: str) -> bool:
+    """Set the Wikipedia URL for an album in the database."""
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            UPDATE album_art
+            SET wikipedia_url = ?
+            WHERE artist = ?
+              AND album  = ?
+            """,
+            (wikipedia_url, artist_name, album_name),
+        )
+        conn.commit()
+        return True
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 def ensure_album_art_cached(artist_name: str, album_name: str) -> str | None:
     """
     - Looks up album_art.image_xlarge for (artist_name, album_name)
