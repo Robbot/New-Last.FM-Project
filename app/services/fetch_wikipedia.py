@@ -18,42 +18,78 @@ def fetch_album_wikipedia_url(artist_name: str, album_name: str) -> Optional[str
     Returns:
         The Wikipedia URL if found, None otherwise
     """
+    # Common edition/remaster suffixes to strip for Wikipedia search
+    # Wikipedia articles typically don't include these in their titles
+    edition_suffixes = [
+        " (Standard Edition)",
+        " (Deluxe Edition)",
+        " (Expanded Edition)",
+        " (Collector's Edition)",
+        " (Limited Edition)",
+        " (Special Edition)",
+        " (Premium Edition)",
+        " (Bonus Track Edition)",
+        " (Bonus Track Version)",
+        " (Remastered)",
+        " (Remaster)",
+        " - Remastered",
+        " - Remaster",
+        " (Deluxe Version)",
+        " (Explicit Version)",
+        " (Clean Version)",
+        " (Original Album)",
+        " - Original Album",
+    ]
+
+    # Strip edition suffixes for better Wikipedia matching
+    cleaned_album = album_name
+    for suffix in edition_suffixes:
+        if cleaned_album.endswith(suffix):
+            cleaned_album = cleaned_album[:-len(suffix)]
+            break
+
     # Try searching for the album directly with artist
-    search_query = f'"{album_name}" (album) {artist_name}'
-    search_url = _search_wikipedia(search_query, artist_name, album_name)
+    search_query = f'"{cleaned_album}" (album) {artist_name}'
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
 
     if search_url:
         return search_url
 
     # Try with quotes around album name
-    search_query = f'"{album_name}" {artist_name}'
-    search_url = _search_wikipedia(search_query, artist_name, album_name)
+    search_query = f'"{cleaned_album}" {artist_name}'
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
 
     if search_url:
         return search_url
 
     # Try without quotes
-    search_query = f"{album_name} (album) {artist_name}"
-    search_url = _search_wikipedia(search_query, artist_name, album_name)
+    search_query = f"{cleaned_album} (album) {artist_name}"
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
 
     if search_url:
         return search_url
 
     # Try just the album name with (album) suffix
-    search_query = f'"{album_name}" (album)'
-    search_url = _search_wikipedia(search_query, artist_name, album_name)
+    search_query = f'"{cleaned_album}" (album)'
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
+
+    # Also try the original album name if all else fails
+    if not search_url and cleaned_album != album_name:
+        search_query = f'"{album_name}" (album) {artist_name}'
+        search_url = _search_wikipedia(search_query, artist_name, album_name, album_name)
 
     return search_url
 
 
-def _search_wikipedia(query: str, artist_name: str, album_name: str) -> Optional[str]:
+def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_album: str | None = None) -> Optional[str]:
     """
     Search Wikipedia for a query and return the URL if a direct match is found.
 
     Args:
         query: The search query string
         artist_name: The original artist name for validation
-        album_name: The original album name for validation
+        album_name: The original album name for validation (may include edition suffixes)
+        cleaned_album: The album name with edition suffixes stripped for better matching
 
     Returns:
         The Wikipedia URL if found, None otherwise
@@ -96,7 +132,7 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str) -> Optional
         best_score = -1
 
         normalized_artist = _normalize_for_comparison(artist_name)
-        normalized_album = _normalize_for_comparison(album_name)
+        normalized_album = _normalize_for_comparison(cleaned_album if cleaned_album else album_name)
 
         for result in search_results:
             title = result.get("title", "")
@@ -109,8 +145,9 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str) -> Optional
                 best_score = score
                 best_match = title
 
-        # Only return if we have a decent match (score >= 60)
-        if best_score >= 60 and best_match:
+        # Only return if we have a decent match (score >= 50, lowered from 60)
+        # to catch cases where edition suffixes were stripped
+        if best_score >= 50 and best_match:
             return f"https://en.wikipedia.org/wiki/{urllib.parse.quote(best_match.replace(' ', '_'))}"
 
         return None
