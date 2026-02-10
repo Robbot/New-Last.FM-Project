@@ -94,9 +94,10 @@ def artist_album_detail(artist_name: str, album_name: str):
     # Fetch Wikipedia URL
     wikipedia_url = db.get_album_wikipedia_url(artist_name, album_name)
     if not wikipedia_url:
-        # Try to fetch from Wikipedia API
+        # Try to fetch from Wikipedia API (tries English first, then Polish)
         wikipedia_url = fetch_album_wikipedia_url(artist_name, album_name)
         if wikipedia_url:
+            # Store the result (including "N/A" to indicate search was executed)
             db.set_album_wikipedia_url(artist_name, album_name, wikipedia_url)
 
     return render_template(

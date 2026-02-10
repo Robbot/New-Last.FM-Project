@@ -29,7 +29,7 @@
     {% endif %}
     <p><strong>Tracks:</strong> {{ tracks|length }}</p>
     <p><strong>Release date:</strong> {{ release_year }}</p>
-    {% if wikipedia_url %}
+    {% if wikipedia_url and wikipedia_url != "N/A" %}
       <p><strong>Wikipedia:</strong> <a href="{{ wikipedia_url }}" target="_blank" rel="noopener noreferrer">View article</a></p>
     {% endif %}
   </div>

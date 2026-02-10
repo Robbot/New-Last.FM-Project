@@ -11,12 +11,17 @@ def fetch_album_wikipedia_url(artist_name: str, album_name: str) -> Optional[str
     """
     Fetch the Wikipedia URL for an album using the Wikipedia API.
 
+    Tries English Wikipedia first, then Polish Wikipedia if not found.
+    If no result is found in either language, returns "N/A" to indicate
+    the search was executed but no match was found.
+
     Args:
         artist_name: Name of the artist
         album_name: Name of the album
 
     Returns:
-        The Wikipedia URL if found, None otherwise
+        The Wikipedia URL if found, "N/A" if search executed but no match,
+        None only on error conditions
     """
     # Common edition/remaster suffixes to strip for Wikipedia search
     # Wikipedia articles typically don't include these in their titles
@@ -50,38 +55,63 @@ def fetch_album_wikipedia_url(artist_name: str, album_name: str) -> Optional[str
 
     # Try searching for the album directly with artist
     search_query = f'"{cleaned_album}" (album) {artist_name}'
-    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="en")
 
     if search_url:
         return search_url
 
     # Try with quotes around album name
     search_query = f'"{cleaned_album}" {artist_name}'
-    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="en")
 
     if search_url:
         return search_url
 
     # Try without quotes
     search_query = f"{cleaned_album} (album) {artist_name}"
-    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="en")
 
     if search_url:
         return search_url
 
     # Try just the album name with (album) suffix
     search_query = f'"{cleaned_album}" (album)'
-    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album)
+    search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="en")
 
     # Also try the original album name if all else fails
     if not search_url and cleaned_album != album_name:
         search_query = f'"{album_name}" (album) {artist_name}'
-        search_url = _search_wikipedia(search_query, artist_name, album_name, album_name)
+        search_url = _search_wikipedia(search_query, artist_name, album_name, album_name, lang="en")
+
+    # If no result in English, try Polish Wikipedia
+    if not search_url:
+        search_query = f'"{cleaned_album}" (album) {artist_name}'
+        search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="pl")
+
+        if not search_url:
+            search_query = f'"{cleaned_album}" {artist_name}'
+            search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="pl")
+
+        if not search_url:
+            search_query = f"{cleaned_album} (album) {artist_name}"
+            search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="pl")
+
+        if not search_url:
+            search_query = f'"{cleaned_album}" (album)'
+            search_url = _search_wikipedia(search_query, artist_name, album_name, cleaned_album, lang="pl")
+
+        if not search_url and cleaned_album != album_name:
+            search_query = f'"{album_name}" (album) {artist_name}'
+            search_url = _search_wikipedia(search_query, artist_name, album_name, album_name, lang="pl")
+
+    # Return "N/A" if search was executed but no match found in either language
+    if not search_url:
+        return "N/A"
 
     return search_url
 
 
-def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_album: str | None = None) -> Optional[str]:
+def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_album: str | None = None, lang: str = "en") -> Optional[str]:
     """
     Search Wikipedia for a query and return the URL if a direct match is found.
 
@@ -90,13 +120,14 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_alb
         artist_name: The original artist name for validation
         album_name: The original album name for validation (may include edition suffixes)
         cleaned_album: The album name with edition suffixes stripped for better matching
+        lang: Wikipedia language code (default: "en", also supports "pl")
 
     Returns:
         The Wikipedia URL if found, None otherwise
     """
     try:
-        # Use Wikipedia API to search
-        search_api_url = "https://en.wikipedia.org/w/api.php"
+        # Use Wikipedia API to search with specified language
+        search_api_url = f"https://{lang}.wikipedia.org/w/api.php"
 
         params = {
             "action": "query",
@@ -148,7 +179,7 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_alb
         # Only return if we have a decent match (score >= 50, lowered from 60)
         # to catch cases where edition suffixes were stripped
         if best_score >= 50 and best_match:
-            return f"https://en.wikipedia.org/wiki/{urllib.parse.quote(best_match.replace(' ', '_'))}"
+            return f"https://{lang}.wikipedia.org/wiki/{urllib.parse.quote(best_match.replace(' ', '_'))}"
 
         return None
 
@@ -209,6 +240,11 @@ def _score_match(title: str, normalized_artist: str, normalized_album: str) -> i
         # Reduce score significantly if it's a self-titled album but we want a specific one
         if " greatest " not in normalized_title.lower():
             score -= 30
+
+    # MAJOR PENALTY: If neither "(album)" nor artist name are in title, this is likely
+    # a false positive for short album names (e.g., "Sen" matching "Sen_Dog")
+    if "(album)" not in title and normalized_artist not in normalized_title:
+        score -= 40  # This brings scores down below threshold for false positives
 
     return max(0, score)
 
