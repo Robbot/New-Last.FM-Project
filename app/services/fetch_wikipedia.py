@@ -111,7 +111,7 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_alb
             search_api_url,
             params=params,
             timeout=10,
-            headers={"User-Agent": "LastFMStats/1.0"},
+            headers={"User-Agent": "LastFMStats/1.0 (https://github.com/user; lastfmstats@example.com)"},
         )
 
         if response.status_code != 200:
@@ -225,3 +225,125 @@ def _normalize_for_comparison(text: str) -> str:
     text = re.sub(r'[^\w\s]', '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
+
+
+def fetch_album_year_from_wikipedia(wikipedia_url: str) -> Optional[str]:
+    """
+    Fetch the release year from a Wikipedia album article.
+
+    Looks for the release year in the Wikipedia infobox by parsing
+    the page content and extracting the year from common patterns.
+
+    Args:
+        wikipedia_url: The Wikipedia URL of the album article
+
+    Returns:
+        The release year as a string (e.g., "2005") or None if not found
+    """
+    try:
+        # Get the article title from the URL
+        parsed = urllib.parse.urlparse(wikipedia_url)
+        title = parsed.path.split('/')[-1]
+
+        # URL decode the title (e.g., %28 -> (, %29 -> ))
+        title = urllib.parse.unquote(title)
+
+        # Use Wikipedia API to get the page content
+        api_url = "https://en.wikipedia.org/w/api.php"
+
+        params = {
+            "action": "query",
+            "format": "json",
+            "prop": "revisions",
+            "rvprop": "content",
+            "rvslots": "main",
+            "titles": title,
+            "redirects": 1,
+        }
+
+        response = requests.get(
+            api_url,
+            params=params,
+            timeout=10,
+            headers={"User-Agent": "LastFMStats/1.0 (https://github.com/user; lastfmstats@example.com)"},
+        )
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+
+        if "query" not in data or "pages" not in data["query"]:
+            return None
+
+        pages = data["query"]["pages"]
+        page_id = next(iter(pages.keys()))
+
+        if page_id == "-1":  # Page not found
+            return None
+
+        page = pages[page_id]
+        revisions = page.get("revisions", [])
+
+        if not revisions:
+            return None
+
+        # Get the wikitext content (handle both old and new API formats)
+        # Newer MediaWiki uses "slots" structure
+        if "slots" in revisions[0]:
+            content = revisions[0]["slots"]["main"].get("*", "")
+        else:
+            # Older format
+            content = revisions[0].get("*", "")
+
+        # Extract year from common infobox patterns
+        # Pattern 1: | Released = {{Start date|YYYY (case-insensitive)
+        released_match = re.search(r'\|\s*released\s*=\s*{{Start date\|(\d{4})', content, re.IGNORECASE)
+        if released_match:
+            return released_match.group(1)
+
+        # Pattern 2: | Released = [[YYYY| (case-insensitive)
+        released_match = re.search(r'\|\s*released\s*=\s*\[\[(\d{4})', content, re.IGNORECASE)
+        if released_match:
+            return released_match.group(1)
+
+        # Pattern 3: | Released = YYYY (case-insensitive)
+        released_match = re.search(r'\|\s*released\s*=\s*(\d{4})', content, re.IGNORECASE)
+        if released_match:
+            return released_match.group(1)
+
+        # Pattern 4: | release year = YYYY
+        released_match = re.search(r'\|\s*release year\s*=\s*(\d{4})', content, re.IGNORECASE)
+        if released_match:
+            return released_match.group(1)
+
+        # Pattern 5: | Year = YYYY
+        released_match = re.search(r'\|\s*Year\s*=\s*(\d{4})', content)
+        if released_match:
+            return released_match.group(1)
+
+        # Pattern 6: Look for Infobox album with Released field (various formats, case-insensitive)
+        # This catches: "Released = 4 March 2005", "Released = March 4, 2005", etc.
+        released_match = re.search(r'\|\s*released\s*=\s*(?:{{hlist\|)?[^{\n]*?(\d{4})', content, re.IGNORECASE)
+        if released_match:
+            return released_match.group(1)
+
+        # Pattern 7: Look for release date in the first sentence or infobox
+        # e.g., "is the third studio album by Artist, released in 2005"
+        # or "released on March 15, 2005"
+        released_match = re.search(
+            r'released\s+(?:on\s+)?(?:in\s+)?'
+            r'(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+)?'
+            r'(\d{4})',
+            content, re.IGNORECASE
+        )
+        if released_match:
+            year = released_match.group(1)
+            # Validate it's a reasonable year (1900-2099)
+            if 1900 <= int(year) <= 2099:
+                return year
+
+        return None
+
+    except (requests.RequestException, KeyError, ValueError):
+        return None

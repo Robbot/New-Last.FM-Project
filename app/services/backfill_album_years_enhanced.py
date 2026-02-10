@@ -5,6 +5,7 @@ Enhanced album year backfill script.
 Falls back through multiple sources:
 1. MusicBrainz API (for albums with MBID)
 2. Last.fm album.getInfo API (for all albums)
+3. Wikipedia article (if Wikipedia URL is available in database)
 
 Usage:
     python -m app.services.backfill_album_years_enhanced
@@ -39,6 +40,27 @@ LF_TIMEOUT = 10
 LF_SLEEP_SECONDS = 0.5
 
 YEAR_RE = re.compile(r"^(\d{4})")
+
+
+def fetch_year_from_wikipedia(wikipedia_url: str) -> Optional[str]:
+    """
+    Try to get release year from Wikipedia article.
+    Returns year string or None.
+    """
+    wikipedia_url = (wikipedia_url or "").strip()
+    if not wikipedia_url:
+        return None
+
+    try:
+        # Import here to avoid circular imports
+        import sys
+        sys.path.insert(0, str(BASE_DIR / "app" / "services"))
+        from fetch_wikipedia import fetch_album_year_from_wikipedia as fetch_wiki_year
+
+        return fetch_wiki_year(wikipedia_url)
+    except Exception as e:
+        print(f"  [Wikipedia error: {e}]")
+        return None
 
 
 def get_lastfm_credentials() -> tuple[str, str]:
@@ -177,6 +199,7 @@ def main(limit: int | None = None, skip_musicbrainz: bool = False) -> int:
     updated = 0
     mbid_skipped = 0
     lastfm_success = 0
+    wikipedia_success = 0
 
     try:
         # Verify column exists
@@ -186,7 +209,8 @@ def main(limit: int | None = None, skip_musicbrainz: bool = False) -> int:
 
         # Get albums needing year, with artist and album info
         sql = f"""
-            SELECT rowid AS rid, {MBID_COL} AS mbid, {ARTIST_COL} AS artist, {ALBUM_COL} AS album
+            SELECT rowid AS rid, {MBID_COL} AS mbid, {ARTIST_COL} AS artist, {ALBUM_COL} AS album,
+                   wikipedia_url
             FROM {TABLE}
             WHERE ({YEAR_COL} IS NULL OR {YEAR_COL} = '' OR {YEAR_COL} = 0)
         """
@@ -211,6 +235,7 @@ def main(limit: int | None = None, skip_musicbrainz: bool = False) -> int:
             mbid = (row["mbid"] or "").strip()
             artist = (row["artist"] or "").strip()
             album = (row["album"] or "").strip()
+            wikipedia_url = (row["wikipedia_url"] or "").strip() if row["wikipedia_url"] else ""
             year = None
             source = ""
 
@@ -232,6 +257,15 @@ def main(limit: int | None = None, skip_musicbrainz: bool = False) -> int:
                 except Exception as e:
                     print(f"  [Last.fm error for '{artist}' - '{album}': {e}]")
 
+            # Strategy 3: Fall back to Wikipedia
+            if not year and wikipedia_url:
+                try:
+                    year = fetch_year_from_wikipedia(wikipedia_url)
+                    if year:
+                        source = "WP"
+                except Exception as e:
+                    print(f"  [Wikipedia error for '{artist}' - '{album}': {e}]")
+
             # Update database if we found a year
             if year:
                 conn.execute(
@@ -245,6 +279,9 @@ def main(limit: int | None = None, skip_musicbrainz: bool = False) -> int:
                 elif source == "LF":
                     print(f"[{i}/{len(rows)}] ✅ LF: {artist} - {album} -> {year}")
                     lastfm_success += 1
+                elif source == "WP":
+                    print(f"[{i}/{len(rows)}] ✅ WP: {artist} - {album} -> {year}")
+                    wikipedia_success += 1
             else:
                 mbid_skipped += 1
                 print(f"[{i}/{len(rows)}] ⚠️  {artist} - {album} -> no year found")
@@ -252,14 +289,17 @@ def main(limit: int | None = None, skip_musicbrainz: bool = False) -> int:
             # Sleep based on which source we used
             if source == "MB":
                 time.sleep(MB_SLEEP_SECONDS)
+            elif source == "WP":
+                time.sleep(LF_SLEEP_SECONDS)
             else:
                 time.sleep(LF_SLEEP_SECONDS)
 
         print(f"\n=== Summary ===")
         print(f"Total processed: {len(rows)}")
         print(f"Updated: {updated}")
-        print(f"  - Via MusicBrainz: {updated - lastfm_success}")
+        print(f"  - Via MusicBrainz: {updated - lastfm_success - wikipedia_success}")
         print(f"  - Via Last.fm: {lastfm_success}")
+        print(f"  - Via Wikipedia: {wikipedia_success}")
         print(f"Not found: {mbid_skipped}")
         return updated
 
