@@ -3,8 +3,8 @@
 
 {% block summary_header %}
 <h2>
-  <a href="{{ url_for('artists.artist_detail', artist_name=artist_name) }}">
-    {{ artist_name }}</a> — {{ album_name }}</h2>
+  <a href="{{ url_for('artists.artist_detail', artist_name=album_artist_name) }}">
+    {{ album_artist_name }}</a> — {{ album_name }}</h2>
 {% endblock %}
 
 {% block main_content %}
@@ -41,9 +41,9 @@
   {% set query_params = {'from': from_arg, 'to': to_arg, 'rangetype': rangetype} %}
   {% if sort_by == 'tracklist' %}
     <span class="fw-bold text-dark">Tracklist</span>
-    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='plays', **query_params) }}" class="ms-3 sort-link">Popularity</a>
+    <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist_name, album_name=album_name, sort='plays', **query_params) }}" class="ms-3 sort-link">Popularity</a>
   {% else %}
-    <a href="{{ url_for('albums.artist_album_detail', artist_name=artist_name, album_name=album_name, sort='tracklist', **query_params) }}" class="sort-link">Tracklist</a>
+    <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist_name, album_name=album_name, sort='tracklist', **query_params) }}" class="sort-link">Tracklist</a>
     <span class="ms-3 fw-bold text-dark">Popularity</span>
   {% endif %}
 </div>
@@ -63,7 +63,7 @@
     {% for row in tracks %}
       <tr>
         <td>{{ row["track_number"] }}</td>
-        <td><a href="{{ url_for('tracks.track_detail', artist_name=artist_name, track_name=row['track_name']) }}">
+        <td><a href="{{ url_for('tracks.track_detail', artist_name=row['track_artist'], track_name=row['track_name']) }}">
           {{ row["track_name"] }}</a>
         </td>
         <td>{{ row["plays"] }}</td>

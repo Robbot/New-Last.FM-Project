@@ -24,7 +24,7 @@
     {% for row in recent %}
       <tr>
         <td>{{ track_name }}</td>
-        <td><a href="{{ url_for('albums.artist_album_detail', artist_name=row['artist'], album_name=row['album']) }}">
+        <td><a href="{{ url_for('albums.artist_album_detail', album_artist_name=row['artist'], album_name=row['album']) }}">
           {{ row["album"] }}</a>
         </td>
         <td>{{ row["date"] }}</td>

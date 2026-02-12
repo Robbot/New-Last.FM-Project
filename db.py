@@ -32,11 +32,11 @@ def _normalize_for_matching(text: str) -> str:
     # Lowercase
     text = text.lower()
 
-    # Replace hyphens with spaces (important for "Four-Calendar" → "Four Calendar")
-    text = re.sub(r'[–—\-]+', ' ', text)
+    # Replace hyphens and slashes with spaces (important for "Four-Calendar" → "Four Calendar", "Weird Fishes/Arpeggi" → "Weird Fishes Arpeggi")
+    text = re.sub(r'[–—\-/]+', ' ', text)
 
     # Remove common punctuation and special chars
-    text = re.sub(r'[\'".,:;!?(){}\[\]<>/]+', '', text)
+    text = re.sub(r'[\'".,:;!?(){}\[\]<>]+', '', text)
 
     # Normalize whitespace
     text = re.sub(r'\s+', ' ', text).strip()
@@ -70,7 +70,7 @@ def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
 
     return int(s.timestamp()), int(e.timestamp())
 
-def get_album_release_year(artist_name: str, album_name: str, table: str = "album_art", col: str ="year_col") -> str | None:
+def get_album_release_year(album_artist_name: str, album_name: str, table: str = "album_art", col: str ="year_col") -> str | None:
     conn = get_db_connection()
     try:
         row = conn.execute(
@@ -81,7 +81,7 @@ def get_album_release_year(artist_name: str, album_name: str, table: str = "albu
               AND album  = ?
             LIMIT 1
             """,
-            (artist_name, album_name),
+            (album_artist_name, album_name),
         ).fetchone()
         if not row:
             return None
@@ -297,7 +297,7 @@ def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", 
     return rows
 
 
-def get_artist_albums(artist_name: str, start: str = "", end: str = ""):
+def get_artist_albums(album_artist_name: str, start: str = "", end: str = ""):
     conn = get_db_connection()
 
     sql = """
@@ -305,9 +305,9 @@ def get_artist_albums(artist_name: str, start: str = "", end: str = ""):
             album,
             COUNT(*) AS plays
         FROM scrobble
-        WHERE artist = ?
+        WHERE album_artist = ?
     """
-    params = [artist_name]
+    params = [album_artist_name]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -505,17 +505,17 @@ def get_track_overview(artist_name: str, track_name: str):
 
 
     # Total album plays
-def get_album_total_plays(artist_name, album_name, start: str = "", end: str = ""):
+def get_album_total_plays(album_artist_name, album_name, start: str = "", end: str = ""):
 
     conn = get_db_connection()
 
     sql = """
         SELECT COUNT(*) AS total
         FROM scrobble
-        WHERE artist = ?
+        WHERE album_artist = ?
           AND album  = ?
     """
-    params = [artist_name, album_name]
+    params = [album_artist_name, album_name]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -528,7 +528,7 @@ def get_album_total_plays(artist_name, album_name, start: str = "", end: str = "
     return row["total"] if row else 0
 
     # 3) Album art lookup from album_art table
-def get_album_art(artist_name, album_name):
+def get_album_art(album_artist_name, album_name):
 
     conn = get_db_connection()
     rows = conn.execute(
@@ -539,12 +539,12 @@ def get_album_art(artist_name, album_name):
           AND album  = ?
         LIMIT 1
         """,
-        (artist_name, album_name),
+        (album_artist_name, album_name),
     ).fetchone()
     conn.close()
     return rows
 
-def album_tracks_exist(artist_name, album_name):
+def album_tracks_exist(album_artist_name, album_name):
     conn = get_db_connection()
     row = conn.execute(
         """
@@ -554,11 +554,11 @@ def album_tracks_exist(artist_name, album_name):
           AND album  = ?
         LIMIT 1
         """,
-        (artist_name, album_name),
+        (album_artist_name, album_name),
     ).fetchone()
     return row is not None
 
-def upsert_album_tracks(artist_name, album_name, tracks):
+def upsert_album_tracks(album_artist_name, album_name, tracks):
     """
     tracks = list of dicts:
       [{"track": "The Grudge", "track_number": 1}, ...]
@@ -569,11 +569,11 @@ def upsert_album_tracks(artist_name, album_name, tracks):
         INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number)
         VALUES (?, ?, ?, ?)
         """,
-        [(artist_name, album_name, t["track"], t["track_number"]) for t in tracks],
+        [(album_artist_name, album_name, t["track"], t["track_number"]) for t in tracks],
     )
     conn.commit()
 
-def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: str = "", sort_by: str = "tracklist"):
+def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", end: str = "", sort_by: str = "tracklist"):
     """
     Returns exactly ONE row per track, ordered by album track number (default)
     or by play count (if sort_by='plays'), with correct play counts.
@@ -590,7 +590,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         FROM album_tracks
         WHERE artist = ?
         """,
-        (artist_name,),
+        (album_artist_name,),
     ).fetchall()
 
     # Find the canonical album_tracks album name (first match)
@@ -617,9 +617,9 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         """
         SELECT DISTINCT album
         FROM scrobble
-        WHERE artist = ?
+        WHERE album_artist = ?
         """,
-        (artist_name,),
+        (album_artist_name,),
     ).fetchall()
 
     # Get all matching scrobble album names
@@ -655,26 +655,29 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         " (Edit)",
     ]
 
-    # Build SQL to normalize track name by stripping suffixes
+    # Build SQL to normalize track name by stripping suffixes and normalizing slashes
     # We chain REPLACE calls: REPLACE(REPLACE(track, suffix1, ''), suffix2, '')
-    normalize_sql = "LOWER(track)"
+    # First replace slashes with spaces, then normalize multiple spaces (apply twice to handle 3+ spaces)
+    normalize_sql = "REPLACE(REPLACE(REPLACE(LOWER(track), '/', ' '), '  ', ' '), '  ', ' ')"
     for suffix in suffixes:
         normalize_sql = f"REPLACE({normalize_sql}, LOWER('{suffix}'), '')"
 
     # Build the play count subquery with optional date filtering
     # Include normalized track name for matching
     # Use IN clause to get scrobbles from all matching album name variations
+    # Also get track artist (for compilations where track artist may differ from album artist)
     placeholders = ','.join(['?' for _ in matching_album_names])
     play_count_sql = f"""
             SELECT
                 track,
+                artist,
                 {normalize_sql} AS normalized_track,
                 COUNT(*) AS plays
             FROM scrobble
-            WHERE artist = ?
+            WHERE album_artist = ?
               AND album IN ({placeholders})
     """
-    play_count_params = [artist_name] + matching_album_names
+    play_count_params = [album_artist_name] + matching_album_names
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -682,10 +685,11 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
                                AND date(uts, 'unixepoch', 'localtime') <= ?"""
         play_count_params.extend([start, end])
 
-    play_count_sql += " GROUP BY normalized_track"
+    play_count_sql += " GROUP BY normalized_track, artist"
 
     # Also normalize album_tracks track name for matching
-    normalize_at_sql = "LOWER(at.track)"
+    # Replace slashes with spaces and normalize multiple spaces (apply twice to handle 3+ spaces)
+    normalize_at_sql = "REPLACE(REPLACE(REPLACE(LOWER(at.track), '/', ' '), '  ', ' '), '  ', ' ')"
     for suffix in suffixes:
         normalize_at_sql = f"REPLACE({normalize_at_sql}, LOWER('{suffix}'), '')"
 
@@ -694,6 +698,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
         SELECT
             at.track_number,
             at.track AS track_name,
+            COALESCE(p.artist, '{album_artist_name}') AS track_artist,
             COALESCE(p.plays, 0) AS plays
         FROM album_tracks at
         LEFT JOIN (
@@ -704,7 +709,7 @@ def get_album_tracks(artist_name: str, album_name: str, start: str = "", end: st
           AND at.album  = ?
         ORDER BY { 'at.track_number ASC' if sort_by == 'tracklist' else 'COALESCE(p.plays, 0) DESC, at.track_number ASC' }
         """,
-        (*play_count_params, artist_name, canonical_album),
+        (*play_count_params, album_artist_name, canonical_album),
     ).fetchall()
     conn.close()
     return rows
@@ -769,7 +774,7 @@ def _guess_ext_from_url(url: str) -> str:
             return ".jpg" if ext == ".jpeg" else ext
     return ".jpg"
 
-def get_album_wikipedia_url(artist_name: str, album_name: str) -> str | None:
+def get_album_wikipedia_url(album_artist_name: str, album_name: str) -> str | None:
     """Get the Wikipedia URL for an album from the database."""
     conn = get_db_connection()
     try:
@@ -781,7 +786,7 @@ def get_album_wikipedia_url(artist_name: str, album_name: str) -> str | None:
               AND album  = ?
             LIMIT 1
             """,
-            (artist_name, album_name),
+            (album_artist_name, album_name),
         ).fetchone()
         if row and row["wikipedia_url"]:
             return row["wikipedia_url"]
@@ -790,7 +795,7 @@ def get_album_wikipedia_url(artist_name: str, album_name: str) -> str | None:
         conn.close()
 
 
-def set_album_wikipedia_url(artist_name: str, album_name: str, wikipedia_url: str) -> bool:
+def set_album_wikipedia_url(album_artist_name: str, album_name: str, wikipedia_url: str) -> bool:
     """Set the Wikipedia URL for an album in the database."""
     conn = get_db_connection()
     try:
@@ -801,7 +806,7 @@ def set_album_wikipedia_url(artist_name: str, album_name: str, wikipedia_url: st
             WHERE artist = ?
               AND album  = ?
             """,
-            (wikipedia_url, artist_name, album_name),
+            (wikipedia_url, album_artist_name, album_name),
         )
         conn.commit()
         return True
@@ -811,7 +816,7 @@ def set_album_wikipedia_url(artist_name: str, album_name: str, wikipedia_url: st
         conn.close()
 
 
-def ensure_album_art_cached(artist_name: str, album_name: str) -> str | None:
+def ensure_album_art_cached(album_artist_name: str, album_name: str) -> str | None:
     """
     - Looks up album_art.image_xlarge for (artist_name, album_name)
     - Downloads it once into: <app static>/covers/<key>.<ext>
@@ -827,7 +832,7 @@ def ensure_album_art_cached(artist_name: str, album_name: str) -> str | None:
           AND album  = ?
         LIMIT 1
         """,
-        (artist_name, album_name),
+        (album_artist_name, album_name),
     ).fetchone()
 
     if not art_row:
@@ -840,7 +845,7 @@ def ensure_album_art_cached(artist_name: str, album_name: str) -> str | None:
     album_mbid = (art_row["album_mbid"] or "").strip()
 
     # Prefer MBID for stable filename; otherwise slug artist+album
-    cache_key = album_mbid if album_mbid else f"{_safe_slug(artist_name)}__{_safe_slug(album_name)}"
+    cache_key = album_mbid if album_mbid else f"{_safe_slug(album_artist_name)}__{_safe_slug(album_name)}"
     ext = _guess_ext_from_url(cdn_url)
 
     covers_rel_dir = Path("covers")
