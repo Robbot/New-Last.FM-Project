@@ -97,6 +97,7 @@ def get_latest_scrobbles(start: str = "", end: str = ""):
     sql = """
         SELECT artist,
                album,
+               album_artist,
                track,
                strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
         FROM scrobble
@@ -303,9 +304,10 @@ def get_artist_albums(album_artist_name: str, start: str = "", end: str = ""):
     sql = """
         SELECT
             album,
+            album_artist,
             COUNT(*) AS plays
         FROM scrobble
-        WHERE album_artist = ?
+        WHERE artist = ?
     """
     params = [album_artist_name]
 
@@ -373,6 +375,7 @@ def get_top_albums(start: str = "", end: str = ""):
         SELECT
             album,
             artist,
+            album_artist,
             COUNT(*) AS plays
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
@@ -386,7 +389,7 @@ def get_top_albums(start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += """
-        GROUP BY album, artist
+        GROUP BY album, artist, album_artist
         ORDER BY plays DESC
     """
 
@@ -435,6 +438,7 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
         SELECT
             artist,
             album,
+            album_artist,
             track,
             strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
         FROM scrobble
@@ -458,6 +462,7 @@ def get_top_tracks(start: str = "", end: str = ""):
             track,
             artist,
             album,
+            album_artist,
             COUNT(*) AS plays
         FROM scrobble
         WHERE track IS NOT NULL AND track != ''
@@ -471,7 +476,7 @@ def get_top_tracks(start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += """
-        GROUP BY track, artist, album
+        GROUP BY track, artist, album, album_artist
         ORDER BY plays DESC
     """
 
@@ -731,6 +736,7 @@ def get_track_gaps(start: str = "", end: str = ""):
             track,
             artist,
             album,
+            album_artist,
             MAX(uts) AS last_play_uts,
             COUNT(*) AS plays
         FROM scrobble
@@ -745,7 +751,7 @@ def get_track_gaps(start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += """
-        GROUP BY track, artist, album
+        GROUP BY track, artist, album, album_artist
         ORDER BY last_play_uts ASC
     """
 
@@ -760,6 +766,7 @@ def get_track_gaps(start: str = "", end: str = ""):
             "track": row["track"],
             "artist": row["artist"],
             "album": row["album"],
+            "album_artist": row["album_artist"],
             "last_play_uts": row["last_play_uts"],
             "plays": row["plays"],
             "seconds_since": current_ts - row["last_play_uts"],

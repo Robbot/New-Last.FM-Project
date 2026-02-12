@@ -32,7 +32,8 @@
       <tr>
         <td>{{ loop.index }}</td>
         <td>
-          <a href="{{ url_for('albums.artist_album_detail', album_artist_name=artist_name, album_name=row['album']) }}">
+          {% set album_artist = row['album_artist'] if 'album_artist' in row.keys() and row['album_artist'] else artist_name %}
+          <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
           {{ row["album"] }}</a>
         </td>
         <td>{{ row["plays"] }}</td>

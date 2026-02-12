@@ -173,6 +173,44 @@ def fetch_recent_tracks(api_key: str,
     return data
 
 
+def _update_compilation_albums(conn: sqlite3.Connection) -> None:
+    """
+    Update album_artist to 'Various Artists' for compilation albums.
+    A compilation is defined as an album with 3+ distinct artists.
+    """
+    # Find all albums that should be compilations
+    cursor = conn.execute(
+        """
+        SELECT album
+        FROM scrobble
+        WHERE album IS NOT NULL AND album != ''
+        GROUP BY album
+        HAVING COUNT(DISTINCT artist) >= 3
+        """
+    )
+    compilation_albums = [row["album"] for row in cursor.fetchall()]
+
+    if not compilation_albums:
+        print("  No compilation albums found to update.")
+        return
+
+    # Build placeholders for the UPDATE query
+    placeholders = ",".join(["?" for _ in compilation_albums])
+    cursor = conn.execute(
+        f"""
+        UPDATE scrobble
+        SET album_artist = 'Various Artists'
+        WHERE album IN ({placeholders})
+          AND album_artist != 'Various Artists'
+        """,
+        compilation_albums,
+    )
+
+    updated = cursor.rowcount
+    conn.commit()
+    print(f"  Updated album_artist to 'Various Artists' for {updated} scrobbles across {len(compilation_albums)} compilation albums.")
+
+
 # ---------- Sync logic ----------
 
 def sync_lastfm() -> None:
@@ -237,7 +275,8 @@ def sync_lastfm() -> None:
 
             scrobble_batch.append(
                 (artist_name, artist_mbid, album_name,
-                 album_mbid, track_name, track_mbid, uts)
+                 album_mbid, track_name, track_mbid, uts,
+                 artist_name)  # album_artist initially = track artist
             )
 
             # Collect album_art info for ALL albums (with or without MBID)
@@ -285,8 +324,8 @@ def sync_lastfm() -> None:
             """
             INSERT OR IGNORE INTO scrobble
                 (artist, artist_mbid, album, album_mbid,
-                 track, track_mbid, uts)
-            VALUES (?, ?, ?, ?, ?, ?, ?);
+                 track, track_mbid, uts, album_artist)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
             """,
             scrobble_batch,
         )
@@ -337,6 +376,11 @@ def sync_lastfm() -> None:
         page += 1
         # polite delay – you’re nowhere near the rate limit with this
         time.sleep(0.25)
+
+    # Post-sync: update album_artist for compilation albums
+    if total_new_scrobbles > 0:
+        print("\nPost-sync: detecting compilation albums...")
+        _update_compilation_albums(conn)
 
     conn.close()
     print(f"\nDone. Total new scrobbles added: {total_new_scrobbles}")
