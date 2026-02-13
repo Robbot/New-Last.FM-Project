@@ -424,7 +424,8 @@ def get_track_stats_detail(artist_name: str, track_name: str):
         SELECT
             COUNT(*) AS plays
         FROM scrobble
-        WHERE lower(trim(artist)) = lower(trim(?)) and lower(trim(track)) = lower(trim(?))
+        WHERE lower(trim(artist)) = lower(trim(?))
+          AND lower(replace(replace(replace(trim(track), '\\!', '!'), '\\?', '?'), '\\[', '[')) = lower(trim(?))
         """,
         (artist_name, track_name),
     ).fetchone()
@@ -444,7 +445,7 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
         FROM scrobble
         WHERE
             LOWER(TRIM(artist)) = LOWER(TRIM(?))
-            AND LOWER(TRIM(track))  = LOWER(TRIM(?))
+            AND LOWER(replace(replace(replace(trim(track), '\\!', '!'), '\\?', '?'), '\\[', '[')) = LOWER(TRIM(?))
         ORDER BY uts DESC
         """,
         (artist_name, track_name),
@@ -731,9 +732,14 @@ def get_track_gaps(start: str = "", end: str = ""):
     """Tracks sorted by time since last play (longest gap first)."""
     conn = get_db_connection()
 
-    sql = """
+    # Normalize escaped characters in track names for proper grouping
+    # Handles \!, \?, \[, \] etc. so "Muka!" and "Muka\!" are treated as same track
+    # CHAR(92) is backslash - we remove all backslashes to normalize escaped characters
+    normalized_track = "TRIM(REPLACE(REPLACE(REPLACE(REPLACE(track, CHAR(92), ''), CHAR(92), ''), CHAR(92), ''), CHAR(92), ''))"
+
+    sql = f"""
         SELECT
-            track,
+            {normalized_track} AS track,
             artist,
             album,
             album_artist,
@@ -750,8 +756,8 @@ def get_track_gaps(start: str = "", end: str = ""):
                    AND date(uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
 
-    sql += """
-        GROUP BY track, artist, album, album_artist
+    sql += f"""
+        GROUP BY {normalized_track}, artist, album, album_artist
         ORDER BY last_play_uts ASC
     """
 
