@@ -243,8 +243,12 @@ def _score_match(title: str, normalized_artist: str, normalized_album: str) -> i
 
     # MAJOR PENALTY: If neither "(album)" nor artist name are in title, this is likely
     # a false positive for short album names (e.g., "Sen" matching "Sen_Dog")
+    # However, skip this penalty for longer album names (3+ words) with exact matches
+    album_word_count = len(normalized_album.split())
     if "(album)" not in title and normalized_artist not in normalized_title:
-        score -= 40  # This brings scores down below threshold for false positives
+        # Skip penalty for longer album names with exact title match
+        if not (album_word_count >= 3 and normalized_title == normalized_album):
+            score -= 40  # This brings scores down below threshold for false positives
 
     return max(0, score)
 
