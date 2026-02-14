@@ -135,7 +135,6 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_alb
             "list": "search",
             "srsearch": query,
             "srlimit": 10,
-            "srprop": "titles",
         }
 
         response = requests.get(
@@ -167,18 +166,20 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_alb
 
         for result in search_results:
             title = result.get("title", "")
+            snippet = result.get("snippet", "")
             if not title:
                 continue
 
-            score = _score_match(title, normalized_artist, normalized_album)
+            score = _score_match(title, snippet, normalized_artist, normalized_album)
 
             if score > best_score:
                 best_score = score
                 best_match = title
 
-        # Only return if we have a decent match (score >= 50, lowered from 60)
-        # to catch cases where edition suffixes were stripped
-        if best_score >= 50 and best_match:
+        # Lenient threshold: accept scores >= 20 (down from 50)
+        # This catches albums like "In Rainbows" that exactly match the title
+        # but don't have "(album)" suffix or artist name in the title
+        if best_score >= 20 and best_match:
             return f"https://{lang}.wikipedia.org/wiki/{urllib.parse.quote(best_match.replace(' ', '_'))}"
 
         return None
@@ -187,16 +188,22 @@ def _search_wikipedia(query: str, artist_name: str, album_name: str, cleaned_alb
         return None
 
 
-def _score_match(title: str, normalized_artist: str, normalized_album: str) -> int:
+def _score_match(title: str, snippet: str, normalized_artist: str, normalized_album: str) -> int:
     """
     Score a Wikipedia title match against the expected artist and album.
     Returns a score from 0-100.
+
+    This is a more lenient version that:
+    - Checks if the snippet mentions "album" (common in Wikipedia intros)
+    - Uses lower threshold for exact title matches
+    - More generous scoring for multi-word albums
 
     Scoring rules:
     - +50 points if the normalized album name appears in the title
     - +40 points if the title ends with "(album)"
     - -100 points if the title is a song page (contains "(song)")
     - +30 points if the normalized artist name appears in the title
+    - +20 points if the snippet mentions "album" (for pages without "(album)" in title)
     - +10 points for close word matches
     """
     score = 0
@@ -207,7 +214,8 @@ def _score_match(title: str, normalized_artist: str, normalized_album: str) -> i
         return -1000
 
     # Check if album name is present in title (highest priority)
-    if normalized_album in normalized_title:
+    album_name_in_title = normalized_album in normalized_title
+    if album_name_in_title:
         score += 50
         # Bonus for exact album match at start
         if normalized_title.startswith(normalized_album):
@@ -223,6 +231,13 @@ def _score_match(title: str, normalized_artist: str, normalized_album: str) -> i
     # Check if artist name is present in title
     if normalized_artist in normalized_title:
         score += 30
+
+    # NEW: Check if snippet mentions "album" (common in Wikipedia intros like "X is the seventh studio album by Y")
+    # This helps identify album pages even when "(album)" isn't in the title
+    if snippet and "album" in snippet.lower():
+        # Only add this bonus if we don't already have "(album)" in the title
+        if "(album)" not in title:
+            score += 20
 
     # Word overlap scoring for partial matches
     title_words = set(normalized_title.split())
@@ -241,14 +256,18 @@ def _score_match(title: str, normalized_artist: str, normalized_album: str) -> i
         if " greatest " not in normalized_title.lower():
             score -= 30
 
-    # MAJOR PENALTY: If neither "(album)" nor artist name are in title, this is likely
-    # a false positive for short album names (e.g., "Sen" matching "Sen_Dog")
-    # However, skip this penalty for longer album names (3+ words) with exact matches
+    # REVISED PENALTY: More lenient for exact title matches
+    # Only apply the -40 penalty if:
+    # - No "(album)" in title
+    # - No artist in title
+    # - AND title is not an exact match for the album name
     album_word_count = len(normalized_album.split())
     if "(album)" not in title and normalized_artist not in normalized_title:
-        # Skip penalty for longer album names with exact title match
-        if not (album_word_count >= 3 and normalized_title == normalized_album):
-            score -= 40  # This brings scores down below threshold for false positives
+        # Skip penalty if title exactly matches album name (this is the key fix!)
+        if normalized_title != normalized_album:
+            # Also skip penalty for longer album names (3+ words) with good word overlap
+            if not (album_word_count >= 3 and album_name_in_title):
+                score -= 40  # This brings scores down below threshold for false positives
 
     return max(0, score)
 
