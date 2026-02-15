@@ -13,6 +13,7 @@ import time
 import sqlite3
 import re
 import requests
+import logging
 from pathlib import Path
 from config import get_api_key  # your helper: returns (api_key, username)
 
@@ -20,6 +21,11 @@ from config import get_api_key  # your helper: returns (api_key, username)
 BASE_DIR = Path(__file__).resolve().parents[2]
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 BASE_URL = "https://ws.audioscrobbler.com/2.0/"
+
+# Setup logging
+from app.logging_config import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 # ---------- Cleaning helpers ----------
@@ -163,11 +169,13 @@ def fetch_recent_tracks(api_key: str,
     if from_ts is not None:
         params["from"] = int(from_ts)
 
+    logger.debug(f"Calling Last.fm API: page={page}, from_ts={from_ts}")
     resp = requests.get(BASE_URL, params=params, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 
     if "error" in data:
+        logger.error(f"Last.fm API error {data['error']}: {data.get('message')}")
         raise RuntimeError(f"Last.fm API error {data['error']}: {data.get('message')}")
 
     return data
@@ -191,7 +199,7 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     compilation_albums = [row["album"] for row in cursor.fetchall()]
 
     if not compilation_albums:
-        print("  No compilation albums found to update.")
+        logger.debug("No compilation albums found to update.")
         return
 
     # Build placeholders for the UPDATE query
@@ -208,20 +216,23 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
 
     updated = cursor.rowcount
     conn.commit()
-    print(f"  Updated album_artist to 'Various Artists' for {updated} scrobbles across {len(compilation_albums)} compilation albums.")
+    logger.info(
+        f"Updated album_artist to 'Various Artists' for {updated} scrobbles "
+        f"across {len(compilation_albums)} compilation albums."
+    )
 
 
 # ---------- Sync logic ----------
 
 def sync_lastfm() -> None:
     api_key, username = get_api_key()
-    print(f"Loaded API key + username from config.ini: user={username}")
+    logger.info(f"Starting Last.fm sync for user: {username}")
 
     conn = get_conn()
     ensure_schema(conn)
 
     last_uts = get_last_uts(conn)
-    print(f"Last known uts in DB (seconds): {last_uts}")
+    logger.info(f"Last known timestamp in database: {last_uts} ({time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(last_uts))} UTC)")
 
     # Avoid inclusive-from duplicates: Last.fm returns uts >= from
     from_ts = None if last_uts == 0 else last_uts + 1
@@ -230,7 +241,7 @@ def sync_lastfm() -> None:
     page = 1
 
     while True:
-        print(f"\nFetching page {page} from_ts={from_ts} ...")
+        logger.info(f"Fetching page {page} from_ts={from_ts}...")
         data = fetch_recent_tracks(api_key, username, from_ts, page)
         recent = data.get("recenttracks", {})
         tracks = recent.get("track", [])
@@ -313,7 +324,7 @@ def sync_lastfm() -> None:
                     })
 
         if not scrobble_batch:
-            print("No new scrobbles on this page. Stopping.")
+            logger.info("No new scrobbles on this page. Sync complete.")
             break
 
         # 🔢 Sort scrobbles chronologically (oldest → newest) before insert
@@ -333,8 +344,10 @@ def sync_lastfm() -> None:
 
         new_rows = conn.total_changes - total_new_scrobbles
         total_new_scrobbles = conn.total_changes
-        print(f"Page {page}: inserted {new_rows} new scrobbles "
-              f"(batch size {len(scrobble_batch)})")
+        logger.info(
+            f"Page {page}: inserted {new_rows} new scrobbles "
+            f"(batch size {len(scrobble_batch)})"
+        )
 
         # Optional: sort album_art batch by (artist, album) then time
         if album_batch:
@@ -364,26 +377,27 @@ def sync_lastfm() -> None:
                     a,
                 )
             conn.commit()
-            print(f"Page {page}: upserted {len(album_batch)} album_art rows")
+            logger.debug(f"Page {page}: upserted {len(album_batch)} album_art rows")
 
         # Pagination
         attr = recent.get("@attr", {})
         total_pages = int(attr.get("totalPages", page))
 
         if page >= total_pages:
+            logger.info(f"Reached final page {page} of {total_pages}")
             break
 
         page += 1
-        # polite delay – you’re nowhere near the rate limit with this
+        # polite delay – you're nowhere near the rate limit with this
         time.sleep(0.25)
 
     # Post-sync: update album_artist for compilation albums
     if total_new_scrobbles > 0:
-        print("\nPost-sync: detecting compilation albums...")
+        logger.info("Post-sync: detecting compilation albums...")
         _update_compilation_albums(conn)
 
     conn.close()
-    print(f"\nDone. Total new scrobbles added: {total_new_scrobbles}")
+    logger.info(f"Sync complete. Total new scrobbles added: {total_new_scrobbles}")
 
 
 # ---------- CLI entry point ----------
@@ -391,9 +405,12 @@ def sync_lastfm() -> None:
 if __name__ == "__main__":
     import traceback
     try:
-        print("Starting Last.fm sync...")
         sync_lastfm()
-        print("Sync finished.")
+        logger.info("Sync finished successfully.")
+    except requests.exceptions.RequestException as exc:
+        logger.error(f"Network error during sync: {exc}", exc_info=True)
+    except sqlite3.Error as exc:
+        logger.error(f"Database error during sync: {exc}", exc_info=True)
     except Exception as exc:
-        print("ERROR during sync:", exc)
-        traceback.print_exc()
+        logger.error(f"Unexpected error during sync: {exc}", exc_info=True)
+        raise

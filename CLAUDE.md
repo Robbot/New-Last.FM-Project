@@ -45,7 +45,7 @@ pip install -r requirements.txt
 
 The Flask app uses a modular Blueprint architecture:
 
-- **Root `app/__init__.py`**: Factory pattern with `create_app()`, registers all blueprints
+- **Root `app/__init__.py`**: Factory pattern with `create_app()`, registers all blueprints, configures logging and error handlers
 - **Blueprints**: Each functional area is a separate blueprint:
   - `app/scrobbles/`: Recent scrobbles with pagination
   - `app/artists/`: Artist library and artist detail pages
@@ -53,9 +53,9 @@ The Flask app uses a modular Blueprint architecture:
   - `app/tracks/`: Track library and track detail pages
   - `app/trackgaps/`: Unique feature showing tracks sorted by time since last play
   - `app/daterange/`: Date range filtering for all library views
-- **Database Layer (`db.py`)**: All database queries centralized in root-level module. Uses `sqlite3.Row` factory for dict-like access
+- **Database Layer (`db.py`)**: All database queries centralized in root-level module. Uses `sqlite3.Row` factory for dict-like access. Includes error logging for database operations.
 - **Services (`app/services/`)**: External integrations and utilities:
-  - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite with data cleaning
+  - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite with data cleaning (uses logging for progress/errors)
   - `fetch_tracklist.py`: Fetches album tracklists from Last.fm API
   - `clean_remastered_db.py`: One-time migration script to clean remastered suffixes from existing data
   - `clean_track_case_db.py`: Normalizes track name case inconsistencies (e.g., "Of Wolf and Man" vs "Of Wolf And Man")
@@ -64,6 +64,7 @@ The Flask app uses a modular Blueprint architecture:
   - `config.py`: Reads Last.fm API credentials from `config.ini`
 - **Utils (`app/utils/`)**: Helper functions for range calculations and date handling
 - **Static Files (`app/static/`)**: Contains `covers/` subdirectory for cached album artwork
+- **Logging (`app/logging_config.py`)**: Centralized logging configuration with file rotation and request tracking
 
 ### Data Flow
 
@@ -110,6 +111,37 @@ Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively app
 
 - **`config.ini`**: Contains `[last.fm]` section with `api_key` and `username`
 - **Flask Config**: API key and username loaded into `app.config` at startup
+
+### Logging
+
+The application uses Python's built-in logging system with a centralized configuration:
+
+- **Log Location**: `logs/app_YYYYMMDD.log` (rotates daily)
+- **Rotation**: 10MB max per file, 5 backup files kept
+- **Log Levels**: DEBUG for files, INFO for console (development)
+- **Request Logging**: All HTTP requests are logged with method, path, status code, and response time
+- **Error Handlers**: Global 404 and 500 error handlers with logging
+
+**Usage in code**:
+```python
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
+logger.info("Information message")
+logger.error("Error occurred", exc_info=True)
+```
+
+**Viewing logs**:
+```bash
+# View today's log
+tail -f logs/app_$(date +%Y%m%d).log
+
+# View all logs
+cat logs/app_*.log
+
+# Search for errors
+grep ERROR logs/app_*.log
+```
 
 ### Templates
 

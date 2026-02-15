@@ -1,5 +1,6 @@
 import sqlite3
 import re
+import logging
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
@@ -10,6 +11,8 @@ import unicodedata
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_for_matching(text: str) -> str:
@@ -53,9 +56,13 @@ def _normalize_for_matching(text: str) -> str:
     return text
 
 def get_db_connection() ->sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except sqlite3.Error as e:
+        logger.error(f"Database connection error: {e}")
+        raise
 
 def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
     """
