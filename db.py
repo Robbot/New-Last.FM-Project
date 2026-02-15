@@ -477,7 +477,7 @@ def get_top_tracks(start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += """
-        GROUP BY track, artist, album, album_artist
+        GROUP BY track, artist
         ORDER BY plays DESC
     """
 
