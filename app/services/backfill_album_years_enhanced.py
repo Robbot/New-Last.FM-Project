@@ -52,10 +52,7 @@ def fetch_year_from_wikipedia(wikipedia_url: str) -> Optional[str]:
         return None
 
     try:
-        # Import here to avoid circular imports
-        import sys
-        sys.path.insert(0, str(BASE_DIR / "app" / "services"))
-        from fetch_wikipedia import fetch_album_year_from_wikipedia as fetch_wiki_year
+        from .fetch_wikipedia import fetch_album_year_from_wikipedia as fetch_wiki_year
 
         return fetch_wiki_year(wikipedia_url)
     except Exception as e:
@@ -65,9 +62,7 @@ def fetch_year_from_wikipedia(wikipedia_url: str) -> Optional[str]:
 
 def get_lastfm_credentials() -> tuple[str, str]:
     """Get Last.fm API key and username from config.ini."""
-    import sys
-    sys.path.insert(0, str(BASE_DIR / "app" / "services"))
-    from config import get_api_key
+    from .config import get_api_key
     return get_api_key()
 
 
