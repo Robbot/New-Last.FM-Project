@@ -66,6 +66,10 @@ _REMASTER_PATTERNS = [
     # Single Version, Album Version, Remix variations (without year)
     r" -\s+(?:Single Version|Album Version|Remix|Mix)\s*$",
     r"\s*[\(\[]\s*(?:Single Version|Album Version|Remix|Mix)\s*[\)\]]\s*$",
+    # Collection versions
+    r" -\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
+    r"\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
+    r"\s*[\(\[]\s*(?:Platinum Collection Version|Platinum Collection)\s*[\)\]]\s*$",
 ]
 
 def clean_remastered_suffix(title: str) -> str:

@@ -98,6 +98,10 @@ _REMASTER_PATTERNS = [
     r"\s+[Rr]emastered\s*/.*$",
     r"\s+/[Rr]emastered\s*\)*\s*$",
     r"\s+/[Rr]emaster\s*\)*\s*$",
+    # Collection versions
+    r" -\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
+    r"\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
+    r"\s*[\(\[]\s*(?:Platinum Collection Version|Platinum Collection)\s*[\)\]]\s*$",
     # "24-Bit Digitally Remastered 02" - has number suffix
     r"\s*[\(\[]\s*\d{4}-Bit\s+[Dd]igitally\s+[Rr]emaster(?:ed)?\s+\d+\s*[\)\]]\s*$",
     r" -\s+\d{4}-Bit\s+[Dd]igitally\s+[Rr]emaster(?:ed)?\s+\d+\s*\)*\s*$",
@@ -212,6 +216,7 @@ def clean_album_art_table(conn: sqlite3.Connection) -> int:
            OR album LIKE '% - Remix%' OR album LIKE '%(Remix)%'
            OR album LIKE '% - Mix%' OR album LIKE '%(Mix)%'
            OR album LIKE '%Single Version%' OR album LIKE '%Album Version%'
+           OR album LIKE '%Platinum Collection%' OR album LIKE '%platinum collection%'
     """)
     rows = cur.fetchall()
 
@@ -285,6 +290,8 @@ def clean_album_tracks_table(conn: sqlite3.Connection) -> int:
            OR album LIKE '%Expanded Edition%' OR album LIKE '%expanded edition%'
            OR album LIKE '%Expanded Version%' OR album LIKE '%expanded version%'
            OR album LIKE '%(Expanded)%' OR album LIKE '%(expanded)%'
+           OR track LIKE '%Platinum Collection%' OR track LIKE '%platinum collection%'
+           OR album LIKE '%Platinum Collection%' OR album LIKE '%platinum collection%'
     """)
     rows = cur.fetchall()
 
