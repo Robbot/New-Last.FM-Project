@@ -109,8 +109,24 @@ Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively app
 
 ### Configuration
 
+The application supports two methods for configuring Last.fm credentials:
+
+**Method 1: Environment Variables (Recommended)**
+```bash
+# Create a .env file from the example
+cp .env.example .env
+
+# Edit .env with your credentials
+LASTFM_API_KEY=your_api_key_here
+LASTFM_USERNAME=your_username_here
+```
+
+**Method 2: config.ini (Backwards Compatibility)**
 - **`config.ini`**: Contains `[last.fm]` section with `api_key` and `username`
-- **Flask Config**: API key and username loaded into `app.config` at startup
+- Located at `app/services/config.ini`
+- Used as fallback when environment variables are not set
+
+**Priority**: Environment variables take precedence over `config.ini` settings.
 
 ### Logging
 
