@@ -68,7 +68,10 @@ def _build_filters(args) -> tuple[str, list]:
 def years():
     """
     Returns: [{year: 2011, count: 123}, ...]
+    Always includes all years from 2010 to current year, even with 0 plays.
     """
+    from datetime import datetime
+
     conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
 
@@ -86,7 +89,18 @@ def years():
         extra_params,
     ).fetchall()
 
-    return jsonify([{"year": r["year"], "count": r["count"]} for r in rows])
+    # Build a dict of year -> count from the query results
+    year_counts = {r["year"]: r["count"] for r in rows}
+
+    # Generate all years from 2010 to current year
+    current_year = datetime.now().year
+    start_year = 2010
+
+    result = []
+    for year in range(start_year, current_year + 1):
+        result.append({"year": year, "count": year_counts.get(year, 0)})
+
+    return jsonify(result)
 
 
 @daterange_bp.get("/months")
