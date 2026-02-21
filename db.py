@@ -297,6 +297,41 @@ def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
     conn.close()
     return row
 
+
+def get_artist_position(artist_name: str, start: str = "", end: str = "") -> int:
+    """
+    Returns the artist's position (rank) in the list of most played artists.
+    Position 1 = most played artist.
+    Returns None if artist not found.
+    """
+    conn = get_db_connection()
+
+    sql = """
+        SELECT artist, COUNT(*) AS scrobbles
+        FROM scrobble
+    """
+
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ WHERE date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    sql += " GROUP BY artist ORDER BY scrobbles DESC"
+
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    # Find the artist's position
+    for position, row in enumerate(rows, start=1):
+        if row["artist"] == artist_name:
+            return position
+
+    return None
+
+
 def get_top_tracks_for_artist(
         artist_name: str,
         start: str = "",

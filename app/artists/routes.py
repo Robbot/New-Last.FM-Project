@@ -12,13 +12,14 @@ def artist_detail(artist_name: str):
     to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
     rangetype = (request.args.get("rangetype") or "").strip()
     start, end = compute_range(from_arg or None, to_arg or None, rangetype or None)
- 
+
     stats = db.get_artist_stats(artist_name, start=start, end=end)
-    
+
     if stats is None:
         abort(404, description="Artist not found")
     albums_rows = db.get_artist_albums(artist_name, start=start, end=end)          # NEW or existing query
     tracks_rows = db.get_top_tracks_for_artist(artist_name, start=start, end=end) # your new function
+    artist_position = db.get_artist_position(artist_name, start=start, end=end)
 
     return render_template(
         "artist_detail.html",
@@ -28,6 +29,7 @@ def artist_detail(artist_name: str):
         stats=stats,
         albums_rows=albums_rows,
         tracks_rows=tracks_rows,
+        artist_position=artist_position,
     )
 
 
