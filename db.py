@@ -55,6 +55,79 @@ def _normalize_for_matching(text: str) -> str:
 
     return text
 
+
+def _normalize_track_name_for_matching(text: str) -> str:
+    """
+    Normalize track name for matching between album_tracks and scrobbles.
+    This handles smart quotes, common suffixes, and other variations.
+
+    - Normalizes Unicode quotes/apostrophes to straight apostrophe
+    - Removes common suffixes like " - Remastered", " (Single Version)", etc.
+    - Replaces slashes with spaces
+    - Normalizes whitespace
+    - Lowercases for case-insensitive matching
+    """
+    if not text:
+        return ""
+
+    # Unicode apostrophe/quote variants to straight apostrophe
+    #   ' (U+2019 RIGHT SINGLE QUOTATION MARK) - most common "smart quote"
+    #   ' (U+2018 LEFT SINGLE QUOTATION MARK)
+    #   ' (U+00B4 ACUTE ACCENT)
+    #   ` (U+0060 GRAVE ACCENT)
+    quote_mapping = {
+        '\u2019': "'",  # RIGHT SINGLE QUOTATION MARK
+        '\u2018': "'",  # LEFT SINGLE QUOTATION MARK
+        '\u00b4': "'",  # ACUTE ACCENT
+        '\u0060': "'",  # GRAVE ACCENT
+    }
+    for unicode_char, straight_char in quote_mapping.items():
+        text = text.replace(unicode_char, straight_char)
+
+    # Replace slashes with spaces
+    text = text.replace('/', ' ')
+
+    # Lowercase for case-insensitive matching
+    text = text.lower()
+
+    # Common suffixes to strip (order matters - longer first)
+    suffixes = [
+        " - single version",
+        " (single version)",
+        " - album version",
+        " (album version)",
+        " - original version",
+        " (original version)",
+        " - original mix",
+        " (original mix)",
+        " - radio edit",
+        " (radio edit)",
+        " - remastered",
+        " (remastered)",
+        " - remastered version",
+        " (remastered version)",
+        " - 200",
+        " (200",
+        " - rem",
+        " (rem)",
+        " - remix",
+        " (remix)",
+        " - edit",
+        " (edit)",
+    ]
+
+    for suffix in suffixes:
+        if text.lower().endswith(suffix):
+            text = text[:-len(suffix)]
+
+    # Normalize whitespace (handle 2+ spaces after replacing slashes)
+    while "  " in text:
+        text = text.replace("  ", " ")
+    text = text.strip()
+
+    return text
+
+
 def get_db_connection() ->sqlite3.Connection:
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -590,6 +663,8 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
     """
     Returns exactly ONE row per track, ordered by album track number (default)
     or by play count (if sort_by='plays'), with correct play counts.
+
+    Uses Python-based normalization for track name matching instead of complex SQL REPLACE functions.
     """
     conn = get_db_connection()
 
@@ -625,7 +700,18 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
         conn.close()
         return []
 
-    # Step 2: Find all scrobble albums that match the normalized album name
+    # Step 2: Get all album_tracks for this album
+    album_tracks = conn.execute(
+        """
+        SELECT track_number, track
+        FROM album_tracks
+        WHERE artist = ? AND album = ?
+        ORDER BY track_number ASC
+        """,
+        (album_artist_name, canonical_album),
+    ).fetchall()
+
+    # Step 3: Find all scrobble albums that match the normalized album name
     all_scrobble_albums = conn.execute(
         """
         SELECT DISTINCT album
@@ -641,91 +727,87 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
         if _normalize_for_matching(row["album"]) == normalized_album and row["album"] != album_name:
             matching_album_names.append(row["album"])
 
-    # Common suffixes to strip for fuzzy matching (order matters - longer first)
-    # These will be removed from both album_tracks and scrobble track names
-    suffixes = [
-        " - Single Version",
-        " (Single Version)",
-        " - Album Version",
-        " (Album Version)",
-        " - Original Version",
-        " (Original Version)",
-        " - Original Mix",
-        " (Original Mix)",
-        " - Radio Edit",
-        " (Radio Edit)",
-        " - Remastered",
-        " (Remastered)",
-        " - Remastered Version",
-        " (Remastered Version)",
-        " - 200",
-        " (200",
-        " - Rem",
-        " (Rem)",
-        " - Remix",
-        " (Remix)",
-        " - Edit",
-        " (Edit)",
-    ]
-
-    # Build SQL to normalize track name by stripping suffixes and normalizing slashes
-    # We chain REPLACE calls: REPLACE(REPLACE(track, suffix1, ''), suffix2, '')
-    # First replace slashes with spaces, then normalize multiple spaces (apply twice to handle 3+ spaces)
-    normalize_sql = "REPLACE(REPLACE(REPLACE(LOWER(track), '/', ' '), '  ', ' '), '  ', ' ')"
-    for suffix in suffixes:
-        normalize_sql = f"REPLACE({normalize_sql}, LOWER('{suffix}'), '')"
-
-    # Build the play count subquery with optional date filtering
-    # Include normalized track name for matching
-    # Use IN clause to get scrobbles from all matching album name variations
-    # Also get track artist (for compilations where track artist may differ from album artist)
+    # Step 4: Get scrobble play counts for all matching albums (with optional date filtering)
     placeholders = ','.join(['?' for _ in matching_album_names])
-    play_count_sql = f"""
-            SELECT
-                track,
-                artist,
-                {normalize_sql} AS normalized_track,
-                COUNT(*) AS plays
-            FROM scrobble
-            WHERE album_artist = ?
-              AND album IN ({placeholders})
+    scrobble_query = f"""
+        SELECT track, artist, COUNT(*) AS plays
+        FROM scrobble
+        WHERE album_artist = ?
+          AND album IN ({placeholders})
     """
-    play_count_params = [album_artist_name] + matching_album_names
+    scrobble_params = [album_artist_name] + matching_album_names
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
-        play_count_sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+        scrobble_query += """ AND date(uts, 'unixepoch', 'localtime') >= ?
                                AND date(uts, 'unixepoch', 'localtime') <= ?"""
-        play_count_params.extend([start, end])
+        scrobble_params.extend([start, end])
 
-    play_count_sql += " GROUP BY normalized_track, artist"
+    scrobble_query += " GROUP BY track, artist"
 
-    # Also normalize album_tracks track name for matching
-    # Replace slashes with spaces and normalize multiple spaces (apply twice to handle 3+ spaces)
-    normalize_at_sql = "REPLACE(REPLACE(REPLACE(LOWER(at.track), '/', ' '), '  ', ' '), '  ', ' ')"
-    for suffix in suffixes:
-        normalize_at_sql = f"REPLACE({normalize_at_sql}, LOWER('{suffix}'), '')"
+    scrobbles = conn.execute(scrobble_query, scrobble_params).fetchall()
 
-    rows = conn.execute(
-        f"""
-        SELECT
-            at.track_number,
-            at.track AS track_name,
-            COALESCE(p.artist, '{album_artist_name}') AS track_artist,
-            COALESCE(p.plays, 0) AS plays
-        FROM album_tracks at
-        LEFT JOIN (
-            {play_count_sql}
-        ) p
-          ON {normalize_at_sql} = p.normalized_track
-        WHERE at.artist = ?
-          AND at.album  = ?
-        ORDER BY { 'at.track_number ASC' if sort_by == 'tracklist' else 'COALESCE(p.plays, 0) DESC, at.track_number ASC' }
-        """,
-        (*play_count_params, album_artist_name, canonical_album),
-    ).fetchall()
     conn.close()
-    return rows
+
+    # Step 5: Match album_tracks with scrobbles using Python normalization
+    # Build a dict of normalized track names to scrobble data
+    # Key: normalized_track_name, Value: [(track, artist, plays), ...]
+    scrobble_dict = {}
+    for scrobble in scrobbles:
+        normalized = _normalize_track_name_for_matching(scrobble["track"])
+        key = (normalized, scrobble["artist"])
+        if key not in scrobble_dict:
+            scrobble_dict[key] = []
+        scrobble_dict[key].append(scrobble)
+
+    # Match album_tracks with scrobbles and build results
+    results = []
+    for track in album_tracks:
+        normalized_track = _normalize_track_name_for_matching(track["track"])
+
+        # Try to find a matching scrobble (prefer same artist, fall back to any artist)
+        track_artist = album_artist_name
+        plays = 0
+
+        # First try with the album artist
+        key_with_artist = (normalized_track, album_artist_name)
+        if key_with_artist in scrobble_dict:
+            plays = sum(s["plays"] for s in scrobble_dict[key_with_artist])
+            # Use the first matching track name for display
+            if scrobble_dict[key_with_artist]:
+                track_artist = scrobble_dict[key_with_artist][0]["artist"]
+        else:
+            # Try without artist restriction (for compilations)
+            for key, scrobble_list in scrobble_dict.items():
+                if key[0] == normalized_track:
+                    total_plays = sum(s["plays"] for s in scrobble_list)
+                    if total_plays > plays:
+                        plays = total_plays
+                        track_artist = scrobble_list[0]["artist"]
+
+        results.append({
+            "track_number": track["track_number"],
+            "track_name": track["track"],
+            "track_artist": track_artist,
+            "plays": plays,
+        })
+
+    # Sort by play count if requested
+    if sort_by == "plays":
+        results.sort(key=lambda x: (-x["plays"], x["track_number"]))
+
+    # Convert to sqlite3.Row-like objects for compatibility
+    class Row:
+        def __init__(self, data):
+            self._data = data
+        def __getitem__(self, key):
+            return self._data[key]
+        def keys(self):
+            return self._data.keys()
+        def __iter__(self):
+            return iter(self._data.values())
+
+    return [Row(r) for r in results]
 
 def _safe_slug(text: str) -> str:
     """Convert text to safe filename slug."""
