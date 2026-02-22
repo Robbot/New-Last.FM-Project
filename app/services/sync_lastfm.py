@@ -93,6 +93,65 @@ def clean_remastered_suffix(title: str) -> str:
     return cleaned.strip()
 
 
+# Small words that should be lowercase in titles (except first/last word)
+_SMALL_WORDS = {
+    'a', 'an', 'the', 'and', 'but', 'or', 'nor', 'for', 'so', 'yet',
+    'at', 'by', 'from', 'in', 'into', 'of', 'off', 'on', 'onto', 'out',
+    'over', 'to', 'up', 'with', 'as', 'but', 'via'
+}
+
+
+def _fix_small_words_case(title: str) -> str:
+    """
+    Fix capitalization of small words in titles to lowercase.
+    These words should be lowercase except when they are the first or last word.
+
+    Examples:
+        "Beatles For Sale" -> "Beatles for Sale"
+        "Ride The Lightning" -> "Ride the Lightning"
+        "Back And Forth" -> "Back and Forth" (last word stays capitalized)
+
+    Args:
+        title: The title to fix
+
+    Returns:
+        Title with small words converted to lowercase (except first/last word)
+    """
+    if not title:
+        return title
+
+    words = title.split()
+    if not words:
+        return title
+
+    # Fix small words that are not first or last
+    for i in range(1, len(words) - 1):
+        word_lower = words[i].lower()
+        if word_lower in _SMALL_WORDS:
+            words[i] = word_lower
+
+    return ' '.join(words)
+
+
+def clean_title(title: str) -> str:
+    """
+    Clean a title by applying all cleaning functions in order.
+
+    Args:
+        title: The original title from Last.fm API
+
+    Returns:
+        Cleaned title with remastered suffixes removed and small words fixed
+    """
+    if not title:
+        return title
+
+    title = clean_remastered_suffix(title)
+    title = _fix_small_words_case(title)
+
+    return title
+
+
 # ---------- DB helpers ----------
 
 def get_conn() -> sqlite3.Connection:
@@ -309,16 +368,16 @@ def sync_lastfm() -> None:
                 artist_mbid = t["artist"].get("mbid") or None
 
                 if isinstance(t.get("album"), dict):
-                    album_name = clean_remastered_suffix(t["album"]["#text"])
+                    album_name = clean_title(t["album"]["#text"])
                     album_mbid = t["album"].get("mbid") or None
                 else:
-                    album_name = clean_remastered_suffix(t.get("album", ""))
+                    album_name = clean_title(t.get("album", ""))
                     album_mbid = None
 
                 if album_mbid == "":
                     album_mbid = None
 
-                track_name = clean_remastered_suffix(t["name"])
+                track_name = clean_title(t["name"])
                 track_mbid = t.get("mbid") or None
 
                 scrobble_batch.append(
