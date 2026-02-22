@@ -5,17 +5,19 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 ## Completed ✅
 
 - [x] **Add comprehensive logging infrastructure** - Implemented centralized logging with file rotation, request logging, and error handlers
+- [x] **Environment Variables for Sensitive Data** - Implemented support for `.env` file with fallback to `config.ini`
+- [x] **Track name case normalization** - Python-based normalization for case inconsistencies (e.g., "Of Wolf and Man" vs "Of Wolf And Man")
+- [x] **Small words capitalization normalization** - Normalizes small words like "and", "of", "the" in track names
+- [x] **Artist position/ranking** - Added ranking display to artist detail pages
+- [x] **Listening History improvements** - Display bars even for empty years
+- [x] **Remastered/Expanded edition cleaning** - Removes artificial suffixes from album names
+- [x] **Comprehensive README documentation** - Added detailed installation, usage, and project structure documentation
 
 ---
 
 ## High Priority (Quick Wins)
 
-### 1. Environment Variables for Sensitive Data
-- [ ] Move Last.fm API key from `config.ini` to environment variables
-- [ ] Update `app/services/config.py` to read from `os.getenv()`
-- [ ] Update documentation with new environment variable setup
-
-### 2. Add Input Validation
+### 1. Add Input Validation
 - [ ] Validate date range parameters in routes (prevent invalid dates, negative ranges)
 - [ ] Add sanitization for user input to prevent potential issues
 - [ ] Validate query parameters before database queries
