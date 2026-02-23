@@ -37,5 +37,8 @@ def library_scrobbles():
                             page=page,
                             total_pages=total_pages,
                             total_rows=total_rows,
-                            per_day=per_day 
+                            per_day=per_day,
+                            from_arg=from_arg,
+                            to_arg=to_arg,
+                            rangetype=rangetype
                         )

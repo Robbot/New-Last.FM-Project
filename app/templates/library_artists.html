@@ -30,7 +30,7 @@
   {% set arrow_symbol = "↑" if show_arrow and new_order == "desc" else ("↓" if show_arrow and new_order == "asc" else "") %}
 
   <th class="sortable-header" data-column="{{ sort_by_value }}">
-    <a href="{{ url_for('artists.library_artists', sort_by=sort_by_value, sort_order=new_order, page=1) }}"
+    <a href="{{ url_for('artists.library_artists', sort_by=sort_by_value, sort_order=new_order, page=1, from=from_arg, to=to_arg, rangetype=rangetype) }}"
        class="sortable-link">
       {{ label }}
       <span class="sort-arrow">{{ arrow_symbol }}</span>
@@ -65,15 +65,15 @@
 <div class="pagination-wrapper">
 <div class="pagination">
     {% if page > 1 %}
-        <a href="{{ url_for('artists.library_artists', page=1, sort_by=current_sort.by, sort_order=current_sort.order) }}">« First</a>
-        <a href="{{ url_for('artists.library_artists', page=page-1, sort_by=current_sort.by, sort_order=current_sort.order) }}">‹ {{page - 1}}</a>
+        <a href="{{ url_for('artists.library_artists', page=1, sort_by=current_sort.by, sort_order=current_sort.order, from=from_arg, to=to_arg, rangetype=rangetype) }}">« First</a>
+        <a href="{{ url_for('artists.library_artists', page=page-1, sort_by=current_sort.by, sort_order=current_sort.order, from=from_arg, to=to_arg, rangetype=rangetype) }}">‹ {{page - 1}}</a>
     {% endif %}
 
     Page {{ page }} of {{ total_pages }}
 
     {% if page < total_pages %}
-        <a href="{{ url_for('artists.library_artists', page=page+1, sort_by=current_sort.by, sort_order=current_sort.order) }}">{{page + 1}} ›</a>
-        <a href="{{ url_for('artists.library_artists', page=total_pages, sort_by=current_sort.by, sort_order=current_sort.order) }}">Last »</a>
+        <a href="{{ url_for('artists.library_artists', page=page+1, sort_by=current_sort.by, sort_order=current_sort.order, from=from_arg, to=to_arg, rangetype=rangetype) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('artists.library_artists', page=total_pages, sort_by=current_sort.by, sort_order=current_sort.order, from=from_arg, to=to_arg, rangetype=rangetype) }}">Last »</a>
     {% endif %}
 </div>
 </div>

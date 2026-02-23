@@ -30,12 +30,15 @@ def library_tracks():
 
     return render_template(
         "library_tracks.html",
-        active_tab="tracks", 
-        stats=stats, 
+        active_tab="tracks",
+        stats=stats,
         top_tracks=top_tracks,
         page=page,
         total_pages=total_pages,
         per_page=per_page,
+        from_arg=from_arg,
+        to_arg=to_arg,
+        rangetype=rangetype,
     )
 
 @tracks_bp.route("/library/track/<path:artist_name>/<path:track_name>")

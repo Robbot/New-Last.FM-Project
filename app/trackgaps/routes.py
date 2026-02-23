@@ -34,4 +34,7 @@ def library_trackgaps():
         page=page,
         total_pages=total_pages,
         per_page=per_page,
+        from_arg=from_arg,
+        to_arg=to_arg,
+        rangetype=rangetype,
     )

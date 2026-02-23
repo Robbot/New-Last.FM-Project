@@ -92,4 +92,7 @@ def library_artists():
         total_pages=total_pages,
         per_page=per_page,
         current_sort=current_sort,
+        from_arg=from_arg,
+        to_arg=to_arg,
+        rangetype=rangetype,
     )

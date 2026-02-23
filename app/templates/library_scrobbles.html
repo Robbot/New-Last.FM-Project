@@ -45,15 +45,15 @@
 <div class="pagination-wrapper">
 <div class="pagination">
     {% if page > 1 %}
-        <a href="{{ url_for('scrobbles.library_scrobbles', page=1) }}">« First</a>
-        <a href="{{ url_for('scrobbles.library_scrobbles', page=page-1) }}">‹ {{page - 1}}</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=1, from=from_arg, to=to_arg, rangetype=rangetype) }}">« First</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=page-1, from=from_arg, to=to_arg, rangetype=rangetype) }}">‹ {{page - 1}}</a>
     {% endif %}
 
     Page {{ page }} of {{ total_pages }}
 
     {% if page < total_pages %}
-        <a href="{{ url_for('scrobbles.library_scrobbles', page=page+1) }}">{{page + 1}} ›</a>
-        <a href="{{ url_for('scrobbles.library_scrobbles', page=total_pages) }}">Last »</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=page+1, from=from_arg, to=to_arg, rangetype=rangetype) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('scrobbles.library_scrobbles', page=total_pages, from=from_arg, to=to_arg, rangetype=rangetype) }}">Last »</a>
     {% endif %}
 </div>
 </div>
