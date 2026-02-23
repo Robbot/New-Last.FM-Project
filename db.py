@@ -90,6 +90,19 @@ def _normalize_track_name_for_matching(text: str) -> str:
     # Lowercase for case-insensitive matching
     text = text.lower()
 
+    # First, apply regex-based suffix removal (for patterns with years)
+    # These must be done before literal suffix matching since they're more specific
+    regex_patterns = [
+        (r' - \d{4} remastered', ''),  # " - 2024 remastered"
+        (r' \(\d{4} remastered\)', ''),  # " (2024 remastered)"
+        (r' - \d{4} rem', ''),  # " - 2024 rem"
+        (r' \(\d{4} rem\)', ''),  # " (2024 rem)"
+        (r' - \d{4} ', ''),  # " - 2024 " (catch-all for year suffixes)
+        (r' \(\d{4}\)', ''),  # " (2024)" (year in parentheses)
+    ]
+    for pattern, replacement in regex_patterns:
+        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
     # Common suffixes to strip (order matters - longer first)
     suffixes = [
         " - john robie remix; substance edit",
@@ -108,54 +121,10 @@ def _normalize_track_name_for_matching(text: str) -> str:
         " (original mix)",
         " - radio edit",
         " (radio edit)",
-        " - 2024 remastered",
-        " (2024 remastered)",
-        " - 2023 remastered",
-        " (2023 remastered)",
-        " - 2022 remastered",
-        " (2022 remastered)",
-        " - 2021 remastered",
-        " (2021 remastered)",
-        " - 2020 remastered",
-        " (2020 remastered)",
-        " - 2019 remastered",
-        " (2019 remastered)",
-        " - 2018 remastered",
-        " (2018 remastered)",
-        " - 2017 remastered",
-        " (2017 remastered)",
-        " - 2016 remastered",
-        " (2016 remastered)",
-        " - 2015 remastered",
-        " (2015 remastered)",
-        " - 2014 remastered",
-        " (2014 remastered)",
-        " - 2013 remastered",
-        " (2013 remastered)",
-        " - 2012 remastered",
-        " (2012 remastered)",
-        " - 2011 remastered",
-        " (2011 remastered)",
-        " - 2010 remastered",
-        " (2010 remastered)",
-        " - 2009 remastered",
-        " (2009 remastered)",
-        " - 2008 remastered",
-        " (2008 remastered)",
-        " - 2007 remastered",
-        " (2007 remastered)",
-        " - 2006 remastered",
-        " (2006 remastered)",
-        " - 2005 remastered",
-        " (2005 remastered)",
-        " - 2004 remastered",
-        " (2004 remastered)",
         " - remastered",
         " (remastered)",
         " - remastered version",
         " (remastered version)",
-        " - 200",
-        " (200",
         " - rem",
         " (rem)",
         " - remix",
