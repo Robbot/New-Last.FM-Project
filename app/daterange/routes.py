@@ -4,6 +4,18 @@ from __future__ import annotations
 from flask import request, jsonify
 import db
 from . import daterange_bp
+from app.utils.validators import validate_int, validate_iso_date, ValidationError
+from app.utils.constants import (
+    MIN_YEAR,
+    MAX_YEAR,
+    MONTH_MIN,
+    MONTH_MAX,
+    DAY_MIN,
+    DAY_MAX,
+    LIMIT_MIN,
+    LIMIT_MAX,
+    DEFAULT_LIMIT,
+)
 
 
 def _coerce_int(s: str | None, default: int | None = None) -> int | None:
@@ -109,9 +121,9 @@ def months():
     Query params: year=2011
     Returns: [{month: 1..12, count: N}, ...]
     """
-    year = _coerce_int(request.args.get("year"))
+    year = validate_int(request.args.get("year"), min_val=MIN_YEAR, max_val=MAX_YEAR, default=None)
     if not year:
-        return jsonify({"error": "Missing year"}), 400
+        return jsonify({"error": "Missing or invalid year parameter"}), 400
 
     conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
@@ -139,10 +151,10 @@ def days():
     Query params: year=2011&month=11
     Returns: [{day: 1..31, count: N}, ...]
     """
-    year = _coerce_int(request.args.get("year"))
-    month = _coerce_int(request.args.get("month"))
+    year = validate_int(request.args.get("year"), min_val=MIN_YEAR, max_val=MAX_YEAR, default=None)
+    month = validate_int(request.args.get("month"), min_val=MONTH_MIN, max_val=MONTH_MAX, default=None)
     if not year or not month:
-        return jsonify({"error": "Missing year or month"}), 400
+        return jsonify({"error": "Missing or invalid year or month parameter"}), 400
 
     conn = db.get_db_connection()
     extra_clause, extra_params = _build_filters(request.args)
@@ -183,10 +195,19 @@ def results():
     """
     date_from = request.args.get("from")
     date_to = request.args.get("to")
-    limit = _coerce_int(request.args.get("limit"), 50) or 50
+    limit = validate_int(request.args.get("limit"), min_val=LIMIT_MIN, max_val=LIMIT_MAX, default=DEFAULT_LIMIT)
+
+    # Validate date formats
+    try:
+        if date_from:
+            validate_iso_date(date_from)
+        if date_to:
+            validate_iso_date(date_to)
+    except ValidationError as e:
+        return jsonify({"error": str(e)}), 400
 
     if not date_from or not date_to:
-        return jsonify({"error": "Missing from/to"}), 400
+        return jsonify({"error": "Missing from/to date parameters"}), 400
 
     # Inclusive date range; convert to datetime boundaries:
     # from: 00:00:00, to: 23:59:59

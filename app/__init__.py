@@ -1,8 +1,9 @@
 import logging
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, jsonify
 from .services.config import get_api_key
 from .logging_config import setup_logging, setup_request_logging
 from datetime import datetime, timezone
+from .utils.validators import ValidationError
 
 def datetime_format_filter(timestamp):
     """Format Unix timestamp to readable datetime string."""
@@ -54,6 +55,16 @@ def create_app():
     def server_error(e):
         app.logger.error(f"500 Server Error: {e}", exc_info=True)
         return "Internal Server Error", 500
+
+    @app.errorhandler(ValidationError)
+    def validation_error(e):
+        """Handle validation errors with a 400 Bad Request response."""
+        app.logger.warning(f"Validation error: {e}")
+        # Check if request expects JSON (API routes)
+        accept_header = getattr(e, 'request_accept', None)
+        # For simplicity, return JSON for all validation errors
+        # This works for both API and HTML routes
+        return jsonify({"error": str(e)}), 400
 
     app.logger.info("Application initialization complete")
     return app

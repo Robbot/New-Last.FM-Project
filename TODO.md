@@ -18,9 +18,22 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 ## High Priority (Quick Wins)
 
 ### 1. Add Input Validation
-- [ ] Validate date range parameters in routes (prevent invalid dates, negative ranges)
-- [ ] Add sanitization for user input to prevent potential issues
-- [ ] Validate query parameters before database queries
+- [x] Validate date range parameters in routes (prevent invalid dates, negative ranges)
+- [x] Add sanitization for user input to prevent potential issues
+- [x] Validate query parameters before database queries
+
+**Implementation Summary:**
+- Created `app/utils/validators.py` with validation functions for dates, integers, strings, and enums
+- Created `app/utils/constants.py` with validation constants (max/min values, allowed enum values)
+- Added `compute_range_validated()` wrapper in `app/utils/range.py` with proper error handling
+- Added global `ValidationError` handler in `app/__init__.py` (returns 400 Bad Request)
+- Updated all route blueprints to use validators:
+  - scrobbles/routes.py: page validation, validated date ranges
+  - artists/routes.py: page, sort_by, sort_order validation, path parameter validation
+  - albums/routes.py: page, sort validation, path parameter validation
+  - tracks/routes.py: page validation, path parameter validation
+  - trackgaps/routes.py: page validation, validated date ranges
+  - daterange/routes.py: year/month/day/limit validation with bounds checking
 
 ### 3. Database Connection Context Manager
 - [ ] Create a context manager in `db.py` for automatic connection cleanup
