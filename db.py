@@ -991,29 +991,36 @@ def ensure_album_art_cached(album_artist_name: str, album_name: str) -> str | No
         (album_artist_name, album_name),
     ).fetchone()
 
-    if not art_row:
-        return None
-
-    cdn_url = (art_row["image_xlarge"] or "").strip()
-    if not cdn_url:
-        return None
-
-    album_mbid = (art_row["album_mbid"] or "").strip()
+    album_mbid = (art_row["album_mbid"] or "").strip() if art_row else ""
+    cdn_url = (art_row["image_xlarge"] or "").strip() if art_row else ""
 
     # Prefer MBID for stable filename; otherwise slug artist+album
     cache_key = album_mbid if album_mbid else f"{_safe_slug(album_artist_name)}__{_safe_slug(album_name)}"
-    ext = _guess_ext_from_url(cdn_url)
 
     covers_rel_dir = Path("covers")
     covers_abs_dir = Path(current_app.static_folder) / covers_rel_dir
     covers_abs_dir.mkdir(parents=True, exist_ok=True)
 
+    # Check if any local file exists with this cache key (regardless of extension)
+    # This handles the case where a user uploaded a cover with a different extension
+    # than what's stored in the database (e.g., uploaded .jpg but DB has .png URL)
+    # It also handles the case where a cover was uploaded but no album_art row exists
+    logger.debug(f"ensure_album_art_cached: cache_key={cache_key}, static_folder={current_app.static_folder}")
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        abs_path = covers_abs_dir / f"{cache_key}{ext}"
+        logger.debug(f"  Checking: {abs_path}, exists={abs_path.exists()}")
+        if abs_path.exists() and abs_path.stat().st_size > 0:
+            logger.debug(f"  Found local file: {cache_key}{ext}")
+            return url_for("static", filename=f"covers/{cache_key}{ext}")
+
+    # No local file found, proceed to download from CDN if available
+    if not cdn_url:
+        return None
+
+    # No local file found, proceed to download
+    ext = _guess_ext_from_url(cdn_url)
     filename = f"{cache_key}{ext}"
     abs_path = covers_abs_dir / filename
-
-    # Already cached
-    if abs_path.exists() and abs_path.stat().st_size > 0:
-        return url_for("static", filename=f"covers/{filename}")
 
     # Download once
     try:

@@ -36,7 +36,7 @@
     {% if not cover_url and upload_allowed %}
     <div class="cover-upload-section">
       <p class="text-muted"><small><em>No cover available. Upload one?</em></small></p>
-      <form id="coverUploadForm" class="cover-upload-form" enctype="multipart/form-data">
+      <form id="coverUploadForm" class="cover-upload-form" action="{{ url_for('albums.upload_album_cover', album_artist_name=album_artist_name, album_name=album_name) }}" enctype="multipart/form-data">
         <input type="file" id="coverFile" name="cover" accept="image/jpeg,image/png,image/webp" class="cover-file-input" required>
         <button type="submit" class="cover-upload-btn">Upload Cover</button>
       </form>
