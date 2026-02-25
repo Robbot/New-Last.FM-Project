@@ -1,4 +1,5 @@
-from flask import abort, render_template, request, current_app
+from flask import abort, render_template, request, current_app, jsonify, url_for
+from werkzeug.exceptions import RequestEntityTooLarge
 from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
 import db
@@ -121,4 +122,75 @@ def artist_album_detail(album_artist_name: str, album_name: str):
         to_arg=to_arg,
         rangetype=rangetype,
         sort_by=sort_by,
+        upload_allowed=_is_localhost_request(),
     )
+
+
+@albums_bp.route("/library/artists/<path:album_artist_name>/albums/<path:album_name>/upload-cover", methods=["POST"])
+def upload_album_cover(album_artist_name: str, album_name: str):
+    """Handle album cover upload. Only allowed from localhost or local network (192.168.x.x)."""
+    from app.logging_config import get_logger
+    logger = get_logger(__name__)
+
+    # Security: Only allow uploads from localhost or local network
+    if not _is_localhost_request():
+        logger.warning(f"Upload attempt from non-local network: {request.remote_addr}")
+        return jsonify({"error": "Uploads are only allowed from local network"}), 403
+
+    # Validate path parameters
+    album_artist_name = validate_artist_name(album_artist_name)
+    album_name = validate_album_name(album_name)
+
+    # Check if album exists
+    if db.get_album_total_plays(album_artist_name, album_name) == 0:
+        return jsonify({"error": "Album not found"}), 404
+
+    # Check if file is present
+    if "cover" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["cover"]
+
+    # Check if filename is empty
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+
+    # Validate and process the image
+    result = db.save_uploaded_cover(album_artist_name, album_name, file)
+
+    if result.get("error"):
+        logger.error(f"Cover upload failed for {album_artist_name} - {album_name}: {result['error']}")
+        return jsonify(result), 400
+
+    logger.info(f"Cover uploaded successfully for {album_artist_name} - {album_name}")
+    return jsonify({
+        "success": True,
+        "cover_url": result["cover_url"]
+    })
+
+
+def _is_localhost_request() -> bool:
+    """Check if the request is coming from localhost or local network (192.168.x.x)."""
+    remote_addr = request.remote_addr or ""
+    # Check for localhost variants
+    localhost_ips = {"127.0.0.1", "::1", "localhost"}
+    # Also check if no X-Forwarded-For header (indicates direct local access)
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+
+    # Allow if remote_addr is localhost
+    if remote_addr in localhost_ips:
+        return True
+
+    # Allow if remote_addr is in local network (192.168.0.0/16)
+    if remote_addr.startswith("192.168."):
+        return True
+
+    # Allow IPv6 link-local addresses
+    if remote_addr.startswith("fe80::"):
+        return True
+
+    # Allow if no forwarded header and remote is local
+    if not forwarded_for and remote_addr in localhost_ips:
+        return True
+
+    return False

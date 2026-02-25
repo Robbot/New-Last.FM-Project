@@ -7,6 +7,8 @@ import requests
 from flask import current_app, url_for
 from datetime import datetime, timezone, timedelta
 import unicodedata
+import io
+import struct
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1048,3 +1050,171 @@ def ensure_album_art_cached(album_artist_name: str, album_name: str) -> str | No
 
     except requests.RequestException:
         return None
+
+
+def save_uploaded_cover(album_artist_name: str, album_name: str, file_storage) -> dict:
+    """
+    Save an uploaded album cover image.
+
+    Validates the file is an image, resizes to 220x220px, converts to JPG,
+    and saves to the covers directory.
+
+    Args:
+        album_artist_name: The artist name
+        album_name: The album name
+        file_storage: Flask FileStorage object from request.files
+
+    Returns:
+        dict with "cover_url" on success, or {"error": "message"} on failure
+    """
+    ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+    ALLOWED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+    TARGET_SIZE = (220, 220)
+
+    try:
+        # Check file extension
+        filename = file_storage.filename or ""
+        ext = Path(filename).suffix.lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            return {"error": f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"}
+
+        # Check MIME type
+        content_type = (file_storage.content_type or "").lower()
+        if content_type not in ALLOWED_MIME_TYPES:
+            return {"error": f"Invalid content type. Allowed: {', '.join(ALLOWED_MIME_TYPES)}"}
+
+        # Read file content
+        file_content = file_storage.read()
+
+        # Check file size
+        if len(file_content) > MAX_FILE_SIZE:
+            return {"error": f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"}
+
+        # Validate it's actually an image by checking magic bytes
+        if not _is_valid_image(file_content):
+            return {"error": "File is not a valid image or is corrupted"}
+
+        # Try to import Pillow for image processing
+        try:
+            from PIL import Image
+        except ImportError:
+            # Pillow not available - save as-is (will still have validated it's an image)
+            logger.warning("Pillow not installed, saving cover without resizing/conversion")
+            return _save_cover_as_is(album_artist_name, album_name, file_content, ext)
+
+        # Process image with Pillow
+        image = Image.open(io.BytesIO(file_content))
+
+        # Convert to RGB (for PNG with alpha channel, etc.)
+        if image.mode in ("RGBA", "LA", "P"):
+            # Create white background for transparent images
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            if image.mode == "P":
+                image = image.convert("RGBA")
+            if image.mode in ("RGBA", "LA"):
+                background.paste(image, mask=image.split()[-1])  # Use alpha channel as mask
+                image = background
+            else:
+                image = image.convert("RGB")
+        elif image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Resize to target size using high-quality resampling
+        # Only resize if larger than target to avoid upscaling small images
+        if image.width > TARGET_SIZE[0] or image.height > TARGET_SIZE[1]:
+            image.thumbnail(TARGET_SIZE, Image.Resampling.LANCZOS)
+
+        # Create canvas for exact 220x220 (center the image)
+        final_image = Image.new("RGB", TARGET_SIZE, (255, 255, 255))
+        paste_x = (TARGET_SIZE[0] - image.width) // 2
+        paste_y = (TARGET_SIZE[1] - image.height) // 2
+        final_image.paste(image, (paste_x, paste_y))
+
+        # Save as JPG
+        output = io.BytesIO()
+        final_image.save(output, format="JPEG", quality=90, optimize=True)
+        jpg_content = output.getvalue()
+
+        # Save to file
+        return _save_cover_to_disk(album_artist_name, album_name, jpg_content, ".jpg")
+
+    except Exception as e:
+        logger.error(f"Error processing uploaded cover: {e}", exc_info=True)
+        return {"error": "Failed to process image"}
+
+
+def _is_valid_image(file_content: bytes) -> bool:
+    """
+    Validate file is an actual image using magic bytes.
+    This prevents uploading non-image files with image extensions.
+    """
+    # Magic bytes for common image formats
+    magic_bytes = {
+        b"\xFF\xD8\xFF": "jpg",  # JPEG
+        b"\x89\x50\x4E\x47\x0D\x0A\x1A\x0A": "png",  # PNG
+        b"RIFF": "webp",  # WEBP (RIFF...WEBP)
+    }
+
+    if len(file_content) < 8:
+        return False
+
+    # Check each magic byte pattern
+    for magic, fmt in magic_bytes.items():
+        if file_content.startswith(magic):
+            # For WEBP, need to verify the WEBP marker
+            if fmt == "webp" and len(file_content) >= 12:
+                return file_content[8:12] == b"WEBP"
+            return True
+
+    return False
+
+
+def _save_cover_as_is(album_artist_name: str, album_name: str, file_content: bytes, ext: str) -> dict:
+    """Save cover image without processing (Pillow not available fallback)."""
+    # Normalize extension
+    if ext == ".jpeg":
+        ext = ".jpg"
+
+    covers_rel_dir = Path("covers")
+    covers_abs_dir = Path(current_app.static_folder) / covers_rel_dir
+    covers_abs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use same naming scheme as ensure_album_art_cached
+    art_row = get_album_art(album_artist_name, album_name)
+    album_mbid = (art_row["album_mbid"] or "").strip() if art_row else ""
+
+    cache_key = album_mbid if album_mbid else f"{_safe_slug(album_artist_name)}__{_safe_slug(album_name)}"
+    filename = f"{cache_key}{ext}"
+    abs_path = covers_abs_dir / filename
+
+    with open(abs_path, "wb") as f:
+        f.write(file_content)
+
+    if abs_path.exists() and abs_path.stat().st_size > 0:
+        return {"cover_url": url_for("static", filename=f"covers/{filename}")}
+
+    return {"error": "Failed to save image"}
+
+
+def _save_cover_to_disk(album_artist_name: str, album_name: str, file_content: bytes, ext: str) -> dict:
+    """Save processed cover image to disk."""
+    covers_rel_dir = Path("covers")
+    covers_abs_dir = Path(current_app.static_folder) / covers_rel_dir
+    covers_abs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Use same naming scheme as ensure_album_art_cached
+    art_row = get_album_art(album_artist_name, album_name)
+    album_mbid = (art_row["album_mbid"] or "").strip() if art_row else ""
+
+    cache_key = album_mbid if album_mbid else f"{_safe_slug(album_artist_name)}__{_safe_slug(album_name)}"
+    filename = f"{cache_key}{ext}"
+    abs_path = covers_abs_dir / filename
+
+    with open(abs_path, "wb") as f:
+        f.write(file_content)
+
+    if abs_path.exists() and abs_path.stat().st_size > 0:
+        return {"cover_url": url_for("static", filename=f"covers/{filename}")}
+
+    return {"error": "Failed to save image"}

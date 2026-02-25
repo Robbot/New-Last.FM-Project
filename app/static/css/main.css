@@ -213,3 +213,80 @@ tbody tr:hover {
     border: 0;
     border-top: 1px solid #e6e6e6;
 }
+
+/* Cover upload form styles */
+.cover-upload-section {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.cover-upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.cover-file-input {
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+}
+
+.cover-file-input:hover {
+    border-color: #9ca3af;
+}
+
+.cover-upload-btn {
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.cover-upload-btn:hover:not(:disabled) {
+    background: #2563eb;
+}
+
+.cover-upload-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.upload-status {
+    margin-top: 8px;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: none;
+}
+
+.upload-status:not(:empty) {
+    display: block;
+}
+
+.upload-info {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.upload-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.upload-error {
+    background: #fee2e2;
+    color: #991b1b;
+}

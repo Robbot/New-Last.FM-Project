@@ -32,6 +32,17 @@
     {% if wikipedia_url and wikipedia_url != "N/A" %}
       <p><strong>Wikipedia:</strong> <a href="{{ wikipedia_url }}" target="_blank" rel="noopener noreferrer">View article</a></p>
     {% endif %}
+
+    {% if not cover_url and upload_allowed %}
+    <div class="cover-upload-section">
+      <p class="text-muted"><small><em>No cover available. Upload one?</em></small></p>
+      <form id="coverUploadForm" class="cover-upload-form" enctype="multipart/form-data">
+        <input type="file" id="coverFile" name="cover" accept="image/jpeg,image/png,image/webp" class="cover-file-input" required>
+        <button type="submit" class="cover-upload-btn">Upload Cover</button>
+      </form>
+      <div id="uploadStatus" class="upload-status"></div>
+    </div>
+    {% endif %}
   </div>
 </div>
 
@@ -82,4 +93,78 @@
 {% else %}
 <p><em>Tracklist not available for this album. Last.fm may not have information about this release.</em></p>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('coverUploadForm');
+  const statusDiv = document.getElementById('uploadStatus');
+  const fileInput = document.getElementById('coverFile');
+
+  if (!form) return;
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const file = fileInput.files[0];
+    if (!file) {
+      showStatus('Please select a file', 'error');
+      return;
+    }
+
+    // Client-side validation
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      showStatus('Invalid file type. Please upload a JPG, PNG, or WEBP image.', 'error');
+      return;
+    }
+
+    // Check file size (10MB max)
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showStatus('File too large. Maximum size is 10MB.', 'error');
+      return;
+    }
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('cover', file);
+
+    // Disable form during upload
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading...';
+    showStatus('Uploading...', 'info');
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.cover_url) {
+        showStatus('Cover uploaded successfully!', 'success');
+        // Reload the page after a short delay to show the new cover
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showStatus(data.error || 'Upload failed', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload Cover';
+      }
+    } catch (error) {
+      showStatus('Network error. Please try again.', 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Upload Cover';
+    }
+  });
+
+  function showStatus(message, type) {
+    statusDiv.textContent = message;
+    statusDiv.className = 'upload-status upload-' + type;
+  }
+});
+</script>
 {% endblock %}
