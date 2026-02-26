@@ -13,32 +13,19 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [x] **Remastered/Expanded edition cleaning** - Removes artificial suffixes from album names
 - [x] **Comprehensive README documentation** - Added detailed installation, usage, and project structure documentation
 - [x] **Add Input Validation** - Implemented centralized input validation to prevent invalid inputs, improve error handling, and enhance security
+- [x] **Database Connection Context Manager** - Created `db_connection()` context manager in `db.py` for automatic connection cleanup with proper exception handling
 
 ---
 
 ## High Priority (Quick Wins)
 
-### 1. Database Connection Context Manager
-- [ ] Create a context manager in `db.py` for automatic connection cleanup
-- [ ] Ensure connections are always closed, even on exceptions
-- [ ] Pattern:
-  ```python
-  @contextmanager
-  def get_db():
-      conn = get_conn()
-      try:
-          yield conn
-      finally:
-          conn.close()
-  ```
-
-### 2. Add Search Functionality
+### 1. Add Search Functionality
 - [ ] Add search bar for artists, albums, and tracks
 - [ ] Implement autocomplete suggestions for search
 - [ ] Add search results pagination
 - [ ] Integrate search into existing library views
 
-### 3. Export Options
+### 2. Export Options
 - [ ] Export scrobbles as CSV
 - [ ] Export scrobbles as JSON
 - [ ] Add date range filtering for exports
@@ -48,19 +35,19 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 
 ## Medium Priority (Quality of Life)
 
-### 4. Loading States & Error Notifications
+### 3. Loading States & Error Notifications
 - [ ] Show loading spinners during API calls
 - [ ] Display toast notifications for sync status
 - [ ] Better error messages for failed operations
 - [ ] Add client-side JavaScript for UI improvements
 
-### 5. Optimize Database Queries
+### 4. Optimize Database Queries
 - [ ] Add compound indexes for common query patterns
 - [ ] Use `LIMIT` + `OFFSET` at database level for pagination
 - [ ] Cache frequently accessed data (top artists, recent scrobbles)
 - [ ] Profile slow queries and optimize them
 
-### 6. Split `db.py` Into Modules
+### 5. Split `db.py` Into Modules
 The 900+ line file could be split into:
 - [ ] `db/connections.py` - Connection management
 - [ ] `db/scrobbles.py` - Scrobble queries
@@ -68,13 +55,13 @@ The 900+ line file could be split into:
 - [ ] `db/albums.py` - Album queries
 - [ ] `db/tracks.py` - Track queries
 
-### 7. API Error Handling & Retry Logic
+### 6. API Error Handling & Retry Logic
 - [ ] Add retry logic with exponential backoff for Last.fm API calls
 - [ ] Handle rate limiting gracefully
 - [ ] Add timeout configuration for API requests
 - [ ] Better error messages for API failures
 
-### 8. Add Health Check Endpoint
+### 7. Add Health Check Endpoint
 - [ ] Add `/health` endpoint for monitoring
 - [ ] Check database connectivity
 - [ ] Check Last.fm API availability
@@ -84,62 +71,62 @@ The 900+ line file could be split into:
 
 ## Lower Priority (Nice to Have)
 
-### 9. Test Suite
+### 8. Test Suite
 - [ ] Unit tests for data cleaning functions
 - [ ] Integration tests for sync logic
 - [ ] Route tests for critical endpoints
 - [ ] Set up pytest configuration
 - [ ] Add CI/CD pipeline (GitHub Actions)
 
-### 10. Advanced Analytics & Visualizations
+### 9. Advanced Analytics & Visualizations
 - [ ] Listening heatmap (hourly/daily patterns)
 - [ ] Artist discovery graphs
 - [ ] Genre trends over time
 - [ ] "On this day" feature showing scrobbles from same date in previous years
 - [ ] Monthly/yearly listening statistics
 
-### 11. Async Sync with Progress Updates
+### 10. Async Sync with Progress Updates
 - [ ] Run Last.fm sync in background (Celery or similar)
 - [ ] Add real-time progress updates via WebSocket
 - [ ] Show sync status in UI
 - [ ] Allow manual sync trigger from web interface
 
-### 12. Rate Limiting
+### 11. Rate Limiting
 - [ ] Add rate limiting middleware for API endpoints
 - [ ] Implement rate limiting for Last.fm API calls
 - [ ] Add per-IP rate limiting for public endpoints
 
-### 13. Wikipedia Enhancement
+### 12. Wikipedia Enhancement
 - [ ] Extract and display album descriptions
 - [ ] Add genre information from Wikipedia
 - [ ] Show artist biographies
 - [ ] Link to relevant Wikipedia articles
 
-### 14. User Accounts (Multi-user Support)
+### 13. User Accounts (Multi-user Support)
 - [ ] Add user authentication system
 - [ ] Allow multiple Last.fm accounts
 - [ ] Personalized dashboards per user
 - [ ] User-specific settings and preferences
 
-### 15. Advanced Filtering
+### 14. Advanced Filtering
 - [ ] Filter by multiple artists/albums at once
 - [ ] Save custom filters as presets
 - [ ] Advanced search with boolean operators
 - [ ] Filter by play count ranges
 
-### 16. Data Visualization Improvements
+### 15. Data Visualization Improvements
 - [ ] Interactive charts for listening trends
 - [ ] Artist/album cloud visualization
 - [ ] Timeline view of scrobbles
 - [ ] Geographic distribution (if location data available)
 
-### 17. Performance Improvements
+### 16. Performance Improvements
 - [ ] Implement database query result caching
 - [ ] Add pagination metadata (total count, total pages)
 - [ ] Optimize static file serving with proper cache headers
 - [ ] Consider database connection pooling
 
-### 18. Developer Experience
+### 17. Developer Experience
 - [ ] Add pre-commit hooks for code formatting
 - [ ] Set up linting (ruff, pylint, or similar)
 - [ ] Add code formatting configuration (black, etc.)

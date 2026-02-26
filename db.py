@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import requests
 from flask import current_app, url_for
 from datetime import datetime, timezone, timedelta
+from contextlib import contextmanager
 import unicodedata
 import io
 import struct
@@ -155,6 +156,23 @@ def get_db_connection() ->sqlite3.Connection:
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {e}")
         raise
+
+
+@contextmanager
+def db_connection():
+    """
+    Context manager for automatic database connection cleanup.
+
+    Usage:
+        with db_connection() as conn:
+            conn.execute(...)
+            # connection automatically closed after block
+    """
+    conn = get_db_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
     """
