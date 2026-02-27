@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # ---------- Cleaning helpers ----------
 
-# Regex patterns to remove remastered/remaster and expanded edition suffixes
+# Regex patterns to remove remastered/remaster, expanded edition, and deluxe edition suffixes
 # Order matters: more specific patterns (with year) must come before less specific ones
 # Matches variants like:
 #   - " - Remastered 2014", " - Remaster 2009" (word before year)
@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 #   - "(Remastered)", "[Remastered 2014]" (parenthetical, word before year)
 #   - "(2018 Remaster)", "[2009 Remastered]" (parenthetical, year before word)
 #   - " - Expanded Edition", " (Expanded Edition)" (expanded edition variants)
+#   - "(Deluxe Edition)", "[Deluxe Edition]" (deluxe edition variants)
 _REMASTER_PATTERNS = [
     # Year BEFORE word (more specific - must be first)
     r" -\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s*$",
@@ -70,18 +71,25 @@ _REMASTER_PATTERNS = [
     r" -\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
     r"\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
     r"\s*[\(\[]\s*(?:Platinum Collection Version|Platinum Collection)\s*[\)\]]\s*$",
+    # Deluxe Edition variants
+    r" -\s+(?:Deluxe Edition|deluxe edition)\s*$",
+    r"\s+(?:Deluxe Edition|deluxe edition)\s*$",
+    r"\s*[\(\[]\s*(?:Deluxe Edition|deluxe edition)\s*[\)\]]\s*$",
+    # Slash separator patterns (e.g., "Soundtrack / Deluxe Edition")
+    r"\s*/\s*(?:Deluxe Edition|deluxe edition)\s*[\)\]]*\s*$",
+    r"\s+/ *(?:Deluxe Edition|deluxe edition)\s*$",
 ]
 
 def clean_remastered_suffix(title: str) -> str:
     """
-    Remove artificial remastered/remaster and expanded edition suffixes from album or track titles.
+    Remove artificial remastered/remaster, expanded edition, and deluxe edition suffixes from album or track titles.
     These are added by Last.fm/music services and are not part of the original title.
 
     Args:
         title: The original title from Last.fm API
 
     Returns:
-        Cleaned title with remastered/remaster and expanded edition suffixes removed
+        Cleaned title with remastered/remaster, expanded edition, and deluxe edition suffixes removed
     """
     if not title:
         return title
