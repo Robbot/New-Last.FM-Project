@@ -743,15 +743,28 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
     # Normalize the album name for fuzzy matching
     normalized_album = _normalize_for_matching(album_name)
 
+    # For Various Artists compilations, query by album name only (not by artist)
+    is_various_artists = album_artist_name.lower() in ("various artists", "various artist")
+
     # Step 1: Find all album name variations in album_tracks that match the normalized name
-    album_track_albums = conn.execute(
-        """
-        SELECT DISTINCT album
-        FROM album_tracks
-        WHERE artist = ?
-        """,
-        (album_artist_name,),
-    ).fetchall()
+    if is_various_artists:
+        album_track_albums = conn.execute(
+            """
+            SELECT DISTINCT album
+            FROM album_tracks
+            WHERE album = ?
+            """,
+            (album_name,),
+        ).fetchall()
+    else:
+        album_track_albums = conn.execute(
+            """
+            SELECT DISTINCT album
+            FROM album_tracks
+            WHERE artist = ?
+            """,
+            (album_artist_name,),
+        ).fetchall()
 
     # Find the canonical album_tracks album name (first match)
     canonical_album = None
@@ -773,15 +786,27 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
         return []
 
     # Step 2: Get all album_tracks for this album
-    album_tracks = conn.execute(
-        """
-        SELECT track_number, track
-        FROM album_tracks
-        WHERE artist = ? AND album = ?
-        ORDER BY track_number ASC
-        """,
-        (album_artist_name, canonical_album),
-    ).fetchall()
+    # For Various Artists, also include the track artist
+    if is_various_artists:
+        album_tracks = conn.execute(
+            """
+            SELECT track_number, track, artist
+            FROM album_tracks
+            WHERE album = ?
+            ORDER BY track_number ASC
+            """,
+            (canonical_album,),
+        ).fetchall()
+    else:
+        album_tracks = conn.execute(
+            """
+            SELECT track_number, track
+            FROM album_tracks
+            WHERE artist = ? AND album = ?
+            ORDER BY track_number ASC
+            """,
+            (album_artist_name, canonical_album),
+        ).fetchall()
 
     # Step 3: Find all scrobble albums that match the normalized album name
     all_scrobble_albums = conn.execute(
@@ -837,25 +862,34 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
     for track in album_tracks:
         normalized_track = _normalize_track_name_for_matching(track["track"])
 
-        # Try to find a matching scrobble (prefer same artist, fall back to any artist)
-        track_artist = album_artist_name
-        plays = 0
-
-        # First try with the album artist
-        key_with_artist = (normalized_track, album_artist_name)
-        if key_with_artist in scrobble_dict:
-            plays = sum(s["plays"] for s in scrobble_dict[key_with_artist])
-            # Use the first matching track name for display
-            if scrobble_dict[key_with_artist]:
-                track_artist = scrobble_dict[key_with_artist][0]["artist"]
+        # For Various Artists, use the track artist from album_tracks directly
+        if is_various_artists and "artist" in track.keys():
+            track_artist = track["artist"]
+            # Try to find matching scrobbles for this specific track + artist
+            plays = 0
+            key = (normalized_track, track_artist)
+            if key in scrobble_dict:
+                plays = sum(s["plays"] for s in scrobble_dict[key])
         else:
-            # Try without artist restriction (for compilations)
-            for key, scrobble_list in scrobble_dict.items():
-                if key[0] == normalized_track:
-                    total_plays = sum(s["plays"] for s in scrobble_list)
-                    if total_plays > plays:
-                        plays = total_plays
-                        track_artist = scrobble_list[0]["artist"]
+            # For regular albums, try to find a matching scrobble (prefer same artist, fall back to any artist)
+            track_artist = album_artist_name
+            plays = 0
+
+            # First try with the album artist
+            key_with_artist = (normalized_track, album_artist_name)
+            if key_with_artist in scrobble_dict:
+                plays = sum(s["plays"] for s in scrobble_dict[key_with_artist])
+                # Use the first matching track name for display
+                if scrobble_dict[key_with_artist]:
+                    track_artist = scrobble_dict[key_with_artist][0]["artist"]
+            else:
+                # Try without artist restriction (for compilations)
+                for key, scrobble_list in scrobble_dict.items():
+                    if key[0] == normalized_track:
+                        total_plays = sum(s["plays"] for s in scrobble_list)
+                        if total_plays > plays:
+                            plays = total_plays
+                            track_artist = scrobble_list[0]["artist"]
 
         results.append({
             "track_number": track["track_number"],
