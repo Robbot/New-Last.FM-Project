@@ -786,16 +786,29 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
         return []
 
     # Step 2: Get all album_tracks for this album
-    # For Various Artists, also include the track artist
+    # For Various Artists, prefer entries with actual track artists over "Various Artists"
     if is_various_artists:
         album_tracks = conn.execute(
             """
             SELECT track_number, track, artist
             FROM album_tracks
             WHERE album = ?
+              AND rowid IN (
+                  SELECT rowid
+                  FROM (
+                      SELECT rowid,
+                             ROW_NUMBER() OVER (
+                                 PARTITION BY track_number, track
+                                 ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
+                             ) as rn
+                      FROM album_tracks
+                      WHERE album = ?
+                  )
+                  WHERE rn = 1
+              )
             ORDER BY track_number ASC
             """,
-            (canonical_album,),
+            (canonical_album, canonical_album),
         ).fetchall()
     else:
         album_tracks = conn.execute(
