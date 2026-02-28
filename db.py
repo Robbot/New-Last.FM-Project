@@ -607,15 +607,28 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
 
 
 def get_top_tracks(start: str = "", end: str = ""):
-    """Tracks sorted by plays (scrobbles) desc."""
+    """Tracks sorted by plays (scrobbles) desc.
+
+    For tracks from compilations (Various Artists), combines plays and shows
+    the original artist instead of 'Various Artists'.
+    """
     conn = get_db_connection()
 
     sql = """
         SELECT
             track,
-            artist,
-            album,
-            album_artist,
+            COALESCE(
+                MAX(CASE WHEN LOWER(artist) != 'various artists' THEN artist END),
+                MAX(artist)
+            ) AS artist,
+            COALESCE(
+                MAX(CASE WHEN LOWER(album_artist) != 'various artists' THEN album_artist END),
+                MAX(album_artist)
+            ) AS album_artist,
+            COALESCE(
+                MAX(CASE WHEN LOWER(artist) != 'various artists' THEN album END),
+                MAX(album)
+            ) AS album,
             COUNT(*) AS plays
         FROM scrobble
         WHERE track IS NOT NULL AND track != ''
@@ -629,7 +642,7 @@ def get_top_tracks(start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += """
-        GROUP BY track, artist
+        GROUP BY track
         ORDER BY plays DESC
     """
 
