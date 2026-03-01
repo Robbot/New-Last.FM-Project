@@ -66,7 +66,7 @@ The application is running at: https://scrobble.rojek.ie
 python wsgi.py
 ```
 
-The application will be available at http://0.0.0.0:8001
+The application will be available at http://0.0.0.0:8001 or your server IP:8001
 
 ### Syncing Your Last.fm Data
 
