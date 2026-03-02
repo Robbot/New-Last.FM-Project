@@ -26,7 +26,7 @@ def get_conn():
     return conn
 
 
-def is_compilation_album(conn: sqlite3.Connection, album: str) -> bool:
+def is_compilation_album(conn: sqlite3.Connection, album: str, album_mbid: str) -> bool:
     """
     Determine if an album is a compilation by checking if it has
     tracks by multiple artists (excluding some common patterns).
@@ -34,6 +34,7 @@ def is_compilation_album(conn: sqlite3.Connection, album: str) -> bool:
     Args:
         conn: Database connection
         album: Album name to check
+        album_mbid: MusicBrainz ID for the album
 
     Returns:
         True if the album appears to be a compilation
@@ -42,9 +43,9 @@ def is_compilation_album(conn: sqlite3.Connection, album: str) -> bool:
         """
         SELECT COUNT(DISTINCT artist) as artist_count
         FROM scrobble
-        WHERE album = ?
+        WHERE album = ? AND (album_mbid = ? OR (album_mbid IS NULL AND ? IS NULL))
         """,
-        (album,),
+        (album, album_mbid, album_mbid),
     ).fetchone()
 
     if not row:
@@ -65,20 +66,21 @@ def backfill_album_artist(conn: sqlite3.Connection) -> int:
     Returns:
         Number of scrobbles updated
     """
-    # First, find all albums that could be compilations
-    albums = conn.execute(
+    # First, find all (album, album_mbid) combinations that could be compilations
+    album_mbids = conn.execute(
         """
-        SELECT DISTINCT album
+        SELECT DISTINCT album, album_mbid
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
         """
     ).fetchall()
 
     compilation_albums = []
-    for row in albums:
+    for row in album_mbids:
         album = row["album"]
-        if is_compilation_album(conn, album):
-            compilation_albums.append(album)
+        album_mbid = row["album_mbid"]
+        if is_compilation_album(conn, album, album_mbid):
+            compilation_albums.append((album, album_mbid))
 
     print(f"Found {len(compilation_albums)} compilation albums")
 
@@ -86,16 +88,20 @@ def backfill_album_artist(conn: sqlite3.Connection) -> int:
         return 0
 
     # Update scrobbles from compilation albums
-    # Build the query with placeholders for all albums
-    placeholders = ",".join(["?" for _ in compilation_albums])
+    # Build the query with placeholders for all (album, album_mbid) pairs
+    placeholders = ",".join(["(?,?)" for _ in compilation_albums])
+    flat_values = []
+    for album, mbid in compilation_albums:
+        flat_values.extend([album, mbid])
+
     cursor = conn.execute(
         f"""
         UPDATE scrobble
         SET album_artist = 'Various Artists'
-        WHERE album IN ({placeholders})
+        WHERE (album, album_mbid) IN ({placeholders})
           AND (album_artist IS NULL OR album_artist = '')
         """,
-        compilation_albums,
+        flat_values,
     )
 
     updated = cursor.rowcount
@@ -108,10 +114,10 @@ def print_compilation_albums(conn: sqlite3.Connection, limit: int = 20) -> None:
     """Print compilation albums for verification."""
     rows = conn.execute(
         """
-        SELECT album, COUNT(DISTINCT artist) as artist_count, COUNT(*) as track_count
+        SELECT album, album_mbid, COUNT(DISTINCT artist) as artist_count, COUNT(*) as track_count
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
-        GROUP BY album
+        GROUP BY album, album_mbid
         HAVING artist_count >= 3
         ORDER BY artist_count DESC
         LIMIT ?
@@ -120,9 +126,10 @@ def print_compilation_albums(conn: sqlite3.Connection, limit: int = 20) -> None:
     ).fetchall()
 
     print(f"\nTop {limit} albums by artist diversity (potential compilations):")
-    print("-" * 70)
+    print("-" * 90)
     for row in rows:
-        print(f"{row['album'][:50]:50} | {row['artist_count']:3} artists | {row['track_count']:4} tracks")
+        mbid_display = row['album_mbid'][:8] if row['album_mbid'] else 'NULL'
+        print(f"{row['album'][:50]:50} | {mbid_display:8} | {row['artist_count']:3} artists | {row['track_count']:4} tracks")
 
 
 def backfill_non_compilations(conn: sqlite3.Connection) -> int:
@@ -130,17 +137,19 @@ def backfill_non_compilations(conn: sqlite3.Connection) -> int:
     For non-compilation albums, set album_artist to the track artist.
 
     This handles albums where all tracks are by the same artist.
+    Albums are identified by (album, album_mbid) to properly distinguish
+    different albums that happen to have the same name.
     """
     cursor = conn.execute(
         """
         UPDATE scrobble
         SET album_artist = artist
         WHERE album_artist IS NULL
-          AND album IN (
-              SELECT album
+          AND (album, album_mbid) IN (
+              SELECT album, album_mbid
               FROM scrobble
               WHERE album IS NOT NULL AND album != ''
-              GROUP BY album
+              GROUP BY album, album_mbid
               HAVING COUNT(DISTINCT artist) < 3
           )
         """

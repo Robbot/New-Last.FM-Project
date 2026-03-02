@@ -270,33 +270,40 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     """
     Update album_artist to 'Various Artists' for compilation albums.
     A compilation is defined as an album with 3+ distinct artists.
+    Albums are identified by (album, album_mbid) to distinguish different
+    albums that happen to have the same name (e.g., "21" by Adele vs "21" by KSU).
     """
-    # Find all albums that should be compilations
+    # Find all (album, album_mbid) combinations that should be compilations
     cursor = conn.execute(
         """
-        SELECT album
+        SELECT album, album_mbid
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
-        GROUP BY album
+        GROUP BY album, album_mbid
         HAVING COUNT(DISTINCT artist) >= 3
         """
     )
-    compilation_albums = [row["album"] for row in cursor.fetchall()]
+    compilation_albums = [(row["album"], row["album_mbid"]) for row in cursor.fetchall()]
 
     if not compilation_albums:
         logger.debug("No compilation albums found to update.")
         return
 
     # Build placeholders for the UPDATE query
-    placeholders = ",".join(["?" for _ in compilation_albums])
+    # We need two placeholders per compilation: one for album, one for album_mbid
+    placeholders = ",".join(["(?,?)" for _ in compilation_albums])
+    flat_values = []
+    for album, mbid in compilation_albums:
+        flat_values.extend([album, mbid])
+
     cursor = conn.execute(
         f"""
         UPDATE scrobble
         SET album_artist = 'Various Artists'
-        WHERE album IN ({placeholders})
+        WHERE (album, album_mbid) IN ({placeholders})
           AND album_artist != 'Various Artists'
         """,
-        compilation_albums,
+        flat_values,
     )
 
     updated = cursor.rowcount
