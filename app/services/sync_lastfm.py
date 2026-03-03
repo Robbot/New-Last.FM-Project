@@ -78,18 +78,21 @@ _REMASTER_PATTERNS = [
     # Slash separator patterns (e.g., "Soundtrack / Deluxe Edition")
     r"\s*/\s*(?:Deluxe Edition|deluxe edition)\s*[\)\]]*\s*$",
     r"\s+/ *(?:Deluxe Edition|deluxe edition)\s*$",
+    # Live suffixes (e.g., " - Live", " - Live Version")
+    r" -\s+(?:Live|live|Live Version|live version)\s*$",
+    r"\s+[\(\[]\s*(?:Live|live|Live Version|live version)\s*[\)\]]\s*$",
 ]
 
 def clean_remastered_suffix(title: str) -> str:
     """
-    Remove artificial remastered/remaster, expanded edition, and deluxe edition suffixes from album or track titles.
+    Remove artificial remastered/remaster, expanded edition, deluxe edition, and live suffixes from album or track titles.
     These are added by Last.fm/music services and are not part of the original title.
 
     Args:
         title: The original title from Last.fm API
 
     Returns:
-        Cleaned title with remastered/remaster, expanded edition, and deluxe edition suffixes removed
+        Cleaned title with remastered/remaster, expanded edition, deluxe edition, and live suffixes removed
     """
     if not title:
         return title
