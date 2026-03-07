@@ -405,10 +405,10 @@ def get_top_tracks_for_artist(
     conn.close()
     return rows
 
-def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", sort_order: str = "desc"):
+def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", sort_order: str = "desc", search_term: str = ""):
     conn = get_db_connection()
 
-    print(f"DB get_artists_details - Input: start={start}, end={end}, sort_by={sort_by}, sort_order={sort_order}")
+    print(f"DB get_artists_details - Input: start={start}, end={end}, sort_by={sort_by}, sort_order={sort_order}, search_term={search_term}")
 
     # Validate sort_by and sort_order
     valid_sort_columns = {"rank", "artist", "plays", "tracks"}
@@ -424,15 +424,25 @@ def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", 
         FROM scrobble
     """
     params = []
+    where_conditions = []
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
-        sql += """ WHERE date(uts, 'unixepoch', 'localtime') >= ?
-                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        where_conditions.append("date(uts, 'unixepoch', 'localtime') >= ?")
+        where_conditions.append("date(uts, 'unixepoch', 'localtime') <= ?")
         params.extend([start, end])
         print(f"DB get_artists_details - Using date filter")
+
+    # Search filter - case-insensitive partial matching on artist name
+    if search_term:
+        where_conditions.append("LOWER(artist) LIKE ?")
+        params.append(f"%{search_term.lower()}%")
+        print(f"DB get_artists_details - Using search filter: {search_term}")
+
+    if where_conditions:
+        sql += " WHERE " + " AND ".join(where_conditions)
     else:
-        print(f"DB get_artists_details - NO date filter applied")
+        print(f"DB get_artists_details - NO filters applied")
 
     sql += " GROUP BY artist"
 
@@ -519,7 +529,7 @@ def get_album_stats():
         "total_scrobbles": row["total_scrobbles"],
     }
 
-def get_top_albums(start: str = "", end: str = ""):
+def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
     """Albums sorted by plays (scrobbles) desc."""
     conn = get_db_connection()
 
@@ -539,6 +549,12 @@ def get_top_albums(start: str = "", end: str = ""):
         sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
                    AND date(uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
+
+    # Search filter - case-insensitive partial matching on album, artist, or album_artist
+    if search_term:
+        sql += """ AND (LOWER(album) LIKE ? OR LOWER(artist) LIKE ? OR LOWER(album_artist) LIKE ?)"""
+        search_pattern = f"%{search_term.lower()}%"
+        params.extend([search_pattern, search_pattern, search_pattern])
 
     sql += """
         GROUP BY album, artist, album_artist
@@ -606,32 +622,31 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
     return rows
 
 
-def get_top_tracks(start: str = "", end: str = ""):
+def get_top_tracks(start: str = "", end: str = "", search_term: str = ""):
     """Tracks sorted by plays (scrobbles) desc.
 
-    For tracks from compilations (Various Artists), combines plays and shows
-    the original artist instead of 'Various Artists'.
+    Groups by track AND artist to correctly handle tracks with the same name
+    by different artists. For compilations (Various Artists), shows the
+    original artist instead when available.
     """
     conn = get_db_connection()
 
+    # Use a CTE to first normalize the artist for each scrobble, then group
     sql = """
-        SELECT
-            track,
-            COALESCE(
-                MAX(CASE WHEN LOWER(artist) != 'various artists' THEN artist END),
-                MAX(artist)
-            ) AS artist,
-            COALESCE(
-                MAX(CASE WHEN LOWER(album_artist) != 'various artists' THEN album_artist END),
-                MAX(album_artist)
-            ) AS album_artist,
-            COALESCE(
-                MAX(CASE WHEN LOWER(artist) != 'various artists' THEN album END),
-                MAX(album)
-            ) AS album,
-            COUNT(*) AS plays
-        FROM scrobble
-        WHERE track IS NOT NULL AND track != ''
+        WITH normalized_scrobbles AS (
+            SELECT
+                track,
+                -- Prefer non-Various Artists as the primary artist
+                COALESCE(
+                    CASE WHEN LOWER(artist) != 'various artists' THEN artist END,
+                    CASE WHEN LOWER(album_artist) != 'various artists' THEN album_artist END,
+                    artist
+                ) AS primary_artist,
+                album_artist,
+                album,
+                uts
+            FROM scrobble
+            WHERE track IS NOT NULL AND track != ''
     """
     params = []
 
@@ -641,8 +656,23 @@ def get_top_tracks(start: str = "", end: str = ""):
                    AND date(uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
 
+    # Search filter - case-insensitive partial matching on track or artist
+    # Need to search in the original artist field too
+    if search_term:
+        sql += """ AND (LOWER(track) LIKE ? OR LOWER(artist) LIKE ? OR LOWER(album_artist) LIKE ?)"""
+        search_pattern = f"%{search_term.lower()}%"
+        params.extend([search_pattern, search_pattern, search_pattern])
+
     sql += """
-        GROUP BY track
+        )
+        SELECT
+            track,
+            primary_artist AS artist,
+            MAX(album_artist) AS album_artist,
+            MAX(album) AS album,
+            COUNT(*) AS plays
+        FROM normalized_scrobbles
+        GROUP BY track, primary_artist
         ORDER BY plays DESC
     """
 

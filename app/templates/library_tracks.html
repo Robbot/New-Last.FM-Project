@@ -2,12 +2,27 @@
 {% extends "base_library.html" %}
 
 {% block summary_header %}
-<div class="d-flex gap-4">
+<div class="d-flex gap-4 mb-3">
   <div>
     <strong>{{ stats.total_tracks }}</strong><br>
     Unique tracks
   </div>
 </div>
+
+<form method="GET" action="{{ url_for('tracks.library_tracks') }}" class="search-form d-flex gap-2 mb-3">
+  <input type="text"
+         name="search"
+         value="{{ search_term or '' }}"
+         placeholder="Search tracks..."
+         class="search-input">
+  <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  {% if search_term %}
+  <a href="{{ url_for('tracks.library_tracks', from=from_arg, to=to_arg, rangetype=rangetype) }}" class="btn btn-secondary btn-sm">Clear</a>
+  {% endif %}
+  <input type="hidden" name="from" value="{{ from_arg }}">
+  <input type="hidden" name="to" value="{{ to_arg }}">
+  <input type="hidden" name="rangetype" value="{{ rangetype }}">
+</form>
 {% endblock %}
 
 {% block main_content %}   
@@ -46,15 +61,15 @@
 <div class="pagination-wrapper">
 <div class="pagination">
     {% if page > 1 %}
-        <a href="{{ url_for('tracks.library_tracks', page=1, from=from_arg, to=to_arg, rangetype=rangetype) }}">« First</a>
-        <a href="{{ url_for('tracks.library_tracks', page=page-1, from=from_arg, to=to_arg, rangetype=rangetype) }}">‹ {{page - 1}}</a>
+        <a href="{{ url_for('tracks.library_tracks', page=1, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">« First</a>
+        <a href="{{ url_for('tracks.library_tracks', page=page-1, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">‹ {{page - 1}}</a>
     {% endif %}
 
     Page {{ page }} of {{ total_pages }}
 
     {% if page < total_pages %}
-        <a href="{{ url_for('tracks.library_tracks', page=page+1, from=from_arg, to=to_arg, rangetype=rangetype) }}">{{page + 1}} ›</a>
-        <a href="{{ url_for('tracks.library_tracks', page=total_pages, from=from_arg, to=to_arg, rangetype=rangetype) }}">Last »</a>
+        <a href="{{ url_for('tracks.library_tracks', page=page+1, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('tracks.library_tracks', page=total_pages, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">Last »</a>
     {% endif %}
 </div>
 </div>

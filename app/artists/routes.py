@@ -48,6 +48,7 @@ def library_artists():
     from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
     to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
     rangetype = (request.args.get("rangetype") or "").strip()
+    search_term = (request.args.get("search") or "").strip()
     sort_by = validate_enum(
         request.args.get("sort_by"),
         ALLOWED_SORT_BY,
@@ -64,7 +65,7 @@ def library_artists():
     start, end = compute_range_validated(from_arg or None, to_arg or None, rangetype or None)
 
     stats = db.get_library_stats()
-    rows = db.get_artists_details(start=start, end=end, sort_by=sort_by, sort_order=sort_order)
+    rows = db.get_artists_details(start=start, end=end, sort_by=sort_by, sort_order=sort_order, search_term=search_term)
 
     per_page = 50
     page = validate_int(request.args.get("page"), min_val=PAGE_MIN, default=1)
@@ -95,4 +96,5 @@ def library_artists():
         from_arg=from_arg,
         to_arg=to_arg,
         rangetype=rangetype,
+        search_term=search_term,
     )

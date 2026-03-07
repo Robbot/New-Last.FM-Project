@@ -36,20 +36,22 @@
 </ul>
 
 <script>
-// Preserve date range parameters when clicking navigation tabs
+// Preserve date range and search parameters when clicking navigation tabs
 document.addEventListener('DOMContentLoaded', function() {
   const currentUrl = new URL(window.location.href);
   const from = currentUrl.searchParams.get('from');
   const to = currentUrl.searchParams.get('to');
   const rangetype = currentUrl.searchParams.get('rangetype');
+  const search = currentUrl.searchParams.get('search');
 
-  // Only modify tabs if date parameters exist
-  if (from || to || rangetype) {
+  // Only modify tabs if date or search parameters exist
+  if (from || to || rangetype || search) {
     document.querySelectorAll('[data-nav-tab]').forEach(function(link) {
       const linkUrl = new URL(link.href);
       if (from) linkUrl.searchParams.set('from', from);
       if (to) linkUrl.searchParams.set('to', to);
       if (rangetype) linkUrl.searchParams.set('rangetype', rangetype);
+      if (search) linkUrl.searchParams.set('search', search);
       link.href = linkUrl.toString();
     });
   }

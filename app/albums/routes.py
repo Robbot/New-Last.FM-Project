@@ -18,10 +18,11 @@ def library_albums():
     from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
     to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
     rangetype = (request.args.get("rangetype") or "").strip()
+    search_term = (request.args.get("search") or "").strip()
     start, end = compute_range_validated(from_arg or None, to_arg or None, rangetype or None)
 
     stats = db.get_album_stats()
-    top_albums = db.get_top_albums(start=start, end=end)
+    top_albums = db.get_top_albums(start=start, end=end, search_term=search_term)
 
     per_page = 50
     page = validate_int(request.args.get("page"), min_val=PAGE_MIN, default=1)
@@ -46,6 +47,7 @@ def library_albums():
            from_arg=from_arg,
            to_arg=to_arg,
            rangetype=rangetype,
+           search_term=search_term,
     )
 
 

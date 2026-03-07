@@ -11,10 +11,11 @@ def library_tracks():
     from_arg = (request.args.get("from") or request.args.get("start") or "").strip()
     to_arg = (request.args.get("to") or request.args.get("end") or "").strip()
     rangetype = (request.args.get("rangetype") or "").strip()
+    search_term = (request.args.get("search") or "").strip()
     start, end = compute_range_validated(from_arg or None, to_arg or None, rangetype or None)
 
     stats = db.get_track_stats()
-    top_tracks = db.get_top_tracks(start=start, end=end)
+    top_tracks = db.get_top_tracks(start=start, end=end, search_term=search_term)
 
     per_page = 50
     page = validate_int(request.args.get("page"), min_val=PAGE_MIN, default=1)
@@ -39,6 +40,7 @@ def library_tracks():
         from_arg=from_arg,
         to_arg=to_arg,
         rangetype=rangetype,
+        search_term=search_term,
     )
 
 @tracks_bp.route("/library/track/<path:artist_name>/<path:track_name>")
