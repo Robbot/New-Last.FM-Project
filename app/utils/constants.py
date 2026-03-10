@@ -26,7 +26,7 @@ MAX_TRACK_NAME_LENGTH = 500
 
 # Enum values - allowed values for various parameters
 ALLOWED_RANGETYPES = ["1day", "1month", "year"]
-ALLOWED_SORT_BY = ["name", "plays"]
+ALLOWED_SORT_BY = ["rank", "artist", "plays", "tracks"]
 DEFAULT_SORT_BY = "plays"
 ALLOWED_SORT_ORDER = ["asc", "desc"]
 DEFAULT_SORT_ORDER = "desc"
