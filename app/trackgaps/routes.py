@@ -1,5 +1,5 @@
 from flask import render_template, request
-import db
+from app import db
 import math
 from . import trackgaps_bp
 from app.utils.range import compute_range_validated

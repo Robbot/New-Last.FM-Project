@@ -32,6 +32,18 @@ python -m app.services.backfill_album_years
 # Backup database
 python -m app.services.backup_db
 
+# Analyze mismatches between scrobble and album_tracks tables
+python -m app.services.analyze_mismatches
+
+# Clean mismatches interactively
+python -m app.services.clean_mismatches
+
+# Backfill album art from Last.fm API
+python -m app.services.backfill_album_art
+
+# Migrate album_art table schema
+python -m app.services.migrate_album_art
+
 # Activate virtual environment (if needed)
 source .venv/bin/activate
 
@@ -53,14 +65,19 @@ The Flask app uses a modular Blueprint architecture:
   - `app/tracks/`: Track library and track detail pages
   - `app/trackgaps/`: Unique feature showing tracks sorted by time since last play
   - `app/daterange/`: Date range filtering for all library views
-- **Database Layer (`db.py`)**: All database queries centralized in root-level module. Uses `sqlite3.Row` factory for dict-like access. Includes error logging for database operations.
+- **Database Layer (`app/db.py`)**: All database queries centralized module. Uses `sqlite3.Row` factory for dict-like access. Includes error logging for database operations.
 - **Services (`app/services/`)**: External integrations and utilities:
   - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite with data cleaning (uses logging for progress/errors)
   - `fetch_tracklist.py`: Fetches album tracklists from Last.fm API
+  - `fetch_wikipedia.py`: Fetches Wikipedia URLs for albums
   - `clean_remastered_db.py`: One-time migration script to clean remastered suffixes from existing data
   - `clean_track_case_db.py`: Normalizes track name case inconsistencies (e.g., "Of Wolf and Man" vs "Of Wolf And Man")
   - `backfill_album_years.py` / `backfill_album_years_enhanced.py`: Populate album years from Last.fm API
+  - `backfill_album_art.py`: Backfill album artwork from Last.fm API
   - `backup_db.py`: Database backup utility
+  - `analyze_mismatches.py`: Analyze mismatches between scrobble and album_tracks tables
+  - `clean_mismatches.py`: Interactive tool to clean up mismatches
+  - `migrate_album_art.py`: Database migration for album_art table schema changes
   - `config.py`: Reads Last.fm API credentials from `config.ini`
 - **Utils (`app/utils/`)**: Helper functions for range calculations and date handling
 - **Static Files (`app/static/`)**: Contains `covers/` subdirectory for cached album artwork
@@ -69,7 +86,7 @@ The Flask app uses a modular Blueprint architecture:
 ### Data Flow
 
 1. **Data ingestion**: `sync_lastfm.py` calls Last.fm API → inserts into SQLite (`files/lastfmstats.sqlite`)
-2. **Request handling**: Flask route → calls function in `db.py` → returns `sqlite3.Row` objects
+2. **Request handling**: Flask route → calls function in `app/db.py` → returns `sqlite3.Row` objects
 3. **Rendering**: Jinja2 templates in `app/templates/` receive data and render HTML
 
 ### Database Schema
@@ -103,7 +120,7 @@ The application includes sophisticated data cleaning to handle inconsistencies f
 - **Case-Insensitive Matching**: For track/album lookups to handle capitalization variations
 - **Unicode Normalization**: Normalizes text to handle different character encodings (removes accents: é → e, ö → o)
 - **Common Variation Handling**: Strips suffixes like " - Single Version", " - Album Version", " - Remix"
-- **Fuzzy Matching Function** (`db.py:_normalize_for_matching`): Lowercases, removes accents, replaces hyphens with spaces, fixes common typos
+- **Fuzzy Matching Function** (`app/db.py:_normalize_for_matching`): Lowercases, removes accents, replaces hyphens with spaces, fixes common typos
 
 Cleaning is applied during sync in `sync_lastfm.py` and can be retroactively applied via `clean_remastered_db.py` or `clean_track_case_db.py`.
 

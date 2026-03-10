@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from flask import request, jsonify
-import db
+from app import db
 from . import daterange_bp
 from app.utils.validators import validate_int, validate_iso_date, ValidationError
 from app.utils.constants import (

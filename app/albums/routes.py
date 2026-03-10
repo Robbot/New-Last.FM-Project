@@ -2,7 +2,7 @@ from flask import abort, render_template, request, current_app, jsonify, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
 from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
-import db
+from app import db
 import math
 from . import albums_bp
 from app.utils.range import compute_range_validated

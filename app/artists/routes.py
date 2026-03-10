@@ -1,6 +1,6 @@
 import math
 from flask import render_template, abort, request
-import db
+from app import db
 from . import artists_bp
 from app.utils.range import compute_range_validated
 from app.utils.validators import validate_int, validate_enum, validate_artist_name

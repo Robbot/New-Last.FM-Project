@@ -1,6 +1,6 @@
 import math
 from flask import Blueprint, render_template, request
-import db
+from app import db
 from . import scrobbles_bp
 from app.utils.range import compute_range_validated
 from app.utils.validators import validate_int

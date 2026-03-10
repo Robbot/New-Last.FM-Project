@@ -17,7 +17,7 @@ from typing import List, Tuple
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
-from db import get_db_connection
+from app.db import get_db_connection
 
 
 DB_PATH = Path(__file__).parent.parent.parent / "files" / "lastfmstats.sqlite"
