@@ -12,7 +12,7 @@ import io
 import struct
 
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 
 logger = logging.getLogger(__name__)

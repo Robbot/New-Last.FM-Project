@@ -21,7 +21,7 @@ from pathlib import Path
 
 
 # Paths
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 BACKUP_DIR = BASE_DIR / "files" / "backups"
 

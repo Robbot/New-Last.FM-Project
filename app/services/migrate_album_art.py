@@ -7,7 +7,7 @@ This allows storing album art for albums without MusicBrainz IDs.
 import sqlite3
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 
 

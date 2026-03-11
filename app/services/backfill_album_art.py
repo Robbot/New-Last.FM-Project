@@ -10,7 +10,7 @@ import requests
 from pathlib import Path
 from app.services.config import get_api_key
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 DB_PATH = BASE_DIR / "files" / "lastfmstats.sqlite"
 BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 
