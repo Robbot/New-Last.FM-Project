@@ -22,6 +22,9 @@ def create_app():
     # Register custom Jinja filters
     app.jinja_env.filters['datetime_format'] = datetime_format_filter
 
+    # Add min function to Jinja globals for templates
+    app.jinja_env.globals['min'] = min
+
     from .scrobbles import scrobbles_bp
     from .artists import artists_bp
     from .albums import albums_bp

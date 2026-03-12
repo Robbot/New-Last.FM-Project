@@ -27,8 +27,21 @@ def artist_detail(artist_name: str):
 
     if stats is None:
         abort(404, description="Artist not found")
-    albums_rows = db.get_artist_albums(artist_name, start=start, end=end)          # NEW or existing query
-    tracks_rows = db.get_top_tracks_for_artist(artist_name, start=start, end=end) # your new function
+    albums_rows = db.get_artist_albums(artist_name, start=start, end=end)
+
+    # Pagination for tracks
+    per_page = 50
+    tracks_page = validate_int(request.args.get("tracks_page"), min_val=PAGE_MIN, default=1)
+    total_tracks = db.get_artist_tracks_count(artist_name, start=start, end=end)
+    total_tracks_pages = max(1, math.ceil(total_tracks / per_page))
+
+    # clamp page within range
+    if tracks_page > total_tracks_pages:
+        tracks_page = total_tracks_pages
+
+    offset = (tracks_page - 1) * per_page
+    tracks_rows = db.get_top_tracks_for_artist(artist_name, start=start, end=end, limit=per_page, offset=offset)
+
     artist_position = db.get_artist_position(artist_name, start=start, end=end)
 
     return render_template(
@@ -40,6 +53,11 @@ def artist_detail(artist_name: str):
         albums_rows=albums_rows,
         tracks_rows=tracks_rows,
         artist_position=artist_position,
+        tracks_page=tracks_page,
+        total_tracks_pages=total_tracks_pages,
+        total_tracks=total_tracks,
+        per_page=per_page,
+        rangetype=rangetype,
     )
 
 
@@ -91,6 +109,7 @@ def library_artists():
         rows=rows,
         page=page,
         total_pages=total_pages,
+        total_rows=total_rows,
         per_page=per_page,
         current_sort=current_sort,
         from_arg=from_arg,

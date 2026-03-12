@@ -46,9 +46,25 @@
 </table>
 
 
-<h3>Top tracks</h3>
-{% with rows=tracks_rows %}
+<h3>Tracks {{ (tracks_page - 1) * per_page + 1 }}-{{ min(tracks_page * per_page, total_tracks) }}</h3>
+{% with rows=tracks_rows, offset=(tracks_page - 1) * per_page %}
   {% include "_tracks_table.html" %}
 {% endwith %}
+
+<div class="pagination-wrapper">
+<div class="pagination">
+    {% if tracks_page > 1 %}
+        <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, tracks_page=1, from=start, to=end, rangetype=rangetype) }}">« First</a>
+        <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, tracks_page=tracks_page-1, from=start, to=end, rangetype=rangetype) }}">‹ {{tracks_page - 1}}</a>
+    {% endif %}
+
+    Page {{ tracks_page }} of {{ total_tracks_pages }}
+
+    {% if tracks_page < total_tracks_pages %}
+        <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, tracks_page=tracks_page+1, from=start, to=end, rangetype=rangetype) }}">{{tracks_page + 1}} ›</a>
+        <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, tracks_page=total_tracks_pages, from=start, to=end, rangetype=rangetype) }}">Last »</a>
+    {% endif %}
+</div>
+</div>
 {% endblock %}
 

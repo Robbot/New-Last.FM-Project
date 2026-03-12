@@ -10,7 +10,7 @@
   <tbody>
   {% for row in rows %}
     <tr>
-      <td>{{ loop.index }}</td>
+      <td>{{ offset + loop.index }}</td>
       <td>
         <a href="{{ url_for('tracks.track_detail',
                             artist_name=row['artist'],
@@ -23,4 +23,3 @@
   {% endfor %}
 </tbody>
 </table>
-<pre>tracks_rows len = {{ rows|length }}</pre>

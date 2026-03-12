@@ -43,6 +43,7 @@ def library_albums():
            top_albums=top_albums,
            page=page,
            total_pages=total_pages,
+           total_rows=total_rows,
            per_page=per_page,
            from_arg=from_arg,
            to_arg=to_arg,

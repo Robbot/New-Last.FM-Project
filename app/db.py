@@ -373,7 +373,8 @@ def get_top_tracks_for_artist(
         artist_name: str,
         start: str = "",
         end: str = "",
-        limit: int = 50
+        limit: int = 50,
+        offset: int = 0
     ):
 
     conn = get_db_connection()
@@ -397,13 +398,33 @@ def get_top_tracks_for_artist(
     sql += """
         GROUP BY artist, track
         ORDER BY plays DESC, track ASC
-        LIMIT ?
+        LIMIT ? OFFSET ?
     """
-    params.append(limit)
+    params.extend([limit, offset])
 
     rows = conn.execute(sql, params).fetchall()
     conn.close()
     return rows
+
+def get_artist_tracks_count(artist_name: str, start: str = "", end: str = "") -> int:
+    """Get the total number of unique tracks for an artist."""
+    conn = get_db_connection()
+
+    sql = """
+        SELECT COUNT(DISTINCT track) AS total
+        FROM scrobble
+        WHERE artist = ?
+    """
+    params = [artist_name]
+
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    row = conn.execute(sql, params).fetchone()
+    conn.close()
+    return row["total"] if row else 0
 
 def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", sort_order: str = "desc", search_term: str = ""):
     conn = get_db_connection()

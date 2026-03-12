@@ -36,6 +36,7 @@ def library_tracks():
         top_tracks=top_tracks,
         page=page,
         total_pages=total_pages,
+        total_rows=total_rows,
         per_page=per_page,
         from_arg=from_arg,
         to_arg=to_arg,
