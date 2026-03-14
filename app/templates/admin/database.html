@@ -249,7 +249,7 @@ function saveRecord() {
     });
 }
 
-// Custom query handler (unchanged)
+// Custom query handler
 document.getElementById('query-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const query = document.getElementById('sql-query').value;
@@ -274,26 +274,151 @@ document.getElementById('query-form').addEventListener('submit', function(e) {
             resultDiv.innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
         } else {
             let html = '<div class="alert alert-success">' + data.count + ' rows returned</div>';
+
+            // Check if rowid is in the results for editing capability
+            const hasRowid = data.columns.includes('rowid');
+            const tableFromQuery = extractTableName(query);
+
             html += '<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr>';
+
+            // Add Actions column header if rowid exists and we can determine the table
+            if (hasRowid && tableFromQuery) {
+                html += '<th width="50">Actions</th>';
+            }
+
             data.columns.forEach(col => {
                 html += '<th>' + col + '</th>';
             });
             html += '</tr></thead><tbody>';
-            data.rows.forEach(row => {
-                html += '<tr>';
+
+            data.rows.forEach((row, index) => {
+                html += '<tr';
+
+                // Add data attributes for editing
+                if (hasRowid && tableFromQuery) {
+                    html += ' data-rowid="' + row['rowid'] + '" data-table="' + tableFromQuery + '"';
+                }
+
+                html += '>';
+
+                // Add edit button if rowid exists
+                if (hasRowid && tableFromQuery) {
+                    html += '<td><button class="btn btn-sm btn-primary edit-query-btn" data-rowid="' + row['rowid'] + '" data-table="' + tableFromQuery + '" data-columns=\'' + JSON.stringify(data.columns) + '\'"><i class="bi bi-pencil"></i></button></td>';
+                }
+
                 data.columns.forEach(col => {
                     const val = row[col] === null ? '<span class="text-muted">NULL</span>' : row[col];
-                    html += '<td>' + val + '</td>';
+                    html += '<td data-column="' + col + '">' + val + '</td>';
                 });
                 html += '</tr>';
             });
             html += '</tbody></table></div>';
+
+            if (!hasRowid || !tableFromQuery) {
+                html += '<div class="alert alert-info mt-2"><small><i class="bi bi-info-circle"></i> Include rowid in your SELECT query and query a single table to enable editing (e.g., SELECT rowid, * FROM scrobble WHERE ...)</small></div>';
+            }
+
             resultDiv.innerHTML = html;
+
+            // Attach event listeners to edit buttons in query results
+            resultDiv.querySelectorAll('.edit-query-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const rowid = this.dataset.rowid;
+                    const table = this.dataset.table;
+                    const columns = JSON.parse(this.dataset.columns);
+                    openEditModalFromQuery(rowid, table, columns, this.closest('tr'));
+                });
+            });
         }
     })
     .catch(error => {
         resultDiv.innerHTML = '<div class="alert alert-danger">Request failed: ' + error + '</div>';
     });
 });
+
+// Extract table name from SELECT query
+function extractTableName(query) {
+    // Simple regex to find FROM clause
+    const fromMatch = query.match(/FROM\s+(\w+)/i);
+    if (fromMatch) {
+        return fromMatch[1];
+    }
+    return null;
+}
+
+// Open edit modal from query results
+function openEditModalFromQuery(rowid, table, columns, row) {
+    const fieldsContainer = document.getElementById('edit-fields');
+    fieldsContainer.innerHTML = '';
+    document.getElementById('edit-rowid').value = rowid;
+
+    // Update current table for saving
+    window.currentEditTable = table;
+
+    columns.forEach((col, index) => {
+        const cell = row.querySelector(`td[data-column="${col}"]`);
+        let value = cell ? cell.textContent.trim() : '';
+
+        // Handle special values
+        if (value === 'NULL' || value === 'null') value = '';
+        if (value === 'empty') value = '';
+
+        const fieldHtml = `
+            <div class="col-md-6">
+                <label for="field-${index}" class="form-label">${col}</label>
+                ${col.includes('mbid') || col === 'id' || col === 'rowid' ? `
+                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}" readonly>
+                    <small class="text-muted">Read-only (ID field)</small>
+                ` : `
+                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}">
+                `}
+            </div>
+        `;
+        fieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+    });
+
+    editModal.show();
+}
+
+// Modify saveRecord to use the dynamic table
+const originalSaveRecord = saveRecord;
+saveRecord = function() {
+    const rowid = document.getElementById('edit-rowid').value;
+    const table = window.currentEditTable || currentTable;
+    const formData = new FormData();
+    formData.append('table', table);
+    formData.append('rowid', rowid);
+
+    // Get all input fields
+    const inputs = document.querySelectorAll('#edit-fields input:not([readonly])');
+    inputs.forEach(input => {
+        formData.append(input.name, input.value);
+    });
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+    fetch("{{ url_for('admin.admin_database_update') }}", {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            editModal.hide();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Request failed: ' + error);
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save Changes';
+    });
+};
 </script>
 {% endblock %}
