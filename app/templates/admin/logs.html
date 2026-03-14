@@ -1,0 +1,75 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Logs - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Application Logs</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Admin</a></li>
+                    <li class="breadcrumb-item active">Logs</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Log Files</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for log in log_files %}
+                    <a href="{{ url_for('admin.admin_logs', file=log.name, lines=lines) }}"
+                       class="list-group-item list-group-item-action {% if current_log == log.name %}active{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>{{ log.name }}</span>
+                            <span class="badge bg-secondary">{{ "%.0f KB"|format(log.size / 1024) }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            {% if current_log %}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ current_log }}</h5>
+                    <div class="btn-group">
+                        <a href="{{ url_for('admin.admin_logs', file=current_log, lines=100) }}"
+                           class="btn btn-sm {% if lines == 100 %}btn-primary{% else %}btn-outline-primary{% endif %}">100 lines</a>
+                        <a href="{{ url_for('admin.admin_logs', file=current_log, lines=500) }}"
+                           class="btn btn-sm {% if lines == 500 %}btn-primary{% else %}btn-outline-primary{% endif %}">500 lines</a>
+                        <a href="{{ url_for('admin.admin_logs', file=current_log, lines=1000) }}"
+                           class="btn btn-sm {% if lines == 1000 %}btn-primary{% else %}btn-outline-primary{% endif %}">1000 lines</a>
+                        <a href="{{ url_for('admin.admin_logs', file=current_log, lines=5000) }}"
+                           class="btn btn-sm {% if lines == 5000 %}btn-primary{% else %}btn-outline-primary{% endif %}">5000 lines</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('admin.admin_logs') }}" class="mb-3">
+                        <input type="hidden" name="file" value="{{ current_log }}">
+                        <div class="input-group">
+                            <input type="number" name="lines" class="form-control" placeholder="Lines" value="{{ lines }}" min="10" max="10000">
+                            <button type="submit" class="btn btn-primary">Show Lines</button>
+                        </div>
+                    </form>
+                    <pre class="bg-dark text-light p-3 rounded" style="max-height: 600px; overflow-y: auto; font-size: 12px;">{% for line in content %}{{ line }}{% endfor %}</pre>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h5>Select a log file to view</h5>
+                <p>Choose a log file from the list on the left to display its contents.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

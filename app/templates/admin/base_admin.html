@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Panel{% endblock %} - Last.fm Stats</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .list-group-item.active { background-color: #0d6efd; border-color: #0d6efd; }
+        pre { font-size: 12px; }
+        .card { box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="bi bi-gear-fill me-2"></i>Admin Panel
+            </span>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{{ url_for('scrobbles.library_scrobbles') }}">
+                    <i class="bi bi-house"></i> Back to App
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <ul class="nav nav-tabs mb-4">
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin.admin_dashboard' %}active{% endif %}"
+                   href="{{ url_for('admin.admin_dashboard') }}">Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin.admin_logs' %}active{% endif %}"
+                   href="{{ url_for('admin.admin_logs') }}">Logs</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'admin.admin_database' or request.endpoint == 'admin.admin_database_execute' %}active{% endif %}"
+                   href="{{ url_for('admin.admin_database') }}">Database</a>
+            </li>
+        </ul>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

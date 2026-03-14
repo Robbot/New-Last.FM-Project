@@ -1,0 +1,142 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>Admin Dashboard</h1>
+            <p class="text-muted">Administrative interface for Last.fm Stats</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Database Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if db_info.exists %}
+                        <dl class="row">
+                            <dt class="col-sm-4">Path</dt>
+                            <dd class="col-sm-8"><code>{{ db_info.path }}</code></dd>
+
+                            <dt class="col-sm-4">Size</dt>
+                            <dd class="col-sm-8">{{ "%.2f MB"|format(db_info.size / 1024 / 1024) }}</dd>
+
+                            {% if db_info.tables is defined %}
+                                {% for table, count in db_info.tables.items() %}
+                                <dt class="col-sm-4">{{ table|title }} Records</dt>
+                                <dd class="col-sm-8">{{ "{:,}".format(count) }}</dd>
+                                {% endfor %}
+                            {% endif %}
+                        </dl>
+                    {% else %}
+                        <p class="text-danger">Database file not found</p>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('admin.admin_database') }}" class="btn btn-primary">Browse Database</a>
+                    <button class="btn btn-warning" onclick="triggerSync()">Trigger Sync</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.admin_logs') }}" class="btn btn-outline-primary text-start">
+                            <i class="bi bi-file-text me-2"></i>View Application Logs
+                        </a>
+                        <a href="{{ url_for('admin.admin_database') }}" class="btn btn-outline-secondary text-start">
+                            <i class="bi bi-database me-2"></i>Browse Database Tables
+                        </a>
+                        <a href="{{ url_for('scrobbles.library_scrobbles') }}" class="btn btn-outline-info text-start">
+                            <i class="bi bi-house me-2"></i>Back to Main App
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Log Files</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in log_files[:5] %}
+                                <tr>
+                                    <td>{{ log.name }}</td>
+                                    <td>{{ "%.1f KB"|format(log.size / 1024) }}</td>
+                                    <td>
+                                        <a href="{{ url_for('admin.admin_logs', file=log.name) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <a href="{{ url_for('admin.admin_logs') }}" class="btn btn-sm btn-link">View all logs →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sync-status" class="mt-4" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Sync Status</h5>
+            </div>
+            <div class="card-body">
+                <div id="sync-output"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function triggerSync() {
+    if (!confirm('Start Last.fm sync? This may take several minutes.')) {
+        return;
+    }
+
+    const statusDiv = document.getElementById('sync-status');
+    const outputDiv = document.getElementById('sync-output');
+    statusDiv.style.display = 'block';
+    outputDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Starting sync...';
+
+    fetch("{{ url_for('admin.admin_sync') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            outputDiv.innerHTML = '<div class="alert alert-success">Sync completed successfully!</div><pre>' + data.stdout + '</pre>';
+        } else {
+            outputDiv.innerHTML = '<div class="alert alert-danger">Sync failed</div><pre>' + (data.stderr || data.error || 'Unknown error') + '</pre>';
+        }
+    })
+    .catch(error => {
+        outputDiv.innerHTML = '<div class="alert alert-danger">Request failed: ' + error + '</div>';
+    });
+}
+</script>
+{% endblock %}

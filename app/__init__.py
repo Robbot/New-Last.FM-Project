@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from flask import Flask, redirect, url_for, jsonify
 from .services.config import get_api_key
 from .logging_config import setup_logging, setup_request_logging
@@ -13,6 +14,10 @@ def datetime_format_filter(timestamp):
 
 def create_app():
     app = Flask(__name__)
+
+    # Set database path in config
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    app.config["DATABASE_PATH"] = str(BASE_DIR / "files" / "lastfmstats.sqlite")
 
     # Setup logging
     setup_logging(app)
@@ -31,6 +36,7 @@ def create_app():
     from .tracks import tracks_bp
     from .trackgaps import trackgaps_bp
     from .daterange import daterange_bp
+    from .admin import admin_bp
 
 
     app.register_blueprint(scrobbles_bp)
@@ -39,6 +45,7 @@ def create_app():
     app.register_blueprint(tracks_bp)
     app.register_blueprint(trackgaps_bp)
     app.register_blueprint(daterange_bp)
+    app.register_blueprint(admin_bp)
 
     api_key, username = get_api_key()
     app.config["api_key"] = api_key
