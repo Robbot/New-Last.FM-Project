@@ -69,6 +69,15 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [ ] Add timeout configuration for API requests
 - [ ] Better error messages for API failures
 
+### 7. Admin Panel Enhancements
+- [x] Admin panel with localhost-only access control
+- [x] Database browser and editor interface
+- [x] Health check endpoint with system monitoring
+- [x] Log viewer with cleanup functionality
+- [ ] **Audit trail for all manual edits** ← Still pending
+- [ ] Bulk edit capabilities (merge artists, fix album names)
+- [ ] Delete individual scrobbles with confirmation
+
 ---
 
 ## Lower Priority (Nice to Have)
