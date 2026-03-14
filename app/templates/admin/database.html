@@ -47,10 +47,11 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped">
+                        <table class="table table-sm table-striped" id="data-table">
                             <thead>
                                 <tr>
-                                    <th>#</th>
+                                    <th width="50">#</th>
+                                    <th width="50">Actions</th>
                                     {% for col in columns %}
                                     <th>{{ col }}</th>
                                     {% endfor %}
@@ -58,10 +59,15 @@
                             </thead>
                             <tbody>
                                 {% for row in rows %}
-                                <tr>
+                                <tr data-rowid="{{ row['rowid'] }}">
                                     <td>{{ (page - 1) * 50 + loop.index }}</td>
-                                    {% for col in columns %}
                                     <td>
+                                        <button class="btn btn-sm btn-primary edit-btn" data-rowid="{{ row['rowid'] }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                    {% for col in columns %}
+                                    <td data-column="{{ col }}">
                                         {% if row[col] is none %}
                                             <span class="text-muted">NULL</span>
                                         {% elif row[col]|string == "" %}
@@ -124,7 +130,126 @@
     {% endif %}
 </div>
 
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-form">
+                    <input type="hidden" id="edit-rowid">
+                    <input type="hidden" id="edit-table" value="{{ current_table }}">
+                    <div id="edit-fields" class="row g-3"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-btn">
+                    <i class="bi bi-check-lg"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
 <script>
+// Store column definitions for the current table
+const tableColumns = {{ columns|tojson }};
+const currentTable = "{{ current_table }}";
+
+// Edit modal handler
+let editModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap modal
+    editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+    // Edit button click handlers
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const rowid = this.dataset.rowid;
+            openEditModal(rowid);
+        });
+    });
+
+    // Save button handler
+    document.getElementById('save-btn').addEventListener('click', saveRecord);
+});
+
+function openEditModal(rowid) {
+    const row = document.querySelector(`tr[data-rowid="${rowid}"]`);
+    const fieldsContainer = document.getElementById('edit-fields');
+    fieldsContainer.innerHTML = '';
+    document.getElementById('edit-rowid').value = rowid;
+
+    tableColumns.forEach((col, index) => {
+        const cell = row.querySelector(`td[data-column="${col}"]`);
+        let value = cell.textContent.trim();
+        if (value === 'NULL') value = '';
+        if (value === 'empty') value = '';
+
+        const fieldHtml = `
+            <div class="col-md-6">
+                <label for="field-${index}" class="form-label">${col}</label>
+                ${col.includes('mbid') || col === 'id' ? `
+                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}" readonly>
+                    <small class="text-muted">Read-only (ID field)</small>
+                ` : `
+                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}">
+                `}
+            </div>
+        `;
+        fieldsContainer.insertAdjacentHTML('beforeend', fieldHtml);
+    });
+
+    editModal.show();
+}
+
+function saveRecord() {
+    const rowid = document.getElementById('edit-rowid').value;
+    const formData = new FormData();
+    formData.append('table', currentTable);
+    formData.append('rowid', rowid);
+
+    tableColumns.forEach((col, index) => {
+        const input = document.getElementById(`field-${index}`);
+        if (input && !input.readOnly) {
+            formData.append(col, input.value);
+        }
+    });
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+    fetch("{{ url_for('admin.admin_database_update') }}", {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            editModal.hide();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Request failed: ' + error);
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check-lg"></i> Save Changes';
+    });
+}
+
+// Custom query handler (unchanged)
 document.getElementById('query-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const query = document.getElementById('sql-query').value;

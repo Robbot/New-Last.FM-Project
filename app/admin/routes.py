@@ -54,7 +54,7 @@ def require_localhost(f):
             logger.warning(f"Admin access denied from {remote_addr}")
 
             # Return JSON for API requests, HTML for browser requests
-            if request.path.startswith('/admin/database/execute') or request.path == '/admin/sync' or request.path == '/admin/logs/cleanup':
+            if request.path.startswith('/admin/database/execute') or request.path == '/admin/sync' or request.path == '/admin/logs/cleanup' or request.path == '/admin/database/update':
                 return jsonify({
                     "error": "Access denied",
                     "message": "Admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x)"
@@ -265,9 +265,11 @@ def admin_database():
     total_count = cursor.fetchone()['count']
     total_pages = (total_count + per_page - 1) // per_page
 
-    # Get data with pagination
-    cursor.execute(f"SELECT * FROM {table} ORDER BY rowid LIMIT ? OFFSET ?", (per_page, offset))
-    rows = cursor.fetchall()
+    # Get data with pagination (include rowid for editing)
+    # Select rowid with explicit alias to avoid being overwritten
+    columns_str = ', '.join(columns)
+    cursor.execute(f"SELECT rowid as rowid, {columns_str} FROM {table} ORDER BY rowid LIMIT ? OFFSET ?", (per_page, offset))
+    rows = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
 
@@ -316,6 +318,59 @@ def admin_database_execute():
         })
     except sqlite3.Error as e:
         logger.error(f"Database query error: {e}")
+        return jsonify({"error": str(e)}), 400
+
+
+@admin_bp.route("/admin/database/update", methods=['POST'])
+@require_localhost
+def admin_database_update():
+    """Update a database record."""
+    db_path = current_app.config.get('DATABASE_PATH', 'files/lastfmstats.sqlite')
+
+    if not os.path.exists(db_path):
+        return jsonify({"error": "Database file not found"}), 404
+
+    table = request.form.get('table')
+    rowid = request.form.get('rowid')
+
+    if not table or not rowid:
+        return jsonify({"error": "Table and rowid are required"}), 400
+
+    # Validate table name to prevent SQL injection
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+    if not cursor.fetchone():
+        conn.close()
+        return jsonify({"error": "Invalid table name"}), 400
+
+    # Get table schema
+    cursor.execute(f"PRAGMA table_info({table})")
+    columns_info = cursor.fetchall()
+    editable_columns = [col[1] for col in columns_info if col[1] not in ('id', 'rowid') and not col[1].endswith('_mbid')]
+
+    try:
+        # Build UPDATE query with only editable fields
+        set_clauses = [f"{col} = ?" for col in editable_columns]
+        values = [request.form.get(col, '') for col in editable_columns]
+
+        query = f"UPDATE {table} SET {', '.join(set_clauses)} WHERE rowid = ?"
+        values.append(rowid)
+
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Updated rowid {rowid} in table {table}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Record {rowid} updated successfully"
+        })
+
+    except sqlite3.Error as e:
+        conn.close()
+        logger.error(f"Database update error: {e}")
         return jsonify({"error": str(e)}), 400
 
 
