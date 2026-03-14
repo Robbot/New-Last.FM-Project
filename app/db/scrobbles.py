@@ -85,7 +85,7 @@ def get_track_gaps(start: str = "", end: str = ""):
             artist,
             album,
             album_artist,
-            MAX(uts) AS last_play_uts,
+            MAX(CAST(uts AS INTEGER)) AS last_play_uts,
             COUNT(*) AS plays
         FROM scrobble
         WHERE track IS NOT NULL AND track != ''
