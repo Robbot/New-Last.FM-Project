@@ -19,6 +19,31 @@ h1 {
     margin-bottom: 20px;
     font-size: 28px;
     font-weight: 600;
+    position: relative;
+}
+
+/* Admin button styling */
+.admin-link {
+    position: absolute;
+    right: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #eff2f7;
+    color: #52616b;
+    transition: all 0.2s ease;
+    opacity: 0.6;
+}
+
+.admin-link:hover {
+    background: #d9e2ec;
+    color: #243b53;
+    opacity: 1;
+    text-decoration: none;
 }
 
 a, a:visited {

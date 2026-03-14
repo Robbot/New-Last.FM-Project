@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v=2) }}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .access-denied-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+        }
+        .lock-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            color: #dc2626;
+        }
+        .access-denied-container h1 {
+            color: #dc2626;
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        .access-denied-container p {
+            color: #52616b;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 24px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+        .back-link:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="access-denied-container">
+        <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <h1>Access Denied</h1>
+        <p>The admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x).</p>
+        <p>If you believe this is an error, please contact your system administrator.</p>
+        <a href="{{ url_for('scrobbles.library_scrobbles') }}" class="back-link">Return to Home</a>
+    </div>
+</body>
+</html>

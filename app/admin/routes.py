@@ -48,6 +48,15 @@ def require_localhost(f):
 
         if not is_localhost_allowed(remote_addr):
             logger.warning(f"Admin access denied from {remote_addr}")
+
+            # Return JSON for API requests, HTML for browser requests
+            if request.path.startswith('/admin/database/execute') or request.path == '/admin/sync':
+                return jsonify({
+                    "error": "Access denied",
+                    "message": "Admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x)"
+                }), 403
+            else:
+                return render_template("admin/access_denied.html"), 403
             return jsonify({
                 "error": "Access denied",
                 "message": "Admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x)"
