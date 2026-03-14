@@ -1,0 +1,219 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Health Status - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1>System Health</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Admin</a></li>
+                    <li class="breadcrumb-item active">Health</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Overall Status -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card" id="overall-status-card">
+                <div class="card-body d-flex align-items-center">
+                    <div id="overall-status-icon" class="me-3" style="font-size: 3rem;">
+                        <i class="bi bi-question-circle text-muted"></i>
+                    </div>
+                    <div>
+                        <h5 class="card-title mb-1">Overall System Status</h5>
+                        <p id="overall-status-text" class="card-text mb-0">Checking...</p>
+                        <small id="last-update" class="text-muted"></small>
+                    </div>
+                    <button id="refresh-btn" class="btn btn-primary ms-auto">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Checks -->
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card health-card" id="database-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-database me-2"></i>Database
+                    </h5>
+                    <span class="badge" id="database-badge">Checking...</span>
+                </div>
+                <div class="card-body">
+                    <p id="database-message" class="mb-2">Checking database connectivity...</p>
+                    <small class="text-muted">
+                        Response time: <span id="database-response">-</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card health-card" id="lastfm-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cloud me-2"></i>Last.fm API
+                    </h5>
+                    <span class="badge" id="lastfm-badge">Checking...</span>
+                </div>
+                <div class="card-body">
+                    <p id="lastfm-message" class="mb-2">Checking API availability...</p>
+                    <small class="text-muted">
+                        Response time: <span id="lastfm-response">-</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card health-card" id="application-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cpu me-2"></i>Application
+                    </h5>
+                    <span class="badge" id="application-badge">Checking...</span>
+                </div>
+                <div class="card-body">
+                    <p id="application-message" class="mb-2">Checking application status...</p>
+                    <div id="application-details" class="small text-muted mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.health-card .badge {
+    font-size: 0.75rem;
+}
+.badig-healthy { background-color: #198754; }
+.badge-warning { background-color: #ffc107; color: #000; }
+.badge-error { background-color: #dc3545; }
+#overall-status-card.healthy { border-left: 5px solid #198754; }
+#overall-status-card.warning { border-left: 5px solid #ffc107; }
+#overall-status-card.error { border-left: 5px solid #dc3545; }
+#database-card.healthy { border-top: 3px solid #198754; }
+#database-card.warning { border-top: 3px solid #ffc107; }
+#database-card.error { border-top: 3px solid #dc3545; }
+#lastfm-card.healthy { border-top: 3px solid #198754; }
+#lastfm-card.warning { border-top: 3px solid #ffc107; }
+#lastfm-card.error { border-top: 3px solid #dc3545; }
+#application-card.healthy { border-top: 3px solid #198754; }
+#application-card.warning { border-top: 3px solid #ffc107; }
+#application-card.error { border-top: 3px solid #dc3545; }
+</style>
+
+<script>
+function updateHealthStatus(status) {
+    const overallCard = document.getElementById('overall-status-card');
+    const overallIcon = document.getElementById('overall-status-icon');
+    const overallText = document.getElementById('overall-status-text');
+    const lastUpdate = document.getElementById('last-update');
+
+    // Update overall status
+    overallCard.className = 'card';
+    if (status.overall === 'healthy') {
+        overallCard.classList.add('healthy');
+        overallIcon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+        overallText.textContent = 'All systems operational';
+        overallText.className = 'card-text mb-0 text-success';
+    } else if (status.overall === 'warning') {
+        overallCard.classList.add('warning');
+        overallIcon.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-warning"></i>';
+        overallText.textContent = 'Some systems have warnings';
+        overallText.className = 'card-text mb-0 text-warning';
+    } else {
+        overallCard.classList.add('error');
+        overallIcon.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+        overallText.textContent = 'Some systems are down';
+        overallText.className = 'card-text mb-0 text-danger';
+    }
+
+    lastUpdate.textContent = 'Last checked: ' + new Date(status.timestamp).toLocaleString();
+
+    // Update database status
+    const dbCard = document.getElementById('database-card');
+    const dbBadge = document.getElementById('database-badge');
+    const dbMessage = document.getElementById('database-message');
+    const dbResponse = document.getElementById('database-response');
+
+    dbCard.className = 'card health-card ' + status.checks.database.status;
+    dbBadge.textContent = status.checks.database.status.toUpperCase();
+    dbBadge.className = 'badge bg-' + (status.checks.database.status === 'healthy' ? 'success' : status.checks.database.status === 'warning' ? 'warning' : 'danger');
+    dbMessage.textContent = status.checks.database.message;
+    dbResponse.textContent = status.checks.database.response_time_ms + ' ms';
+
+    // Update Last.fm API status
+    const lastfmCard = document.getElementById('lastfm-card');
+    const lastfmBadge = document.getElementById('lastfm-badge');
+    const lastfmMessage = document.getElementById('lastfm-message');
+    const lastfmResponse = document.getElementById('lastfm-response');
+
+    lastfmCard.className = 'card health-card ' + status.checks.lastfm_api.status;
+    lastfmBadge.textContent = status.checks.lastfm_api.status.toUpperCase();
+    lastfmBadge.className = 'badge bg-' + (status.checks.lastfm_api.status === 'healthy' ? 'success' : status.checks.lastfm_api.status === 'warning' ? 'warning' : 'danger');
+    lastfmMessage.textContent = status.checks.lastfm_api.message;
+    lastfmResponse.textContent = status.checks.lastfm_api.response_time_ms + ' ms';
+
+    // Update application status
+    const appCard = document.getElementById('application-card');
+    const appBadge = document.getElementById('application-badge');
+    const appMessage = document.getElementById('application-message');
+    const appDetails = document.getElementById('application-details');
+
+    appCard.className = 'card health-card ' + status.checks.application.status;
+    appBadge.textContent = status.checks.application.status.toUpperCase();
+    appBadge.className = 'badge bg-' + (status.checks.application.status === 'healthy' ? 'success' : status.checks.application.status === 'warning' ? 'warning' : 'danger');
+    appMessage.textContent = status.checks.application.message;
+
+    let detailsHtml = '<ul class="list-unstyled mb-0">';
+    for (const [key, value] of Object.entries(status.checks.application.details)) {
+        detailsHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+    }
+    detailsHtml += '</ul>';
+    appDetails.innerHTML = detailsHtml;
+}
+
+function checkHealth() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    refreshBtn.disabled = true;
+    refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Checking...';
+
+    fetch("{{ url_for('admin.admin_health_check') }}")
+        .then(response => response.json())
+        .then(data => {
+            updateHealthStatus(data);
+        })
+        .catch(error => {
+            console.error('Health check failed:', error);
+            const overallCard = document.getElementById('overall-status-card');
+            overallCard.className = 'card error';
+            document.getElementById('overall-status-icon').innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+            document.getElementById('overall-status-text').textContent = 'Failed to check system health';
+        })
+        .finally(() => {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+        });
+}
+
+// Check health on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkHealth();
+});
+
+// Refresh button handler
+document.getElementById('refresh-btn').addEventListener('click', checkHealth);
+
+// Auto-refresh every 30 seconds
+setInterval(checkHealth, 30000);
+</script>
+{% endblock %}

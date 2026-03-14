@@ -373,3 +373,177 @@ def admin_logs_cleanup():
         "errors": result["errors"],
         "retention_days": retention_days
     })
+
+
+@admin_bp.route("/admin/health")
+@require_localhost
+def admin_health():
+    """Health check page with system status."""
+    return render_template("admin/health.html")
+
+
+@admin_bp.route("/admin/health/check")
+@require_localhost
+def admin_health_check():
+    """API endpoint for health checks."""
+    import requests
+    import time
+    from pathlib import Path
+
+    status = {
+        "timestamp": datetime.now().isoformat(),
+        "checks": {}
+    }
+
+    # Check database connectivity
+    db_status = {"status": "unknown", "message": "", "response_time_ms": 0}
+    db_path = current_app.config.get('DATABASE_PATH', 'files/lastfmstats.sqlite')
+
+    try:
+        start_time = time.time()
+        if os.path.exists(db_path):
+            conn = sqlite3.connect(db_path)
+            conn.execute("SELECT 1")
+            conn.close()
+            response_time = (time.time() - start_time) * 1000
+
+            # Get database info
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM scrobble")
+            scrobble_count = cursor.fetchone()[0]
+            conn.close()
+
+            db_status = {
+                "status": "healthy",
+                "message": f"Database connected ({scrobble_count:,} scrobbles)",
+                "response_time_ms": round(response_time, 2)
+            }
+        else:
+            db_status = {
+                "status": "error",
+                "message": "Database file not found",
+                "response_time_ms": 0
+            }
+    except sqlite3.Error as e:
+        db_status = {
+            "status": "error",
+            "message": str(e),
+            "response_time_ms": 0
+        }
+
+    status["checks"]["database"] = db_status
+
+    # Check Last.fm API availability
+    api_status = {"status": "unknown", "message": "", "response_time_ms": 0}
+
+    try:
+        api_key = current_app.config.get("api_key", "")
+        username = current_app.config.get("lastfm_username", "")
+
+        if not api_key or not username:
+            api_status = {
+                "status": "warning",
+                "message": "Last.fm credentials not configured",
+                "response_time_ms": 0
+            }
+        else:
+            start_time = time.time()
+            # Test API with a simple user.getinfo call
+            response = requests.get(
+                "https://ws.audioscrobbler.com/2.0/",
+                params={
+                    "method": "user.getinfo",
+                    "user": username,
+                    "api_key": api_key,
+                    "format": "json"
+                },
+                timeout=10
+            )
+            response_time = (time.time() - start_time) * 1000
+
+            if response.status_code == 200:
+                data = response.json()
+                if "error" in data:
+                    api_status = {
+                        "status": "error",
+                        "message": f"API error: {data.get('message', 'Unknown error')}",
+                        "response_time_ms": round(response_time, 2)
+                    }
+                else:
+                    user_data = data.get("user", {})
+                    playcount_data = user_data.get("playcount")
+                    # Playcount can be a string directly or a dict with #text key
+                    if isinstance(playcount_data, dict):
+                        playcount = playcount_data.get("#text", "N/A")
+                    elif isinstance(playcount_data, str):
+                        playcount = playcount_data
+                    else:
+                        playcount = "N/A"
+                    api_status = {
+                        "status": "healthy",
+                        "message": f"Last.fm API connected (user: {username}, plays: {playcount})",
+                        "response_time_ms": round(response_time, 2)
+                    }
+            else:
+                api_status = {
+                    "status": "error",
+                    "message": f"HTTP {response.status_code}",
+                    "response_time_ms": round(response_time, 2)
+                }
+    except requests.exceptions.Timeout:
+        api_status = {
+            "status": "error",
+            "message": "Request timeout",
+            "response_time_ms": 0
+        }
+    except requests.exceptions.RequestException as e:
+        api_status = {
+            "status": "error",
+            "message": str(e),
+            "response_time_ms": 0
+        }
+    except Exception as e:
+        api_status = {
+            "status": "error",
+            "message": str(e),
+            "response_time_ms": 0
+        }
+
+    status["checks"]["lastfm_api"] = api_status
+
+    # Check application status
+    app_status = {
+        "status": "healthy",
+        "message": "Application running",
+        "details": {
+            "python_version": f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}",
+            "flask_env": current_app.config.get("ENV", "production"),
+            "lastfm_username": current_app.config.get("lastfm_username", "N/A")
+        }
+    }
+
+    # Check log directory
+    logs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'logs')
+    if os.path.exists(logs_dir):
+        app_status["details"]["logs_directory"] = "accessible"
+    else:
+        app_status["details"]["logs_directory"] = "not accessible"
+
+    # Check database file size
+    if os.path.exists(db_path):
+        db_size_mb = round(os.path.getsize(db_path) / 1024 / 1024, 2)
+        app_status["details"]["database_size_mb"] = db_size_mb
+
+    status["checks"]["application"] = app_status
+
+    # Overall status
+    all_statuses = [check["status"] for check in status["checks"].values()]
+    if "error" in all_statuses:
+        status["overall"] = "error"
+    elif "warning" in all_statuses:
+        status["overall"] = "warning"
+    else:
+        status["overall"] = "healthy"
+
+    return jsonify(status)
