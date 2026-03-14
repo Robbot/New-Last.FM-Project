@@ -16,6 +16,11 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [x] **Database Connection Context Manager** - Created `db_connection()` context manager in `db.py` for automatic connection cleanup with proper exception handling
 - [x] **Add Search Functionality** - Implemented search bars for artists, albums, and tracks with case-insensitive partial matching, date range integration, and parameter preservation across pagination
 - [x] **Split `db.py` Into Modules** - Refactored 900+ line file into `db/connections.py`, `db/scrobbles.py`, `db/artists.py`, `db/albums.py`, and `db/tracks.py` for better organization and maintainability
+- [x] **Admin Panel** - Created `/admin` blueprint with localhost-only access control including dashboard, logs viewer, and database browser
+- [x] **Health Check Endpoint** - Added `/admin/health` endpoint with database connectivity, Last.fm API availability, and application status monitoring
+- [x] **Log Cleanup** - Implemented manual and automatic log cleanup (30-day retention) with configurable retention days
+- [x] **Database Edit Interface** - Added manual edit capabilities for database records with row-level editing, modal interface, and bulk operations support
+- [x] **Reverse Log Display Order** - Log viewer now shows newest entries first for easier monitoring
 
 ---
 
@@ -50,7 +55,7 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [ ] Cache frequently accessed data (top artists, recent scrobbles)
 - [ ] Profile slow queries and optimize them
 
-### 4. Database Discrepancy Checking
+### 5. Database Discrepancy Checking
 - [ ] Create scheduled script to compare local DB vs Last.fm API
 - [ ] Generate discrepancy reports (missing scrobbles, metadata mismatches)
 - [ ] Add configurable check intervals (daily, weekly)
@@ -58,25 +63,11 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [ ] Optional: Auto-fix common discrepancies
 - [ ] Web interface to view discrepancy reports
 
-### 5. API Error Handling & Retry Logic
+### 6. API Error Handling & Retry Logic
 - [ ] Add retry logic with exponential backoff for Last.fm API calls
 - [ ] Handle rate limiting gracefully
 - [ ] Add timeout configuration for API requests
 - [ ] Better error messages for API failures
-
-### 6. Add Health Check Endpoint
-- [ ] Add `/health` endpoint for monitoring
-- [ ] Check database connectivity
-- [ ] Check Last.fm API availability
-- [ ] Return application status
-
-### 7. Local-Only Scrobble Editing Interface
-- [ ] Create `/admin` or `/edit` blueprint with localhost-only access
-- [ ] Interface to manually edit scrobble details (artist, album, track, timestamp)
-- [ ] Bulk edit capabilities (merge artists, fix album names)
-- [ ] Delete individual scrobbles with confirmation
-- [ ] Access control (localhost only or authenticated users)
-- [ ] Audit trail for all manual edits
 
 ---
 
