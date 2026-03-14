@@ -217,9 +217,9 @@ def admin_logs():
 
             try:
                 with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
-                    # Read last N lines
+                    # Read last N lines and reverse to show newest first
                     all_lines = f.readlines()
-                    content = all_lines[-lines:] if len(all_lines) > lines else all_lines
+                    content = all_lines[-lines:][::-1] if len(all_lines) > lines else all_lines[::-1]
             except Exception as e:
                 content = [f"Error reading log file: {str(e)}\n"]
 
