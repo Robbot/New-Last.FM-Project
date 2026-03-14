@@ -6,12 +6,15 @@ Provides structured logging with:
 - Console logging for development
 - Request logging middleware
 - Different log levels for different environments
+- Automatic log cleanup for old files
 """
 
 import logging
 import sys
+import os
+import glob
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 
 
@@ -19,6 +22,55 @@ from logging.handlers import RotatingFileHandler
 BASE_DIR = Path(__file__).resolve().parents[1]
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
+
+# Default: keep logs for 30 days
+DEFAULT_LOG_RETENTION_DAYS = 30
+
+
+def cleanup_old_logs(retention_days=DEFAULT_LOG_RETENTION_DAYS):
+    """
+    Remove log files older than the specified retention period.
+    Called automatically on app startup.
+
+    Args:
+        retention_days: Number of days to keep logs (default: 30)
+
+    Returns:
+        int: Number of files deleted
+    """
+    if not LOG_DIR.exists():
+        return 0
+
+    cutoff_date = datetime.now() - timedelta(days=retention_days)
+    deleted_count = 0
+    logger = logging.getLogger(__name__)
+
+    for log_file in glob.glob(str(LOG_DIR / 'app_*.log')):
+        try:
+            # Extract date from filename (app_YYYYMMDD.log)
+            basename = os.path.basename(log_file)
+            date_str = basename.replace('app_', '').replace('.log', '')
+
+            try:
+                file_date = datetime.strptime(date_str, '%Y%m%d')
+
+                # Skip if file is newer than cutoff
+                if file_date >= cutoff_date:
+                    continue
+
+                # Delete old file
+                os.remove(log_file)
+                deleted_count += 1
+                logger.info(f"Deleted old log file: {basename}")
+
+            except ValueError:
+                # Filename doesn't match expected pattern, skip
+                continue
+
+        except Exception as e:
+            logger.error(f"Error deleting log file {log_file}: {e}")
+
+    return deleted_count
 
 
 def setup_logging(app=None, level=logging.INFO):

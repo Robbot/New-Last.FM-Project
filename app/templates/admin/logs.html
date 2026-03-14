@@ -16,6 +16,36 @@
         </div>
     </div>
 
+    <!-- Log Cleanup Section -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-trash"></i> Clean Up Old Logs
+                    </h5>
+                    <p class="card-text text-muted">
+                        Remove log files older than the specified number of days. Default is 30 days.
+                    </p>
+                    <div class="row align-items-end">
+                        <div class="col-auto">
+                            <label for="retention-days" class="form-label">Retention Days:</label>
+                            <input type="number" id="retention-days" class="form-control" value="30" min="1" max="365" style="width: 100px;">
+                        </div>
+                        <div class="col-auto">
+                            <button id="cleanup-logs-btn" class="btn btn-danger">
+                                <i class="bi bi-trash-fill"></i> Clean Up Old Logs
+                            </button>
+                        </div>
+                        <div class="col-auto">
+                            <div id="cleanup-status"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row mt-3">
         <div class="col-md-3">
             <div class="card">
@@ -72,4 +102,47 @@
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('cleanup-logs-btn').addEventListener('click', function() {
+    const days = document.getElementById('retention-days').value;
+    const statusDiv = document.getElementById('cleanup-status');
+    const btn = this;
+
+    if (!confirm(`Delete log files older than ${days} days? This cannot be undone.`)) {
+        return;
+    }
+
+    btn.disabled = true;
+    statusDiv.innerHTML = '<span class="text-muted"><i class="bi bi-hourglass-split"></i> Cleaning up...</span>';
+
+    fetch("{{ url_for('admin.admin_logs_cleanup') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ days: days })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `<span class="text-success"><i class="bi bi-check-circle"></i> Deleted ${data.deleted} file(s), freed ${data.freed_mb} MB</span>`;
+            if (data.errors.length > 0) {
+                message += `<br><small class="text-warning">Errors: ${data.errors.join(', ')}</small>`;
+            }
+            statusDiv.innerHTML = message;
+            // Refresh page after 2 seconds to show updated log list
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            statusDiv.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> Error: ${data.error}</span>`;
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> Request failed: ${error}</span>`;
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+});
+</script>
 {% endblock %}

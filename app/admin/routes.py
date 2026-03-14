@@ -1,12 +1,16 @@
 import os
 import glob
 import sqlite3
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for
 from functools import wraps
 from . import admin_bp
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# Default: keep logs for 30 days
+DEFAULT_LOG_RETENTION_DAYS = 30
 
 
 def is_localhost_allowed(remote_addr):
@@ -50,20 +54,71 @@ def require_localhost(f):
             logger.warning(f"Admin access denied from {remote_addr}")
 
             # Return JSON for API requests, HTML for browser requests
-            if request.path.startswith('/admin/database/execute') or request.path == '/admin/sync':
+            if request.path.startswith('/admin/database/execute') or request.path == '/admin/sync' or request.path == '/admin/logs/cleanup':
                 return jsonify({
                     "error": "Access denied",
                     "message": "Admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x)"
                 }), 403
             else:
                 return render_template("admin/access_denied.html"), 403
-            return jsonify({
-                "error": "Access denied",
-                "message": "Admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x)"
-            }), 403
 
         return f(*args, **kwargs)
     return decorated_function
+
+
+def cleanup_old_logs(logs_dir, retention_days=DEFAULT_LOG_RETENTION_DAYS):
+    """
+    Remove log files older than the specified retention period.
+
+    Args:
+        logs_dir: Path to the logs directory
+        retention_days: Number of days to keep logs (default: 30)
+
+    Returns:
+        dict: Summary of cleanup operation
+    """
+    if not os.path.exists(logs_dir):
+        return {"deleted": 0, "freed_bytes": 0, "errors": []}
+
+    cutoff_date = datetime.now() - timedelta(days=retention_days)
+    deleted_files = []
+    errors = []
+    freed_bytes = 0
+
+    for log_file in glob.glob(os.path.join(logs_dir, 'app_*.log')):
+        try:
+            # Extract date from filename (app_YYYYMMDD.log)
+            basename = os.path.basename(log_file)
+            date_str = basename.replace('app_', '').replace('.log', '')
+
+            try:
+                file_date = datetime.strptime(date_str, '%Y%m%d')
+
+                # Skip if file is newer than cutoff
+                if file_date >= cutoff_date:
+                    continue
+
+                # Delete old file
+                file_size = os.path.getsize(log_file)
+                os.remove(log_file)
+                deleted_files.append(basename)
+                freed_bytes += file_size
+                logger.info(f"Deleted old log file: {basename}")
+
+            except ValueError:
+                # Filename doesn't match expected pattern, skip
+                continue
+
+        except Exception as e:
+            errors.append(f"{basename}: {str(e)}")
+            logger.error(f"Error deleting log file {log_file}: {e}")
+
+    return {
+        "deleted": len(deleted_files),
+        "deleted_files": deleted_files,
+        "freed_bytes": freed_bytes,
+        "errors": errors
+    }
 
 
 @admin_bp.route("/admin")
@@ -288,3 +343,33 @@ def admin_sync():
     except Exception as e:
         logger.error(f"Sync error: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/admin/logs/cleanup", methods=['POST'])
+@require_localhost
+def admin_logs_cleanup():
+    """Clean up old log files."""
+    retention_days = request.json.get('days', DEFAULT_LOG_RETENTION_DAYS) if request.is_json else DEFAULT_LOG_RETENTION_DAYS
+
+    # Validate retention days
+    try:
+        retention_days = int(retention_days)
+        if retention_days < 1:
+            retention_days = 1
+        elif retention_days > 365:
+            retention_days = 365
+    except (ValueError, TypeError):
+        retention_days = DEFAULT_LOG_RETENTION_DAYS
+
+    logs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'logs')
+    result = cleanup_old_logs(logs_dir, retention_days)
+
+    return jsonify({
+        "success": True,
+        "deleted": result["deleted"],
+        "freed_bytes": result["freed_bytes"],
+        "freed_mb": round(result["freed_bytes"] / 1024 / 1024, 2),
+        "deleted_files": result["deleted_files"],
+        "errors": result["errors"],
+        "retention_days": retention_days
+    })

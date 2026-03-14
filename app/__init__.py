@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from flask import Flask, redirect, url_for, jsonify
 from .services.config import get_api_key
-from .logging_config import setup_logging, setup_request_logging
+from .logging_config import setup_logging, setup_request_logging, cleanup_old_logs
 from datetime import datetime, timezone
 from .utils.validators import ValidationError
 
@@ -23,6 +23,11 @@ def create_app():
     setup_logging(app)
     setup_request_logging(app)
     app.logger.info("Initializing Flask application")
+
+    # Clean up old log files on startup (keeps last 30 days by default)
+    deleted_logs = cleanup_old_logs()
+    if deleted_logs > 0:
+        app.logger.info(f"Cleaned up {deleted_logs} old log file(s) on startup")
 
     # Register custom Jinja filters
     app.jinja_env.filters['datetime_format'] = datetime_format_filter
