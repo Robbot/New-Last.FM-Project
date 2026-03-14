@@ -15,6 +15,7 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [x] **Add Input Validation** - Implemented centralized input validation to prevent invalid inputs, improve error handling, and enhance security
 - [x] **Database Connection Context Manager** - Created `db_connection()` context manager in `db.py` for automatic connection cleanup with proper exception handling
 - [x] **Add Search Functionality** - Implemented search bars for artists, albums, and tracks with case-insensitive partial matching, date range integration, and parameter preservation across pagination
+- [x] **Split `db.py` Into Modules** - Refactored 900+ line file into `db/connections.py`, `db/scrobbles.py`, `db/artists.py`, `db/albums.py`, and `db/tracks.py` for better organization and maintainability
 
 ---
 
@@ -57,27 +58,19 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [ ] Optional: Auto-fix common discrepancies
 - [ ] Web interface to view discrepancy reports
 
-### 5. Split `db.py` Into Modules
-The 900+ line file could be split into:
-- [ ] `db/connections.py` - Connection management
-- [ ] `db/scrobbles.py` - Scrobble queries
-- [ ] `db/artists.py` - Artist queries
-- [ ] `db/albums.py` - Album queries
-- [ ] `db/tracks.py` - Track queries
-
-### 6. API Error Handling & Retry Logic
+### 5. API Error Handling & Retry Logic
 - [ ] Add retry logic with exponential backoff for Last.fm API calls
 - [ ] Handle rate limiting gracefully
 - [ ] Add timeout configuration for API requests
 - [ ] Better error messages for API failures
 
-### 7. Add Health Check Endpoint
+### 6. Add Health Check Endpoint
 - [ ] Add `/health` endpoint for monitoring
 - [ ] Check database connectivity
 - [ ] Check Last.fm API availability
 - [ ] Return application status
 
-### 8. Local-Only Scrobble Editing Interface
+### 7. Local-Only Scrobble Editing Interface
 - [ ] Create `/admin` or `/edit` blueprint with localhost-only access
 - [ ] Interface to manually edit scrobble details (artist, album, track, timestamp)
 - [ ] Bulk edit capabilities (merge artists, fix album names)
@@ -89,7 +82,7 @@ The 900+ line file could be split into:
 
 ## Lower Priority (Nice to Have)
 
-### 9. Spotify API Integration
+### 8. Spotify API Integration
 - [ ] OAuth 2.0 authentication flow for Spotify
 - [ ] Import liked songs/favorites from Spotify
 - [ ] Export database selections to Spotify playlists
@@ -98,62 +91,62 @@ The 900+ line file could be split into:
 - [ ] Jellyfin/Plex integration for local media players
 - [ ] Export playlists to Jellyfin/Plex
 
-### 10. Test Suite
+### 9. Test Suite
 - [ ] Unit tests for data cleaning functions
 - [ ] Integration tests for sync logic
 - [ ] Route tests for critical endpoints
 - [ ] Set up pytest configuration
 - [ ] Add CI/CD pipeline (GitHub Actions)
 
-### 11. Advanced Analytics & Visualizations
+### 10. Advanced Analytics & Visualizations
 - [ ] Listening heatmap (hourly/daily patterns)
 - [ ] Artist discovery graphs
 - [ ] Genre trends over time
 - [ ] "On this day" feature showing scrobbles from same date in previous years
 - [ ] Monthly/yearly listening statistics
 
-### 12. Async Sync with Progress Updates
+### 11. Async Sync with Progress Updates
 - [ ] Run Last.fm sync in background (Celery or similar)
 - [ ] Add real-time progress updates via WebSocket
 - [ ] Show sync status in UI
 - [ ] Allow manual sync trigger from web interface
 
-### 13. Rate Limiting
+### 12. Rate Limiting
 - [ ] Add rate limiting middleware for API endpoints
 - [ ] Implement rate limiting for Last.fm API calls
 - [ ] Add per-IP rate limiting for public endpoints
 
-### 14. Wikipedia Enhancement
+### 13. Wikipedia Enhancement
 - [ ] Extract and display album descriptions
 - [ ] Add genre information from Wikipedia
 - [ ] Show artist biographies
 - [ ] Link to relevant Wikipedia articles
 
-### 15. User Accounts (Multi-user Support)
+### 14. User Accounts (Multi-user Support)
 - [ ] Add user authentication system
 - [ ] Allow multiple Last.fm accounts
 - [ ] Personalized dashboards per user
 - [ ] User-specific settings and preferences
 
-### 16. Advanced Filtering
+### 15. Advanced Filtering
 - [ ] Filter by multiple artists/albums at once
 - [ ] Save custom filters as presets
 - [ ] Advanced search with boolean operators
 - [ ] Filter by play count ranges
 
-### 17. Data Visualization Improvements
+### 16. Data Visualization Improvements
 - [ ] Interactive charts for listening trends
 - [ ] Artist/album cloud visualization
 - [ ] Timeline view of scrobbles
 - [ ] Geographic distribution (if location data available)
 
-### 18. Performance Improvements
+### 17. Performance Improvements
 - [ ] Implement database query result caching
 - [ ] Add pagination metadata (total count, total pages)
 - [ ] Optimize static file serving with proper cache headers
 - [ ] Consider database connection pooling
 
-### 19. Developer Experience
+### 18. Developer Experience
 - [ ] Add pre-commit hooks for code formatting
 - [ ] Set up linting (ruff, pylint, or similar)
 - [ ] Add code formatting configuration (black, etc.)
