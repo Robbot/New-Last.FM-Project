@@ -222,9 +222,14 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 
 
 def get_last_uts(conn: sqlite3.Connection) -> int:
-    """Return latest uts in seconds (0 if table empty)."""
+    """
+    Return latest uts in seconds (0 if table empty).
+
+    Note: Uses CAST to handle any TEXT values in uts column that might
+    cause MAX() to fail silently.
+    """
     cur = conn.cursor()
-    cur.execute("SELECT COALESCE(MAX(uts), 0) FROM scrobble;")
+    cur.execute("SELECT COALESCE(MAX(CAST(uts AS INTEGER)), 0) FROM scrobble;")
     (val,) = cur.fetchone()
     return int(val or 0)
 
