@@ -278,3 +278,91 @@ def get_artist_tracks(artist_name: str):
     ).fetchall()
     conn.close()
     return rows
+
+
+def get_artist_info(artist_name: str) -> dict | None:
+    """
+    Get artist information from the database.
+
+    Returns a dict with keys: image_url, bio, wikipedia_url, last_updated
+    Returns None if no info found.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT image_url, bio, wikipedia_url, last_updated
+            FROM artist_info
+            WHERE artist_name = ?
+            LIMIT 1
+            """,
+            (artist_name,),
+        ).fetchone()
+
+        if row:
+            return {
+                "image_url": row["image_url"],
+                "bio": row["bio"],
+                "wikipedia_url": row["wikipedia_url"],
+                "last_updated": row["last_updated"],
+            }
+        return None
+    finally:
+        conn.close()
+
+
+def set_artist_info(artist_name: str, image_url: str | None, bio: str | None, wikipedia_url: str | None) -> bool:
+    """
+    Store or update artist information in the database.
+
+    Returns True on success, False on failure.
+    """
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO artist_info (artist_name, image_url, bio, wikipedia_url, last_updated)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (artist_name, image_url, bio, wikipedia_url),
+        )
+        conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error setting artist info for {artist_name}: {e}", exc_info=True)
+        return False
+    finally:
+        conn.close()
+
+
+def ensure_artist_info_cached(artist_name: str) -> dict | None:
+    """
+    Ensure artist info is cached in the database, fetching from Wikipedia if needed.
+
+    Follows the same lazy-loading pattern as ensure_album_art_cached().
+
+    Returns a dict with image_url, bio, wikipedia_url keys, or None if unavailable.
+    """
+    # First, try to get from database
+    cached_info = get_artist_info(artist_name)
+    if cached_info:
+        return cached_info
+
+    # Not in database, fetch from Wikipedia
+    from app.services.fetch_artist_info import fetch_artist_info
+
+    fetched_info = fetch_artist_info(artist_name)
+
+    if fetched_info is None:
+        # Error occurred during fetch
+        return None
+
+    # Store in database for future use (even if all values are None, this marks as "searched")
+    set_artist_info(
+        artist_name,
+        fetched_info.get("image_url"),
+        fetched_info.get("bio"),
+        fetched_info.get("wikipedia_url"),
+    )
+
+    return fetched_info

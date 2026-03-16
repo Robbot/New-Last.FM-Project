@@ -43,6 +43,9 @@ from .artists import (
     get_artists_details,
     get_artist_albums,
     get_artist_tracks,
+    get_artist_info,
+    set_artist_info,
+    ensure_artist_info_cached,
 )
 
 # Import and re-export albums
@@ -93,6 +96,9 @@ __all__ = [
     "get_artists_details",
     "get_artist_albums",
     "get_artist_tracks",
+    "get_artist_info",
+    "set_artist_info",
+    "ensure_artist_info_cached",
     # Albums
     "get_album_stats",
     "get_top_albums",

@@ -208,6 +208,44 @@ tbody tr:hover {
     justify-content: center;
 }
 
+/* Artist detail styles */
+.artist-detail-container {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.artist-photo {
+    width: 220px;
+    flex-shrink: 0;
+}
+
+.artist-photo-img {
+    width: 220px;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.artist-photo-placeholder {
+    width: 220px;
+    height: 220px;
+    border-radius: 10px;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+}
+
+.artist-bio {
+    margin-top: 16px;
+    max-width: 600px;
+    line-height: 1.6;
+    color: #444;
+}
+
 .text-muted {
     color: #666;
 }

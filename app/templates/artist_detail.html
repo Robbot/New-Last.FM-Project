@@ -4,18 +4,42 @@
 {% block summary_header %}
 <h2>{{ artist_name }}</h2>
 
-<div class="d-flex gap-4">
-  <div>
-    <strong>{{ stats.scrobbles }}</strong><br>Scrobbles
+<div class="artist-detail-container">
+  <div class="artist-photo">
+    {% if artist_info and artist_info.get('image_url') %}
+      <img src="{{ artist_info['image_url'] }}" alt="{{ artist_name }}" class="artist-photo-img">
+    {% else %}
+      <div class="artist-photo-placeholder">
+        no photo
+      </div>
+    {% endif %}
   </div>
+
   <div>
-    <strong>{{ stats.albums }}</strong><br>Albums
-  </div>
-  <div>
-    <strong>{{ stats.tracks }}</strong><br>Tracks
-  </div>
-  <div>
-    <strong>#{{ artist_position }}</strong><br>Position
+    <div class="d-flex gap-4">
+      <div>
+        <strong>{{ stats.scrobbles }}</strong><br>Scrobbles
+      </div>
+      <div>
+        <strong>{{ stats.albums }}</strong><br>Albums
+      </div>
+      <div>
+        <strong>{{ stats.tracks }}</strong><br>Tracks
+      </div>
+      <div>
+        <strong>#{{ artist_position }}</strong><br>Position
+      </div>
+    </div>
+
+    {% if artist_info and artist_info.get('bio') %}
+    <div class="artist-bio">
+      {{ artist_info['bio'] }}
+    </div>
+    {% endif %}
+
+    {% if artist_info and artist_info.get('wikipedia_url') and artist_info['wikipedia_url'] != "N/A" %}
+      <p><strong>Wikipedia:</strong> <a href="{{ artist_info['wikipedia_url'] }}" target="_blank" rel="noopener noreferrer">View article</a></p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

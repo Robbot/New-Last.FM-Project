@@ -1,6 +1,7 @@
 import math
 from flask import render_template, abort, request
 from app import db
+from app.db.artists import ensure_artist_info_cached
 from . import artists_bp
 from app.utils.range import compute_range_validated
 from app.utils.validators import validate_int, validate_enum, validate_artist_name
@@ -44,6 +45,9 @@ def artist_detail(artist_name: str):
 
     artist_position = db.get_artist_position(artist_name, start=start, end=end)
 
+    # Get artist info (photo, bio, Wikipedia link)
+    artist_info = ensure_artist_info_cached(artist_name)
+
     return render_template(
         "artist_detail.html",
         active_tab="artists",
@@ -58,6 +62,7 @@ def artist_detail(artist_name: str):
         total_tracks=total_tracks,
         per_page=per_page,
         rangetype=rangetype,
+        artist_info=artist_info,
     )
 
 
