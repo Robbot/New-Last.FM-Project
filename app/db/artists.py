@@ -345,10 +345,11 @@ def ensure_artist_info_cached(artist_name: str) -> dict | None:
     """
     # First, try to get from database
     cached_info = get_artist_info(artist_name)
-    if cached_info:
+    # Only use cached info if bio is present
+    if cached_info and cached_info.get("bio"):
         return cached_info
 
-    # Not in database, fetch from Wikipedia
+    # Bio not in database or missing, fetch from Wikipedia
     from app.services.fetch_artist_info import fetch_artist_info
 
     fetched_info = fetch_artist_info(artist_name)
