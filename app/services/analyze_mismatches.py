@@ -42,6 +42,7 @@ SUFFIX_PATTERNS = [
     r'\s*\(z\s+filmu.*?\)',  # Polish: "from the movie"
     r'\s*\(demo.*?\)',
     r'\s*-\s*demo.*?',
+    r'\s*-\s*\d{4}',  # Bare year suffix (e.g., " - 2011")
 ]
 
 def normalize_name(name):

@@ -81,6 +81,9 @@ _REMASTER_PATTERNS = [
     # Live suffixes (e.g., " - Live", " - Live Version")
     r" -\s+(?:Live|live|Live Version|live version)\s*$",
     r"\s+[\(\[]\s*(?:Live|live|Live Version|live version)\s*[\)\]]\s*$",
+    # Bare year suffix (e.g., " - 2011", " - 2009")
+    r" -\s+\d{4}\s*$",
+    r"\s+[\(\[]\s*\d{4}\s*[\)\]]\s*$",
 ]
 
 def clean_remastered_suffix(title: str) -> str:

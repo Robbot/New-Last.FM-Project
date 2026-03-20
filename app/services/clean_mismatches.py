@@ -59,6 +59,7 @@ SUFFIX_PATTERNS = [
     r'\s*-\s*.*?Remix',
     r'\s*\(Bonus Track Version\)',
     r'\s*\(Spotify Exclusive\)',
+    r'\s*-\s*\d{4}',  # Bare year suffix (e.g., " - 2011")
 ]
 
 # Patterns to detect duplicate suffixes (e.g., "(z filmu X) (z filmu X)")
