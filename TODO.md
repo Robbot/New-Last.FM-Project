@@ -33,6 +33,16 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [ ] Add date range filtering for exports
 - [ ] Export album art metadata
 
+### 2. Import Historical Scrobbles from Excel
+- [ ] Add `source` column to `scrobble` table to track entry origin (Last.fm API vs manual import)
+- [ ] Mark existing entries as `source='lastfm'` via migration script
+- [ ] Create import script for Excel files (2009-2015 era data)
+- [ ] Use `INSERT OR IGNORE` to skip duplicates during import
+- [ ] Mark imported entries as `source='manual'` to prevent sync conflicts
+- [ ] Update sync script to only update/delete entries where `source='lastfm'`
+- [ ] Add import preview showing rows to be added vs skipped
+- [ ] Handle timestamp conversion from various Excel date formats
+
 ---
 
 ## Medium Priority (Quality of Life)
