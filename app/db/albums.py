@@ -106,7 +106,7 @@ def get_album_art(album_artist_name: str, album_name: str):
     conn = get_db_connection()
     rows = conn.execute(
         """
-        SELECT album_mbid, image_xlarge
+        SELECT album_mbid, artist_mbid, image_xlarge
         FROM album_art
         WHERE artist = ?
           AND album  = ?

@@ -21,6 +21,7 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [x] **Log Cleanup** - Implemented manual and automatic log cleanup (30-day retention) with configurable retention days
 - [x] **Database Edit Interface** - Added manual edit capabilities for database records with row-level editing, modal interface, and bulk operations support
 - [x] **Reverse Log Display Order** - Log viewer now shows newest entries first for easier monitoring
+- [x] **MusicBrainz Integration** - Added MusicBrainz links to artist, album, and track detail pages via MBID fields
 
 ---
 
@@ -31,13 +32,6 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [ ] Export scrobbles as JSON
 - [ ] Add date range filtering for exports
 - [ ] Export album art metadata
-
-### 2. MusicBrainz Integration
-- [ ] Link to MusicBrainz artist pages via `artist_mbid`
-- [ ] Link to MusicBrainz album pages via `album_mbid`
-- [ ] Link to MusicBrainz track pages via `track_mbid`
-- [ ] Add MusicBrainz icons/links to detail pages
-- [ ] Fetch additional metadata from MusicBrainz API
 
 ---
 

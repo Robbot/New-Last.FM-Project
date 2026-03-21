@@ -40,6 +40,9 @@
     {% if artist_info and artist_info.get('wikipedia_url') and artist_info['wikipedia_url'] != "N/A" %}
       <p><strong>Wikipedia:</strong> <a href="{{ artist_info['wikipedia_url'] }}" target="_blank" rel="noopener noreferrer">View article</a></p>
     {% endif %}
+    {% if artist_mbid %}
+      <p><strong>MusicBrainz:</strong> <a href="https://musicbrainz.org/artist/{{ artist_mbid }}" target="_blank" rel="noopener noreferrer">View artist</a></p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

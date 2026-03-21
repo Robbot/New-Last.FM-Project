@@ -54,6 +54,10 @@ def track_detail(artist_name, track_name):
     if stats is None:
         abort(404)
     recent = db.get_recent_scrobbles_for_track(artist_name, track_name)
+
+    # Get MusicBrainz ID for track
+    track_mbid = db.get_track_mbid(artist_name, track_name)
+
     return render_template(
         "track_detail.html",
         active_tab="tracks",
@@ -61,4 +65,5 @@ def track_detail(artist_name, track_name):
         track_name=track_name,
         stats=stats,
         recent=recent,
+        track_mbid=track_mbid,
     )

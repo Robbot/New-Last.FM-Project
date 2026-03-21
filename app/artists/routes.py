@@ -48,6 +48,10 @@ def artist_detail(artist_name: str):
     # Get artist info (photo, bio, Wikipedia link)
     artist_info = ensure_artist_info_cached(artist_name)
 
+    # Get MusicBrainz ID for artist
+    from app.db.artists import get_artist_mbid
+    artist_mbid = get_artist_mbid(artist_name)
+
     return render_template(
         "artist_detail.html",
         active_tab="artists",
@@ -63,6 +67,7 @@ def artist_detail(artist_name: str):
         per_page=per_page,
         rangetype=rangetype,
         artist_info=artist_info,
+        artist_mbid=artist_mbid,
     )
 
 

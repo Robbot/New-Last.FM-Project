@@ -94,6 +94,7 @@ def artist_album_detail(album_artist_name: str, album_name: str):
     release_year = db.get_album_release_year(album_artist_name, album_name)
 
     album_mbid = art_row["album_mbid"] if art_row and art_row["album_mbid"] else None
+    artist_mbid = art_row["artist_mbid"] if art_row and art_row["artist_mbid"] else None
     image_xlarge = art_row["image_xlarge"] if art_row else None
 
     cache_key = album_mbid or f"{album_artist_name}_{album_name}"
@@ -126,6 +127,8 @@ def artist_album_detail(album_artist_name: str, album_name: str):
         rangetype=rangetype,
         sort_by=sort_by,
         upload_allowed=_is_localhost_request(),
+        album_mbid=album_mbid,
+        artist_mbid=artist_mbid,
     )
 
 

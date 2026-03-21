@@ -367,3 +367,26 @@ def ensure_artist_info_cached(artist_name: str) -> dict | None:
     )
 
     return fetched_info
+
+
+def get_artist_mbid(artist_name: str) -> str | None:
+    """
+    Get the MusicBrainz ID for an artist from the scrobble table.
+    Returns the MBID if found, None otherwise.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT artist_mbid
+            FROM scrobble
+            WHERE artist = ?
+              AND artist_mbid IS NOT NULL
+              AND artist_mbid != ''
+            LIMIT 1
+            """,
+            (artist_name,),
+        ).fetchone()
+        return row["artist_mbid"] if row else None
+    finally:
+        conn.close()

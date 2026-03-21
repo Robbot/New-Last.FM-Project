@@ -153,3 +153,27 @@ def get_track_overview(artist_name: str, track_name: str):
         "plays": row["plays"],
         "albums": row["albums"],
     }
+
+
+def get_track_mbid(artist_name: str, track_name: str) -> str | None:
+    """
+    Get the MusicBrainz ID for a track from the scrobble table.
+    Returns the MBID if found, None otherwise.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT track_mbid
+            FROM scrobble
+            WHERE artist = ?
+              AND track = ?
+              AND track_mbid IS NOT NULL
+              AND track_mbid != ''
+            LIMIT 1
+            """,
+            (artist_name, track_name),
+        ).fetchone()
+        return row["track_mbid"] if row else None
+    finally:
+        conn.close()

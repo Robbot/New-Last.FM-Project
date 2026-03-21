@@ -105,6 +105,7 @@ def _normalize_track_name_for_matching(text: str) -> str:
     This handles smart quotes, common suffixes, and other variations.
 
     - Normalizes Unicode quotes/apostrophes to straight apostrophe
+    - Normalizes Unicode dashes (en dash, em dash) to regular hyphen
     - Removes common suffixes like " - Remastered", " (Single Version)", etc.
     - Replaces slashes with spaces
     - Normalizes whitespace
@@ -126,6 +127,18 @@ def _normalize_track_name_for_matching(text: str) -> str:
     }
     for unicode_char, straight_char in quote_mapping.items():
         text = text.replace(unicode_char, straight_char)
+
+    # Normalize Unicode dashes to regular hyphen (U+002D)
+    #   – (U+2013 EN DASH) - commonly used in track names from Last.fm
+    #   — (U+2014 EM DASH)
+    #   − (U+2212 MINUS SIGN)
+    dash_mapping = {
+        '\u2013': '-',  # EN DASH
+        '\u2014': '-',  # EM DASH
+        '\u2212': '-',  # MINUS SIGN
+    }
+    for unicode_char, hyphen in dash_mapping.items():
+        text = text.replace(unicode_char, hyphen)
 
     # Replace slashes with spaces
     text = text.replace('/', ' ')

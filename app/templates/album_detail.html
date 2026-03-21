@@ -32,6 +32,12 @@
     {% if wikipedia_url and wikipedia_url != "N/A" %}
       <p><strong>Wikipedia:</strong> <a href="{{ wikipedia_url }}" target="_blank" rel="noopener noreferrer">View article</a></p>
     {% endif %}
+    {% if album_mbid %}
+      <p><strong>MusicBrainz:</strong> <a href="https://musicbrainz.org/release/{{ album_mbid }}" target="_blank" rel="noopener noreferrer">View release</a></p>
+    {% endif %}
+    {% if artist_mbid %}
+      <p><strong>Artist MusicBrainz:</strong> <a href="https://musicbrainz.org/artist/{{ artist_mbid }}" target="_blank" rel="noopener noreferrer">View artist</a></p>
+    {% endif %}
 
     {% if not cover_url and upload_allowed %}
     <div class="cover-upload-section">
