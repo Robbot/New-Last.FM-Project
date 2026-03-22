@@ -27,7 +27,7 @@
           </a>
       </td>
       <td>
-        {% set album_artist = row['album_artist'] if 'album_artist' in row.keys() and row['album_artist'] else row['artist'] %}
+        {% set album_artist = row.get('album_artist') or row['artist'] %}
         <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
         {{ row.album }}</a>
       </td>
