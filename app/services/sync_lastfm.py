@@ -57,9 +57,9 @@ _REMASTER_PATTERNS = [
     r"\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s*[\(\[]\s*(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*[\)\]]\s*$",
     # Expanded Edition variants
-    r" -\s+(?:Expanded Edition|expanded edition)\s*$",
-    r"\s+(?:Expanded Edition|expanded edition)\s*$",
-    r"\s*[\(\[]\s*(?:Expanded Edition|expanded edition)\s*[\)\]]\s*$",
+    r" -\s+(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*$",
+    r"\s+(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*$",
+    r"\s*[\(\[]\s*(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*[\)\]]\s*$",
     # Mix/version suffixes (e.g., "2007 Stereo Mix", "2009 Remaster", "2011 Mix")
     r" -\s+\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*$",
     r"\s+[\(\[]\s*\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*[\)\]]\s*$",
