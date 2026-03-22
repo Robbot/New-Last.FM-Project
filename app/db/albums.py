@@ -16,6 +16,9 @@ from .connections import get_db_connection, _normalize_for_matching, _normalize_
 
 logger = logging.getLogger(__name__)
 
+# Last.fm uses this specific hash for placeholder album art
+LASTFM_PLACEHOLDER_HASH = "2a96cbd8b46e442fc41c2b86b821562f"
+
 
 def get_album_stats():
     """Total distinct albums and total album scrobbles."""
@@ -459,12 +462,27 @@ def ensure_album_art_cached(album_artist_name: str, album_name: str) -> str | No
     album_mbid = (art_row["album_mbid"] or "").strip() if art_row else ""
     cdn_url = (art_row["image_xlarge"] or "").strip() if art_row else ""
 
+    # Check if the CDN URL is Last.fm's placeholder
+    is_placeholder = LASTFM_PLACEHOLDER_HASH in cdn_url
+
     # Prefer MBID for stable filename; otherwise slug artist+album
     cache_key = album_mbid if album_mbid else f"{_safe_slug(album_artist_name)}__{_safe_slug(album_name)}"
 
     covers_rel_dir = Path("covers")
     covers_abs_dir = Path(current_app.static_folder) / covers_rel_dir
     covers_abs_dir.mkdir(parents=True, exist_ok=True)
+
+    # If this is a placeholder, remove any cached file and return None
+    if is_placeholder:
+        for ext in (".jpg", ".jpeg", ".png", ".webp"):
+            abs_path = covers_abs_dir / f"{cache_key}{ext}"
+            if abs_path.exists():
+                try:
+                    abs_path.unlink()
+                    logger.debug(f"Removed placeholder cache file: {abs_path}")
+                except OSError:
+                    pass
+        return None
 
     # Check if any local file exists with this cache key (regardless of extension)
     # This handles the case where a user uploaded a cover with a different extension

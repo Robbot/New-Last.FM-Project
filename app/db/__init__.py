@@ -71,6 +71,7 @@ from .tracks import (
     get_recent_scrobbles_for_track,
     get_top_tracks,
     get_track_overview,
+    get_track_mbid,
 )
 
 __all__ = [
@@ -118,4 +119,5 @@ __all__ = [
     "get_recent_scrobbles_for_track",
     "get_top_tracks",
     "get_track_overview",
+    "get_track_mbid",
 ]
