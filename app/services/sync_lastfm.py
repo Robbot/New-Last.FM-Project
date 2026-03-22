@@ -280,7 +280,7 @@ def fetch_recent_tracks(api_key: str,
 def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     """
     Update album_artist to 'Various Artists' for compilation albums.
-    A compilation is defined as an album with 3+ distinct artists.
+    A compilation is defined as an album with 2+ distinct artists.
     Albums are identified by (album, album_mbid) to distinguish different
     albums that happen to have the same name (e.g., "21" by Adele vs "21" by KSU).
     """
@@ -291,7 +291,7 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
         GROUP BY album, album_mbid
-        HAVING COUNT(DISTINCT artist) >= 3
+        HAVING COUNT(DISTINCT artist) >= 2
         """
     )
     compilation_albums = [(row["album"], row["album_mbid"]) for row in cursor.fetchall()]
@@ -521,12 +521,18 @@ def sync_lastfm() -> None:
             logger.debug(f"No data found in chunk {chunks_processed}, stopping sync")
             break
 
+        # After each chunk: update album_artist for compilation albums
+        # This ensures newly synced scrobbles get marked correctly without waiting for full sync to complete
+        if chunk_new_scrobbles > 0:
+            logger.info(f"Chunk {chunks_processed}: updating compilation album artists...")
+            _update_compilation_albums(conn)
+
         # Move to next chunk
         chunk_start = chunk_end + 1
 
-    # Post-sync: update album_artist for compilation albums
+    # Post-sync: final update album_artist for compilation albums
     if total_new_scrobbles > 0:
-        logger.info("Post-sync: detecting compilation albums...")
+        logger.info("Post-sync: final compilation album detection...")
         _update_compilation_albums(conn)
 
     conn.close()
