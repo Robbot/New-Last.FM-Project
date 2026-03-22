@@ -38,11 +38,11 @@ jobs:
             python -m app.services.backup_db
 
             # Restart the application service
-            echo ">>> Restarting scrobbles service..."
-            sudo systemctl restart scrobbles
+            echo ">>> Restarting lastfm service..."
+            sudo systemctl restart lastfm
 
             # Wait and check service status
             sleep 3
-            sudo systemctl is-active --quiet scrobbles && echo ">>> Service is running!" || echo ">>> Service failed to start!"
+            sudo systemctl is-active --quiet lastfm && echo ">>> Service is running!" || echo ">>> Service failed to start!"
 
             echo ">>> Deployment complete!"
