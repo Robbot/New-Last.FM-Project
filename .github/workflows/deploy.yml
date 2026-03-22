@@ -15,7 +15,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT || 22 }}
-          strict_host_key_checking: false
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           script_stop: true
           script: |
             set -e
