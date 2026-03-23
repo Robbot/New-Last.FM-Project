@@ -29,7 +29,7 @@ def library_scrobbles():
 
     offset = (page - 1) * per_page
     limit = offset + per_page
-    page_rows = all_rows[offset:limit]
+    page_rows = [dict(row) for row in all_rows[offset:limit]]
 
     return render_template("library_scrobbles.html",
                             active_tab="scrobbles",

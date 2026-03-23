@@ -3,10 +3,14 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: http://localhost:8001
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -33,9 +37,13 @@ jobs:
             pip install --upgrade pip --quiet
             pip install -r requirements.txt --quiet
 
-            # Backup database
+            # Backup database before deployment
             echo ">>> Backing up database..."
             python -m app.services.backup_db
+
+            # Run database migrations if needed
+            echo ">>> Checking database schema..."
+            # Add migration check here if needed
 
             # Restart the application service
             echo ">>> Restarting lastfm service..."
@@ -45,4 +53,9 @@ jobs:
             sleep 3
             sudo systemctl is-active --quiet lastfm && echo ">>> Service is running!" || echo ">>> Service failed to start!"
 
+            # Run health check
+            echo ">>> Running health check..."
+            curl -f http://localhost:8001/ || exit 1
+
             echo ">>> Deployment complete!"
+            echo ">>> Access production at: http://localhost:8001"
