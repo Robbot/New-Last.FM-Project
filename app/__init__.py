@@ -15,6 +15,11 @@ def datetime_format_filter(timestamp):
 def create_app():
     app = Flask(__name__)
 
+    # Disable template caching for development
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = True
+    app.jinja_env.cache = {}
+
     # Set database path in config
     BASE_DIR = Path(__file__).resolve().parent.parent
     app.config["DATABASE_PATH"] = str(BASE_DIR / "files" / "lastfmstats.sqlite")
