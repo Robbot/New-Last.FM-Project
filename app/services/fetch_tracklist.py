@@ -2,9 +2,10 @@ import requests
 
 def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str):
     """
-    Returns list of dicts with track_number and track name in album order.
+    Returns list of dicts with artist, track_number and track name in album order.
     Uses Last.fm method album.getInfo.
     Returns empty list if API fails or album not found.
+    Skips entries where track artist is "Various Artists" to avoid duplicates.
     """
     url = "https://ws.audioscrobbler.com/2.0/"
     params = {
@@ -40,8 +41,15 @@ def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str
     for t in tracks_obj:
         name = (t.get("name") or "").strip()
         rank = t.get("@attr", {}).get("rank")
+        # Get individual track artist from API response
+        track_artist = (t.get("artist", {}).get("name") or artist_name).strip()
 
         if not name:
+            continue
+
+        # Skip "Various Artists" entries - they're compilation placeholders
+        # that duplicate individual artist tracks
+        if track_artist.lower() == "various artists":
             continue
 
         try:
@@ -50,7 +58,7 @@ def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str
             # Fallback if rank missing
             track_number = len(out) + 1
 
-        out.append({"track": name, "track_number": track_number})
+        out.append({"artist": track_artist, "track": name, "track_number": track_number})
 
     # Ensure order
     out.sort(key=lambda x: x["track_number"])

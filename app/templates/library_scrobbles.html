@@ -23,20 +23,20 @@
     <tr>
       <td>
           <a href="{{ url_for('tracks.track_detail', artist_name=row['artist'], track_name=row['track']) }}">
-        {{ row.track }}
+        {{ row['track'] }}
           </a>
       </td>
       <td>
-        {% set album_artist = row.get('album_artist') or row['artist'] %}
+        {% set album_artist = row['album_artist'] %}
         <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
-        {{ row.album }}</a>
+        {{ row['album'] }}</a>
       </td>
       <td>
           <a href="{{ url_for('artists.artist_detail', artist_name=row['artist'])}}">
-        {{ row.artist }}
+        {{ row['artist'] }}
           </a>
       </td>
-      <td>{{ row.date }}</td>
+      <td>{{ row['date'] }}</td>
     </tr>
     {% endfor %}
   </tbody>
