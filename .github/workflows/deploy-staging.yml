@@ -1,0 +1,54 @@
+name: Deploy to Staging
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT || 22 }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          script_stop: true
+          script: |
+            set -e
+
+            # Change to staging directory
+            cd /home/roju/lastfm-staging
+
+            # Pull latest changes from main branch
+            echo ">>> Pulling latest changes to staging..."
+            git fetch origin
+            git checkout main
+            git pull origin main
+
+            # Activate virtual environment and install/update dependencies
+            echo ">>> Updating dependencies..."
+            source .venv/bin/activate
+            pip install --upgrade pip --quiet
+            pip install -r requirements.txt --quiet
+
+            # Restart staging service
+            echo ">>> Restarting staging service..."
+            sudo systemctl restart lastfm-staging
+
+            # Wait and check service status
+            sleep 3
+            sudo systemctl is-active --quiet lastfm-staging && echo ">>> Staging service is running!" || echo ">>> Staging service failed to start!"
+
+            # Run health check
+            echo ">>> Running health check..."
+            curl -f http://localhost:8002/ || exit 1
+
+            echo ">>> Staging deployment complete!"
+            echo ">>> Access staging at: http://localhost:8002"
