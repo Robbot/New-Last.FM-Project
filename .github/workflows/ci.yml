@@ -49,6 +49,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_USERNAME: ${{ secrets.LASTFM_USERNAME }}
         run: |
           pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
 
