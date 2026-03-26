@@ -26,10 +26,11 @@ jobs:
             # Change to staging directory
             cd /home/roju/lastfm-staging
 
-            # Pull latest changes from main branch
+            # Pull latest changes and sync staging branch with main
             echo ">>> Pulling latest changes to staging..."
             git fetch origin
-            git checkout main
+            git checkout staging
+            git reset --hard origin/main
             git pull origin main
 
             # Activate virtual environment and install/update dependencies
