@@ -19,7 +19,15 @@ logger = logging.getLogger(__name__)
 def get_db_connection() -> sqlite3.Connection:
     """Get a database connection with row factory enabled."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        # Try to get database path from Flask app config (for testing)
+        from flask import current_app
+        db_path = current_app.config.get('DATABASE_PATH', DB_PATH)
+    except (ImportError, RuntimeError):
+        # Not in Flask app context, use default path
+        db_path = DB_PATH
+
+    try:
+        conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         return conn
     except sqlite3.Error as e:
