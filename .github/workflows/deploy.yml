@@ -1,8 +1,13 @@
 name: Deploy to Production
 
+# TRIGGER: Manual only (workflow_dispatch) - requires human approval
+# ENVIRONMENT: /home/roju/New-Last.FM-Project (port 8001)
+# PURPOSE: Deploy tested code to production
+#
+# To deploy: gh workflow run deploy.yml
+# Or via GitHub UI: Actions → Deploy to Production → Run workflow
+
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
