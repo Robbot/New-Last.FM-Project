@@ -18,7 +18,6 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT || 22 }}
-          # fingerprint: ${{ secrets.SSH_FINGERPRINT }}  # Temporarily disabled for testing
           script_stop: true
           script: |
             set -e
