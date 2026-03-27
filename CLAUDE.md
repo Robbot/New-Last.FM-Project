@@ -2,46 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ⚠️ PRODUCTION ACCESS POLICY (CRITICAL)
-
-**AI Assistant Production Access Control**
-
-This repository is the **PRODUCTION** environment. The AI assistant has **NO WRITE ACCESS** to production files.
-
-### Environment Structure
-
-| Environment | Path | Purpose | AI Access |
-|------------|------|---------|-----------|
-| **Production** | `/home/roju/New-Last.FM-Project` | Live site (port 8001) | READ-ONLY |
-| **Staging** | `/home/roju/lastfm-staging` | Testing (port 8002) | Deploy via CI |
-| **AI Development** | `/home/roju/lastfm-dev` | AI workspace | READ-WRITE |
-
-### Deployment Workflow
-
-```
-1. AI works in /home/roju/lastfm-dev (ai/development branch)
-2. Create PR to main branch
-3. CI runs tests → deploys to staging (port 8002)
-4. Manual testing on staging
-5. Manual approval → deploys to production (port 8001)
-```
-
-### Rules
-
-- **NEVER** edit files in `/home/roju/New-Last.FM-Project` directly
-- **ALWAYS** work in `/home/roju/lastfm-dev` and create PRs
-- Production changes require **manual approval** via GitHub
-- Use `git worktree list` to verify current worktree
-- If asked to modify production, request permission first
-
-### Services
-
-- `lastfm.service` - Production (port 8001)
-- `lastfm-staging.service` - Staging (port 8002)
-- `systemctl restart lastfm` requires sudo and permission
-
----
-
 ## Project Overview
 
 A Flask-based web application for enhanced Last.fm scrobble statistics. The app syncs listening history from Last.fm into a local SQLite database and provides detailed views for artists, albums, tracks, and scrobbles with pagination, statistics, and unique features like track gap analysis.
