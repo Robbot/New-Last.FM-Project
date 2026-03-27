@@ -1,5 +1,11 @@
 name: Deploy to Staging
 
+# TRIGGER: Automatic when PR to main is merged
+# ENVIRONMENT: /home/roju/lastfm-staging (port 8002)
+# PURPOSE: Test changes before production deployment
+#
+# Workflow: PR merged → Staging auto-deploys → Manual testing → Manual production deploy
+
 on:
   pull_request:
     branches: [main]

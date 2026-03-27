@@ -1,5 +1,13 @@
 name: CI
 
+# TRIGGER: Pull requests to main/staging, pushes to main/staging/ai/development
+# PURPOSE: Run lint, tests, and security scans before deployment
+#
+# Jobs:
+# - lint: Python syntax and style checks (flake8)
+# - test: Unit tests with coverage (pytest)
+# - security: Security vulnerability scan (bandit)
+
 on:
   pull_request:
     branches: [main, staging]
