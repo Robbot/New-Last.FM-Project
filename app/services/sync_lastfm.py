@@ -16,6 +16,7 @@ import requests
 import logging
 from pathlib import Path
 from .config import get_api_key  # your helper: returns (api_key, username)
+from app.db.notifications import create_notification, ensure_notifications_table
 
 # ---------- Constants ----------
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -219,6 +220,31 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_album_art_mbid
         ON album_art(album_mbid)
         WHERE album_mbid IS NOT NULL
+    """)
+
+    # Notifications table for tracking sync issues and admin alerts
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            details TEXT,
+            created_at INTEGER NOT NULL,
+            dismissed_at INTEGER,
+            severity TEXT NOT NULL DEFAULT 'info'
+        )
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_notifications_active
+        ON notifications(dismissed_at)
+        WHERE dismissed_at IS NULL
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_notifications_created
+        ON notifications(created_at DESC)
     """)
 
     conn.commit()
@@ -467,12 +493,31 @@ def sync_lastfm() -> None:
             conn.commit()
 
             new_rows = conn.total_changes - total_new_scrobbles
+            skipped_rows = len(scrobble_batch) - new_rows
             total_new_scrobbles = conn.total_changes
             chunk_new_scrobbles += new_rows
             logger.info(
                 f"Chunk {chunks_processed}, page {page}: inserted {new_rows} new scrobbles "
                 f"(batch size {len(scrobble_batch)})"
             )
+
+            # Log skipped inserts as notification
+            if skipped_rows > 0:
+                create_notification(
+                    notification_type='sync_skip',
+                    title=f'{skipped_rows} scrobble(s) skipped during sync',
+                    message=f'Chunk {chunks_processed}, page {page}: {skipped_rows} of {len(scrobble_batch)} scrobbles were not inserted. This usually means they already exist in the database with different data (possible data inconsistency).',
+                    details={
+                        'chunk': chunks_processed,
+                        'page': page,
+                        'batch_size': len(scrobble_batch),
+                        'inserted': new_rows,
+                        'skipped': skipped_rows,
+                        'timestamp': int(time.time())
+                    },
+                    severity='warning'
+                )
+                logger.warning(f'{skipped_rows} scrobbles skipped (likely duplicates or data conflicts)')
 
             # Optional: sort album_art batch by (artist, album) then time
             if album_batch:
@@ -548,8 +593,38 @@ if __name__ == "__main__":
         logger.info("Sync finished successfully.")
     except requests.exceptions.RequestException as exc:
         logger.error(f"Network error during sync: {exc}", exc_info=True)
+        try:
+            create_notification(
+                notification_type='sync_error',
+                title='Last.fm sync failed: Network error',
+                message=f'Could not connect to Last.fm API: {str(exc)}',
+                details={'error': str(exc), 'error_type': 'RequestException'},
+                severity='error'
+            )
+        except Exception as notify_err:
+            logger.error(f"Failed to create notification: {notify_err}")
     except sqlite3.Error as exc:
         logger.error(f"Database error during sync: {exc}", exc_info=True)
+        try:
+            create_notification(
+                notification_type='sync_error',
+                title='Last.fm sync failed: Database error',
+                message=f'Database error occurred during sync: {str(exc)}',
+                details={'error': str(exc), 'error_type': 'sqlite3.Error'},
+                severity='error'
+            )
+        except Exception as notify_err:
+            logger.error(f"Failed to create notification: {notify_err}")
     except Exception as exc:
         logger.error(f"Unexpected error during sync: {exc}", exc_info=True)
+        try:
+            create_notification(
+                notification_type='sync_error',
+                title='Last.fm sync failed: Unexpected error',
+                message=f'An unexpected error occurred: {str(exc)}',
+                details={'error': str(exc), 'error_type': type(exc).__name__, 'traceback': traceback.format_exc()},
+                severity='critical'
+            )
+        except Exception as notify_err:
+            logger.error(f"Failed to create notification: {notify_err}")
         raise

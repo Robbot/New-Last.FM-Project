@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app, red
 from functools import wraps
 from . import admin_bp
 from app.logging_config import get_logger
+from app.db.notifications import get_notifications, dismiss_notification, dismiss_all_notifications, get_unread_count
 
 logger = get_logger(__name__)
 
@@ -180,7 +181,8 @@ def admin_dashboard():
     return render_template("admin/dashboard.html",
                            db_info=db_info,
                            log_files=log_files,
-                           sync_log=sync_log_info)
+                           sync_log=sync_log_info,
+                           unread_count=get_unread_count())
 
 
 @admin_bp.route("/admin/logs")
@@ -227,7 +229,8 @@ def admin_logs():
                            log_files=log_files,
                            current_log=current_log,
                            content=content,
-                           lines=lines)
+                           lines=lines,
+                           unread_count=get_unread_count())
 
 
 @admin_bp.route("/admin/database")
@@ -237,7 +240,7 @@ def admin_database():
     db_path = current_app.config.get('DATABASE_PATH', 'files/lastfmstats.sqlite')
 
     if not os.path.exists(db_path):
-        return render_template("admin/database.html", error="Database file not found")
+        return render_template("admin/database.html", error="Database file not found", unread_count=get_unread_count())
 
     table = request.args.get('table', 'scrobble')
     page = request.args.get('page', 1, type=int)
@@ -280,7 +283,8 @@ def admin_database():
                            rows=rows,
                            page=page,
                            total_pages=total_pages,
-                           total_count=total_count)
+                           total_count=total_count,
+                           unread_count=get_unread_count())
 
 
 @admin_bp.route("/admin/database/execute", methods=['POST'])
@@ -434,7 +438,7 @@ def admin_logs_cleanup():
 @require_localhost
 def admin_health():
     """Health check page with system status."""
-    return render_template("admin/health.html")
+    return render_template("admin/health.html", unread_count=get_unread_count())
 
 
 @admin_bp.route("/admin/health/check")
@@ -602,3 +606,70 @@ def admin_health_check():
         status["overall"] = "healthy"
 
     return jsonify(status)
+
+
+@admin_bp.route("/admin/notifications")
+@require_localhost
+def admin_notifications():
+    """View and manage notifications."""
+    include_dismissed = request.args.get('dismissed', '0') == '1'
+    severity_filter = request.args.get('severity')
+    limit = request.args.get('limit', 100, type=int)
+    limit = max(10, min(500, limit))  # Limit between 10 and 500
+
+    notifications = get_notifications(
+        include_dismissed=include_dismissed,
+        limit=limit,
+        severity_filter=severity_filter
+    )
+
+    unread_count = get_unread_count()
+
+    return render_template(
+        "admin/notifications.html",
+        notifications=notifications,
+        unread_count=unread_count,
+        include_dismissed=include_dismissed,
+        severity_filter=severity_filter
+    )
+
+
+@admin_bp.route("/admin/notifications/<int:notification_id>/dismiss", methods=['POST'])
+@require_localhost
+def admin_dismiss_notification(notification_id):
+    """Dismiss a single notification."""
+    success = dismiss_notification(notification_id)
+
+    if success:
+        return jsonify({
+            "success": True,
+            "message": f"Notification {notification_id} dismissed"
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "error": "Notification not found"
+        }), 404
+
+
+@admin_bp.route("/admin/notifications/dismiss-all", methods=['POST'])
+@require_localhost
+def admin_dismiss_all_notifications():
+    """Dismiss all active notifications."""
+    count = dismiss_all_notifications()
+
+    return jsonify({
+        "success": True,
+        "message": f"Dismissed {count} notification(s)"
+    })
+
+
+@admin_bp.route("/admin/notifications/count")
+@require_localhost
+def admin_notifications_count():
+    """Get the count of unread notifications (for badge)."""
+    count = get_unread_count()
+
+    return jsonify({
+        "count": count
+    })

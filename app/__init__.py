@@ -47,6 +47,7 @@ def create_app():
     from .trackgaps import trackgaps_bp
     from .daterange import daterange_bp
     from .admin import admin_bp
+    from .db import notifications as db_notifications  # Ensures notifications module is loaded
 
 
     app.register_blueprint(scrobbles_bp)

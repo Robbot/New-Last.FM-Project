@@ -1,0 +1,229 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h1>Notifications</h1>
+                    <p class="text-muted">System alerts and sync issues requiring attention</p>
+                </div>
+                {% if notifications %}
+                <button class="btn btn-warning" onclick="dismissAll()">
+                    <i class="bi bi-check-all me-1"></i>Dismiss All
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <form class="row g-3" method="get" id="filter-form">
+                        <div class="col-auto">
+                            <label class="col-form-label">Severity:</label>
+                        </div>
+                        <div class="col-auto">
+                            <select name="severity" class="form-select form-select-sm">
+                                <option value="">All</option>
+                                <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+                                <option value="error" {% if severity_filter == 'error' %}selected{% endif %}>Error</option>
+                                <option value="warning" {% if severity_filter == 'warning' %}selected{% endif %}>Warning</option>
+                                <option value="info" {% if severity_filter == 'info' %}selected{% endif %}>Info</option>
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="dismissed" value="1" {% if include_dismissed %}checked{% endif %} id="dismissed-check">
+                                <label class="form-check-label" for="dismissed-check">
+                                    Include Dismissed
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-sm btn-primary">Apply Filters</button>
+                            <a href="{{ url_for('admin.admin_notifications') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Notifications List -->
+            {% if notifications %}
+            <div class="card">
+                <div class="list-group list-group-flush">
+                    {% for notif in notifications %}
+                    {% set created_time = notif.created_at | datetime_format %}
+                    {% set severity_class = {
+                        'critical': 'danger',
+                        'error': 'danger',
+                        'warning': 'warning',
+                        'info': 'info'
+                    } %}
+                    {% set severity_label = {
+                        'critical': 'Critical',
+                        'error': 'Error',
+                        'warning': 'Warning',
+                        'info': 'Info'
+                    } %}
+
+                    <div class="list-group-item {% if notif.dismissed_at %}text-muted{% endif %}">
+                        <div class="d-flex w-100 justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h5 class="mb-0 {% if notif.dismissed_at %}text-decoration-line-through{% endif %}">
+                                        {{ notif.title }}
+                                    </h5>
+                                    <span class="badge bg-{{ severity_class.get(notif.severity, 'secondary') }}">
+                                        {{ severity_label.get(notif.severity, notif.severity) }}
+                                    </span>
+                                    {% if notif.dismissed_at %}
+                                    <span class="badge bg-secondary">Dismissed</span>
+                                    {% endif %}
+                                </div>
+                                <p class="mb-1 {% if notif.dismissed_at %}text-muted{% endif %}">
+                                    {{ notif.message }}
+                                </p>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock"></i> {{ created_time }}
+                                    {% if notif.type %}
+                                    <span class="ms-2">
+                                        <i class="bi bi-tag"></i> {{ notif.type }}
+                                    </span>
+                                    {% endif %}
+                                </small>
+
+                                {% if notif.details %}
+                                <button class="btn btn-sm btn-link p-0 ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ notif.id }}">
+                                    <i class="bi bi-caret-down"></i> Details
+                                </button>
+                                <div class="collapse mt-2" id="details-{{ notif.id }}">
+                                    <div class="card card-body bg-light">
+                                        <pre class="mb-0" style="white-space: pre-wrap; word-break: break-all;">{{ notif.details | tojson(indent=2) }}</pre>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            {% if not notif.dismissed_at %}
+                            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="dismissNotification({{ notif.id }}, this)">
+                                <i class="bi bi-check"></i> Dismiss
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                    <h4 class="mt-3">No Notifications</h4>
+                    <p class="text-muted">
+                        {% if include_dismissed %}
+                            No notifications found matching your filters.
+                        {% else %}
+                            All caught up! No active notifications.
+                        {% endif %}
+                    </p>
+                    {% if include_dismissed %}
+                    <a href="{{ url_for('admin.admin_notifications') }}" class="btn btn-primary">Show Active Only</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function dismissNotification(notificationId, button) {
+    if (!confirm('Dismiss this notification?')) {
+        return;
+    }
+
+    const cardItem = button.closest('.list-group-item');
+
+    fetch("{{ url_for('admin.admin_dismiss_notification', notification_id=0) }}".replace('0', notificationId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mark as dismissed visually
+            cardItem.classList.add('text-muted');
+            const title = cardItem.querySelector('h5');
+            if (title) {
+                title.classList.add('text-decoration-line-through');
+            }
+
+            // Add dismissed badge
+            const header = cardItem.querySelector('.d-flex.align-items-center');
+            if (header && !header.querySelector('.badge.bg-secondary')) {
+                const dismissedBadge = document.createElement('span');
+                dismissedBadge.className = 'badge bg-secondary';
+                dismissedBadge.textContent = 'Dismissed';
+                header.appendChild(dismissedBadge);
+            }
+
+            // Remove or disable dismiss button
+            button.remove();
+
+            // Update unread count if displayed
+            updateBadgeCount(-1);
+        } else {
+            alert('Failed to dismiss: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Request failed: ' + error);
+    });
+}
+
+function dismissAll() {
+    if (!confirm('Dismiss all active notifications?')) {
+        return;
+    }
+
+    fetch("{{ url_for('admin.admin_dismiss_all_notifications') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to show updated state
+            location.reload();
+        } else {
+            alert('Failed to dismiss all: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Request failed: ' + error);
+    });
+}
+
+function updateBadgeCount(change) {
+    // Update badge in navigation if present
+    const badges = document.querySelectorAll('.nav-link[href*="notifications"] .badge');
+    badges.forEach(badge => {
+        let current = parseInt(badge.textContent) || 0;
+        let newValue = Math.max(0, current + change);
+        if (newValue > 0) {
+            badge.textContent = newValue;
+        } else {
+            badge.remove();
+        }
+    });
+}
+</script>
+{% endblock %}
