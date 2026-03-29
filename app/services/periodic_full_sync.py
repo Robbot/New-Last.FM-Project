@@ -38,6 +38,9 @@ BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 # Gaps larger than this are considered worth investigating
 GAP_THRESHOLD_SECONDS = 2 * 60 * 60  # 2 hours
 
+# Auto-insert missing scrobbles (set to False to only report)
+AUTO_INSERT_MISSING = True
+
 
 def get_conn():
     """Get database connection."""
@@ -234,6 +237,7 @@ def run_full_gap_check():
 
     # Check gaps against Last.fm API
     total_missing_found = 0
+    all_missing_scrobbles = []  # Track all missing scrobbles for notification
     checked_gaps = 0
     max_gaps_to_check = 10  # Limit API calls to avoid rate limiting
 
@@ -253,52 +257,78 @@ def run_full_gap_check():
 
             if missing:
                 total_missing_found += len(missing)
-                logger.warning(f"Found {len(missing)} missing scrobbles in this gap")
+                logger.warning(f"Found {len(missing)} missing scrobble(s) in this gap")
 
-                # Insert missing scrobbles
-                conn = get_conn()
-                inserted = 0
+                # Log detailed information for each missing scrobble
+                for uts, artist, album, track in sorted(missing):
+                    timestamp_str = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(uts))
+                    logger.info(f"  MISSING: [{timestamp_str}] {artist} - {track} (album: {album})")
+                    # Add to list for notification
+                    all_missing_scrobbles.append({
+                        'uts': uts,
+                        'timestamp': timestamp_str,
+                        'artist': artist,
+                        'album': album,
+                        'track': track
+                    })
 
-                for uts, artist, album, track in missing:
-                    try:
-                        cur = conn.cursor()
-                        cur.execute(
-                            """
-                            INSERT OR IGNORE INTO scrobble
-                            (artist, album, track, uts, album_artist)
-                            VALUES (?, ?, ?, ?, ?)
-                            """,
-                            (artist, album, track, uts, artist)
-                        )
-                        if cur.rowcount > 0:
-                            inserted += 1
-                    except sqlite3.Error as e:
-                        logger.error(f"Error inserting scrobble: {e}")
+                # Insert missing scrobbles if auto-insert is enabled
+                if AUTO_INSERT_MISSING:
+                    conn = get_conn()
+                    inserted = 0
 
-                conn.commit()
-                conn.close()
+                    for uts, artist, album, track in missing:
+                        try:
+                            cur = conn.cursor()
+                            cur.execute(
+                                """
+                                INSERT OR IGNORE INTO scrobble
+                                (artist, album, track, uts, album_artist)
+                                VALUES (?, ?, ?, ?, ?)
+                                """,
+                                (artist, album, track, uts, artist)
+                            )
+                            if cur.rowcount > 0:
+                                inserted += 1
+                        except sqlite3.Error as e:
+                            logger.error(f"Error inserting scrobble: {e}")
 
-                if inserted > 0:
-                    logger.info(f"Inserted {inserted} missing scrobbles into database")
+                    conn.commit()
+                    conn.close()
+
+                    if inserted > 0:
+                        logger.info(f"Inserted {inserted} missing scrobble(s) into database")
+                else:
+                    logger.info(f"Auto-insert disabled. {len(missing)} scrobble(s) reported but not inserted.")
 
         except Exception as e:
             logger.error(f"Error checking gap: {e}", exc_info=True)
 
     # Create notification with results
     if total_missing_found > 0:
+        if AUTO_INSERT_MISSING:
+            title = f'Found and filled {total_missing_found} missing scrobble(s)'
+            message = f'Periodic full gap check found {total_missing_found} scrobbles that were missing. ' \
+                     f'These have been automatically inserted. Checked {checked_gaps} of {len(gaps)} gaps detected.'
+        else:
+            title = f'Found {total_missing_found} missing scrobble(s) - Review Required'
+            message = f'Periodic full gap check found {total_missing_found} scrobbles that are missing from the database. ' \
+                     f'Please review and manually insert if needed. Checked {checked_gaps} of {len(gaps)} gaps detected.'
+
         create_notification(
             notification_type='data_gap',
-            title=f'Found and filled {total_missing_found} missing scrobble(s)',
-            message=f'Periodic full gap check found {total_missing_found} scrobbles that were missing from the database. '
-                   f'These have been automatically inserted. Checked {checked_gaps} of {len(gaps)} gaps detected.',
+            title=title,
+            message=message,
             details={
                 'gaps_detected': len(gaps),
                 'gaps_checked': checked_gaps,
-                'missing_found': total_missing_found
+                'missing_found': total_missing_found,
+                'auto_insert_enabled': AUTO_INSERT_MISSING,
+                'missing_scrobbles': all_missing_scrobbles
             },
             severity='warning'
         )
-        logger.info(f"Gap check complete: found and inserted {total_missing_found} missing scrobbles")
+        logger.info(f"Gap check complete: found {total_missing_found} missing scrobble(s)")
     else:
         create_notification(
             notification_type='sync_check',
