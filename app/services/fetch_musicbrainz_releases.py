@@ -94,8 +94,8 @@ def fetch_artist_releases_from_musicbrainz(artist_mbid: str) -> List[Dict[str, a
 
                     secondary_types = release_group.get("secondary-types", [])
 
-                    # Only include releases with Album as primary type
-                    if primary_type != "Album":
+                    # Only include releases with Album or EP as primary type
+                    if primary_type not in ("Album", "EP"):
                         seen_release_group_ids.add(rg_id)
                         continue
 

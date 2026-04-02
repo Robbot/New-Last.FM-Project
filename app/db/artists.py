@@ -611,9 +611,9 @@ def get_artist_albums_with_years(
             except json.JSONDecodeError:
                 release["secondary_types"] = []
 
-        # Determine if this is a pure album (no secondary types)
+        # Determine if this is a pure album (Album or EP without secondary types)
         release["is_pure_album"] = (
-            release.get("primary_type") == "Album" and
+            release.get("primary_type") in ("Album", "EP") and
             not release.get("secondary_types")
         )
 
@@ -650,9 +650,9 @@ def get_artist_albums_with_years(
             "is_pure_album": is_pure_album,
         })
 
-    # Add unplayed albums from MusicBrainz (only pure albums)
+    # Add unplayed albums from MusicBrainz (pure Albums and EPs)
     for release in mb_releases:
-        # Only add unplayed albums that are pure "Album" type
+        # Only add unplayed albums that are pure "Album" or "EP" type
         if not release.get("is_pure_album", False):
             continue
 

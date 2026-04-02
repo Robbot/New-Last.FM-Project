@@ -87,7 +87,9 @@
       {# Determine release type class for badge styling #}
       {% set release_type = row.get('release_type', '') %}
       {% set type_class = 'type-album' %}
-      {% if 'Compilation' in release_type %}
+      {% if 'EP' in release_type %}
+        {% set type_class = 'type-ep' %}
+      {% elif 'Compilation' in release_type %}
         {% set type_class = 'type-compilation' %}
       {% elif 'Live' in release_type %}
         {% set type_class = 'type-live' %}

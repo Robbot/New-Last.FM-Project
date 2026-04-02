@@ -333,8 +333,13 @@ tbody tr.album-compilation:hover {
     color: #6b21a8;
 }
 
+.release-type-badge.type-ep {
+    background: #fef08a;
+    color: #854d0e;
+}
+
 /* Mixed type badges (e.g., "Album + Compilation") */
-.release-type-badge:not(.type-album):not(.type-compilation):not(.type-live):not(.type-remix) {
+.release-type-badge:not(.type-album):not(.type-compilation):not(.type-live):not(.type-remix):not(.type-ep) {
     background: #f3f4f6;
     color: #4b5563;
 }
