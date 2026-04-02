@@ -69,6 +69,7 @@ def _ymd_to_epoch_bounds(start: str, end: str) -> tuple[int | None, int | None]:
 def _normalize_for_matching(text: str) -> str:
     """
     Normalize text for fuzzy matching.
+    - Normalizes Unicode quotes/apostrophes to straight apostrophe
     - Removes accents (é → e, ö → o, etc.)
     - Lowercases
     - Replaces special characters (hyphens) with spaces
@@ -77,6 +78,22 @@ def _normalize_for_matching(text: str) -> str:
     """
     if not text:
         return ""
+
+    # Normalize Unicode quotes/apostrophes to straight quotes BEFORE accent removal
+    # This handles curly quotes: ' ' " " " " → ' " " "
+    text = text.replace('\u2018', "'")  # Left single quotation mark
+    text = text.replace('\u2019', "'")  # Right single quotation mark (curly apostrophe)
+    text = text.replace('\u201c', '"')  # Left double quotation mark
+    text = text.replace('\u201d', '"')  # Right double quotation mark
+    text = text.replace('\u2032', "'")  # Prime
+    text = text.replace('\u2035', "'")  # Backprime
+    text = text.replace('\u2033', '"')  # Double prime
+    text = text.replace('\u2036', "'")  # Reversed prime
+    text = text.replace('\u2037', '"')  # Reversed double prime
+    text = text.replace('\u275b', "'")  # Heavy single turned comma quotation mark ornament
+    text = text.replace('\u275c', '"')  # Heavy double turned comma quotation mark ornament
+    text = text.replace('\u201b', "'")  # Single high-reversed-9 quotation mark
+    text = text.replace('\u201f', '"')  # Double high-reversed-9 quotation mark
 
     # Remove accents by converting to ASCII
     # e.g., "Café" → "Cafe", "ö" → "o"

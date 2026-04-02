@@ -32,6 +32,8 @@ ALLOWED_SORT_ORDER = ["asc", "desc"]
 DEFAULT_SORT_ORDER = "desc"
 ALLOWED_ALBUM_SORT = ["tracklist", "plays"]
 DEFAULT_ALBUM_SORT = "tracklist"
+ALLOWED_ARTIST_ALBUM_SORT = ["plays", "year"]
+DEFAULT_ARTIST_ALBUM_SORT = "plays"
 
 # API limits
 DEFAULT_LIMIT = 50

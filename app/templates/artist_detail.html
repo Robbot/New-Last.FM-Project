@@ -54,19 +54,72 @@
     <tr>
       <th>#</th>
       <th>Album</th>
-      <th>Scrobbles</th>
+      <th>
+        {% if albums_sort_by == 'year' %}
+          {% if albums_sort_order == 'asc' %}
+            <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, albums_sort_by='year', albums_sort_order='desc', from=start, to=end, rangetype=rangetype) }}" title="Sort by year descending">Year &#9650;</a>
+          {% else %}
+            <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, albums_sort_by='year', albums_sort_order='asc', from=start, to=end, rangetype=rangetype) }}" title="Sort by year ascending">Year &#9660;</a>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, albums_sort_by='year', albums_sort_order='asc', from=start, to=end, rangetype=rangetype) }}" title="Sort by year">Year</a>
+        {% endif %}
+      </th>
+      <th>
+        {% if albums_sort_by == 'plays' %}
+          {% if albums_sort_order == 'asc' %}
+            <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, albums_sort_by='plays', albums_sort_order='desc', from=start, to=end, rangetype=rangetype) }}" title="Sort by scrobbles descending">Scrobbles &#9650;</a>
+          {% else %}
+            <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, albums_sort_by='plays', albums_sort_order='asc', from=start, to=end, rangetype=rangetype) }}" title="Sort by scrobbles ascending">Scrobbles &#9660;</a>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('artists.artist_detail', artist_name=artist_name, albums_sort_by='plays', albums_sort_order='desc', from=start, to=end, rangetype=rangetype) }}" title="Sort by scrobbles">Scrobbles</a>
+        {% endif %}
+      </th>
+      <th>Type</th>
     </tr>
   </thead>
   <tbody>
     {% for row in albums_rows %}
-      <tr>
+      {# Determine row styling based on album type and play status #}
+      {% set is_not_pure_album = row.get('is_pure_album', True) == false %}
+      {% set is_unplayed = row.get('has_scrobbles', True) == false %}
+      {# Determine release type class for badge styling #}
+      {% set release_type = row.get('release_type', '') %}
+      {% set type_class = 'type-album' %}
+      {% if 'Compilation' in release_type %}
+        {% set type_class = 'type-compilation' %}
+      {% elif 'Live' in release_type %}
+        {% set type_class = 'type-live' %}
+      {% elif 'Remix' in release_type %}
+        {% set type_class = 'type-remix' %}
+      {% endif %}
+      <tr{% if is_not_pure_album %} class="album-compilation"{% elif is_unplayed %} class="text-muted"{% endif %}>
         <td>{{ loop.index }}</td>
         <td>
           {% set album_artist = row['album_artist'] if 'album_artist' in row.keys() and row['album_artist'] else artist_name %}
-          <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
-          {{ row["album"] }}</a>
+          {% if row.get('has_scrobbles', True) %}
+            <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
+            {{ row["album"] }}</a>
+          {% else %}
+            {{ row["album"] }}
+          {% endif %}
+        </td>
+        <td>
+          {% if row.get('year') %}
+            {{ row["year"] }}
+          {% else %}
+            <span class="text-muted">&mdash;</span>
+          {% endif %}
         </td>
         <td>{{ row["plays"] }}</td>
+        <td>
+          {% if release_type %}
+            <span class="release-type-badge {{ type_class }}">{{ release_type }}</span>
+          {% else %}
+            <span class="text-muted">&mdash;</span>
+          {% endif %}
+        </td>
       </tr>
     {% endfor %}
   </tbody>

@@ -46,6 +46,11 @@ from .artists import (
     get_artist_info,
     set_artist_info,
     ensure_artist_info_cached,
+    get_musicbrainz_releases,
+    set_musicbrainz_releases,
+    ensure_musicbrainz_releases_cached,
+    get_artist_albums_with_years,
+    get_artist_mbid,
 )
 
 # Import and re-export albums
@@ -100,6 +105,11 @@ __all__ = [
     "get_artist_info",
     "set_artist_info",
     "ensure_artist_info_cached",
+    "get_musicbrainz_releases",
+    "set_musicbrainz_releases",
+    "ensure_musicbrainz_releases_cached",
+    "get_artist_albums_with_years",
+    "get_artist_mbid",
     # Albums
     "get_album_stats",
     "get_top_albums",

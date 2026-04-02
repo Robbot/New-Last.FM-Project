@@ -432,6 +432,41 @@ def sync_lastfm() -> None:
                 track_name = clean_title(t["name"])
                 track_mbid = t.get("mbid") or None
 
+                # ---------- Album Validation ----------
+                # Check if album name is suspicious (might be a track name)
+                # and try to find the correct album
+                from .validate_albums import (
+                    is_album_name_suspicious,
+                    validate_and_correct_album,
+                    log_data_quality_issue
+                )
+
+                corrected_album = None
+                if album_name and is_album_name_suspicious(album_name, track_name, artist_name):
+                    is_valid, correct_album, confidence = validate_and_correct_album(
+                        artist_name,
+                        album_name,
+                        track_name,
+                        artist_mbid,
+                        auto_correct=True  # Auto-correct during sync
+                    )
+
+                    if not is_valid and correct_album:
+                        corrected_album = correct_album
+                        album_name = correct_album
+
+                        # Log the correction for tracking
+                        log_data_quality_issue(
+                            artist_name,
+                            f"(was: {album_name})",
+                            track_name,
+                            correct_album,
+                            confidence,
+                            auto_corrected=True
+                        )
+
+                        logger.info(f"Auto-corrected album for {artist_name} - {track_name}: '{correct_album}' (confidence: {confidence}%)")
+
                 scrobble_batch.append(
                     (artist_name, artist_mbid, album_name,
                      album_mbid, track_name, track_mbid, uts,

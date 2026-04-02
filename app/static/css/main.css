@@ -270,6 +270,75 @@ tbody tr:hover {
     color: #666;
 }
 
+/* Album table sorting links */
+th a {
+    color: #7b8794;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.2s ease;
+}
+
+th a:hover {
+    color: #334e68;
+    text-decoration: underline;
+}
+
+/* Unplayed albums (from MusicBrainz, not yet scrobbled) */
+tbody tr.text-muted {
+    color: #9ca3af;
+}
+
+tbody tr.text-muted:hover {
+    background: #f9fafb;
+}
+
+/* Non-pure albums (compilations, live, remix, etc.) - subtle background highlight */
+tbody tr.album-compilation {
+    background: #fef3e2;  /* Light orange/yellow tint */
+}
+
+tbody tr.album-compilation:hover {
+    background: #fde8c8;
+}
+
+/* Release type badges */
+.release-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+/* Color code different release types */
+.release-type-badge.type-album {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.release-type-badge.type-compilation {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.release-type-badge.type-live {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.release-type-badge.type-remix {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+/* Mixed type badges (e.g., "Album + Compilation") */
+.release-type-badge:not(.type-album):not(.type-compilation):not(.type-live):not(.type-remix) {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
 /* Date range divider */
 .drb-divider {
     margin: 16px 0;

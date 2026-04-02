@@ -11,6 +11,8 @@ from app.utils.constants import (
     ALLOWED_SORT_ORDER,
     DEFAULT_SORT_BY,
     DEFAULT_SORT_ORDER,
+    ALLOWED_ARTIST_ALBUM_SORT,
+    DEFAULT_ARTIST_ALBUM_SORT,
 )
 
 
@@ -24,11 +26,37 @@ def artist_detail(artist_name: str):
     rangetype = (request.args.get("rangetype") or "").strip()
     start, end = compute_range_validated(from_arg or None, to_arg or None, rangetype or None)
 
+    # Album sorting
+    albums_sort_by = validate_enum(
+        request.args.get("albums_sort_by"),
+        ALLOWED_ARTIST_ALBUM_SORT,
+        DEFAULT_ARTIST_ALBUM_SORT,
+        case_sensitive=False,
+    )
+    albums_sort_order = validate_enum(
+        request.args.get("albums_sort_order"),
+        ALLOWED_SORT_ORDER,
+        "desc",  # Default to desc for both plays and year
+        case_sensitive=False,
+    )
+
     stats = db.get_artist_stats(artist_name, start=start, end=end)
 
     if stats is None:
         abort(404, description="Artist not found")
-    albums_rows = db.get_artist_albums(artist_name, start=start, end=end)
+
+    # Get MusicBrainz ID for artist
+    artist_mbid = db.get_artist_mbid(artist_name)
+
+    # Get albums with years from MusicBrainz
+    albums_rows = db.get_artist_albums_with_years(
+        artist_name,
+        artist_mbid=artist_mbid,
+        start=start,
+        end=end,
+        sort_by=albums_sort_by,
+        sort_order=albums_sort_order,
+    )
 
     # Pagination for tracks
     per_page = 50
@@ -48,10 +76,6 @@ def artist_detail(artist_name: str):
     # Get artist info (photo, bio, Wikipedia link)
     artist_info = ensure_artist_info_cached(artist_name)
 
-    # Get MusicBrainz ID for artist
-    from app.db.artists import get_artist_mbid
-    artist_mbid = get_artist_mbid(artist_name)
-
     return render_template(
         "artist_detail.html",
         active_tab="artists",
@@ -68,6 +92,8 @@ def artist_detail(artist_name: str):
         rangetype=rangetype,
         artist_info=artist_info,
         artist_mbid=artist_mbid,
+        albums_sort_by=albums_sort_by,
+        albums_sort_order=albums_sort_order,
     )
 
 
