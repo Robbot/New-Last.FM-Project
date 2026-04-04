@@ -754,3 +754,7 @@ fabric.properties
 /files
 files/lastfmstats.sqlite
 /app/static/covers
+
+# CSV data export files
+scrobbles_gaps.csv
+scrobbles_gaps_skipped.csv
