@@ -22,179 +22,81 @@ This file tracks potential improvements and features for the Last.fm scrobble st
 - [x] **Database Edit Interface** - Added manual edit capabilities for database records with row-level editing, modal interface, and bulk operations support
 - [x] **Reverse Log Display Order** - Log viewer now shows newest entries first for easier monitoring
 - [x] **MusicBrainz Integration** - Added MusicBrainz links to artist, album, and track detail pages via MBID fields
+- [x] **Source Column for Scrobble Tracking** - Added `source` column to distinguish Last.fm API scrobbles from manual imports
 
 ---
 
-## High Priority (Quick Wins)
+## Future Ideas
 
-### 1. Export Options
-- [ ] Export scrobbles as CSV
-- [ ] Export scrobbles as JSON
-- [ ] Add date range filtering for exports
-- [ ] Export album art metadata
+These are feature ideas for future consideration. No active work planned.
 
-### 2. Import Historical Scrobbles from Excel
-- [ ] Add `source` column to `scrobble` table to track entry origin (Last.fm API vs manual import)
-- [ ] Mark existing entries as `source='lastfm'` via migration script
-- [ ] Create import script for Excel files (2009-2015 era data)
-- [ ] Use `INSERT OR IGNORE` to skip duplicates during import
-- [ ] Mark imported entries as `source='manual'` to prevent sync conflicts
-- [ ] Update sync script to only update/delete entries where `source='lastfm'`
-- [ ] Add import preview showing rows to be added vs skipped
-- [ ] Handle timestamp conversion from various Excel date formats
+### Data Import/Export
+- Export scrobbles as CSV/JSON with date range filtering
+- Export album art metadata
+- Import historical scrobbles from Excel files (2009-2015 era data)
 
----
+### User Experience
+- Loading spinners during API calls
+- Toast notifications for sync status
+- Better error messages for failed operations
+- Client-side JavaScript UI improvements
 
-## Medium Priority (Quality of Life)
+### Performance
+- Add compound indexes for common query patterns
+- Cache frequently accessed data (top artists, recent scrobbles)
+- Profile and optimize slow queries
+- Database query result caching
+- Optimize static file serving with cache headers
 
-### 3. Loading States & Error Notifications
-- [ ] Show loading spinners during API calls
-- [ ] Display toast notifications for sync status
-- [ ] Better error messages for failed operations
-- [ ] Add client-side JavaScript for UI improvements
+### Admin & Operations
+- Audit trail for manual database edits
+- Bulk edit capabilities (merge artists, fix album names)
+- Scheduled database discrepancy checking (compare local DB vs Last.fm API)
+- Auto-fix common discrepancies
 
-### 4. Optimize Database Queries
-- [ ] Add compound indexes for common query patterns
-- [ ] Use `LIMIT` + `OFFSET` at database level for pagination
-- [ ] Cache frequently accessed data (top artists, recent scrobbles)
-- [ ] Profile slow queries and optimize them
+### API & Integrations
+- Spotify API integration (OAuth, liked songs, playlists)
+- Jellyfin/Plex integration for local media players
+- Retry logic with exponential backoff for Last.fm API calls
+- Rate limiting middleware
 
-### 5. Database Discrepancy Checking
-- [ ] Create scheduled script to compare local DB vs Last.fm API
-- [ ] Generate discrepancy reports (missing scrobbles, metadata mismatches)
-- [ ] Add configurable check intervals (daily, weekly)
-- [ ] Store discrepancy reports in database or log files
-- [ ] Optional: Auto-fix common discrepancies
-- [ ] Web interface to view discrepancy reports
+### Analytics & Visualization
+- Listening heatmap (hourly/daily patterns)
+- Artist discovery graphs
+- Genre trends over time
+- "On this day" feature
+- Monthly/yearly statistics
+- Interactive charts for listening trends
+- Artist/album cloud visualization
 
-### 6. API Error Handling & Retry Logic
-- [ ] Add retry logic with exponential backoff for Last.fm API calls
-- [ ] Handle rate limiting gracefully
-- [ ] Add timeout configuration for API requests
-- [ ] Better error messages for API failures
+### Advanced Features
+- Async background sync with progress updates (Celery/WebSocket)
+- Multi-user support with authentication
+- Advanced filtering with boolean operators
+- Save custom filters as presets
+- Rate limiting per IP
 
-### 7. Admin Panel Enhancements
-- [x] Admin panel with localhost-only access control
-- [x] Database browser and editor interface
-- [x] Health check endpoint with system monitoring
-- [x] Log viewer with cleanup functionality
-- [ ] **Audit trail for all manual edits** ← Still pending
-- [ ] Bulk edit capabilities (merge artists, fix album names)
-- [ ] Delete individual scrobbles with confirmation
+### Content Enhancement
+- Wikipedia descriptions for albums/artists
+- Genre information from Wikipedia
 
----
+### Developer Experience
+- Test suite (unit, integration, route tests)
+- CI/CD pipeline (GitHub Actions)
+- Pre-commit hooks for code formatting
+- Linting (ruff, pylint)
+- Docker configuration for local setup
 
-## Lower Priority (Nice to Have)
-
-### 8. Spotify API Integration
-- [ ] OAuth 2.0 authentication flow for Spotify
-- [ ] Import liked songs/favorites from Spotify
-- [ ] Export database selections to Spotify playlists
-- [ ] Sync scrobbles with Spotify listening history
-- [ ] Import top artists/tracks from Spotify
-- [ ] Jellyfin/Plex integration for local media players
-- [ ] Export playlists to Jellyfin/Plex
-
-### 9. Test Suite
-- [ ] Unit tests for data cleaning functions
-- [ ] Integration tests for sync logic
-- [ ] Route tests for critical endpoints
-- [ ] Set up pytest configuration
-- [ ] Add CI/CD pipeline (GitHub Actions)
-
-### 10. Advanced Analytics & Visualizations
-- [ ] Listening heatmap (hourly/daily patterns)
-- [ ] Artist discovery graphs
-- [ ] Genre trends over time
-- [ ] "On this day" feature showing scrobbles from same date in previous years
-- [ ] Monthly/yearly listening statistics
-
-### 11. Async Sync with Progress Updates
-- [ ] Run Last.fm sync in background (Celery or similar)
-- [ ] Add real-time progress updates via WebSocket
-- [ ] Show sync status in UI
-- [ ] Allow manual sync trigger from web interface
-
-### 12. Rate Limiting
-- [ ] Add rate limiting middleware for API endpoints
-- [ ] Implement rate limiting for Last.fm API calls
-- [ ] Add per-IP rate limiting for public endpoints
-
-### 13. Wikipedia Enhancement
-- [ ] Extract and display album descriptions
-- [ ] Add genre information from Wikipedia
-- [ ] Show artist biographies
-- [ ] Link to relevant Wikipedia articles
-
-### 14. User Accounts (Multi-user Support)
-- [ ] Add user authentication system
-- [ ] Allow multiple Last.fm accounts
-- [ ] Personalized dashboards per user
-- [ ] User-specific settings and preferences
-
-### 15. Advanced Filtering
-- [ ] Filter by multiple artists/albums at once
-- [ ] Save custom filters as presets
-- [ ] Advanced search with boolean operators
-- [ ] Filter by play count ranges
-
-### 16. Data Visualization Improvements
-- [ ] Interactive charts for listening trends
-- [ ] Artist/album cloud visualization
-- [ ] Timeline view of scrobbles
-- [ ] Geographic distribution (if location data available)
-
-### 17. Performance Improvements
-- [ ] Implement database query result caching
-- [ ] Add pagination metadata (total count, total pages)
-- [ ] Optimize static file serving with proper cache headers
-- [ ] Consider database connection pooling
-
-### 18. Developer Experience
-- [ ] Add pre-commit hooks for code formatting
-- [ ] Set up linting (ruff, pylint, or similar)
-- [ ] Add code formatting configuration (black, etc.)
-- [ ] Create development documentation
-- [ ] Add Docker configuration for easy local setup
-
----
-
-## Refactoring Opportunities
+### Security
+- CSRF protection for forms
+- Content security policy headers
+- Clickjacking protection
+- Secure cookie settings
 
 ### Code Quality
-- [ ] Remove code duplication in date range processing
-- [ ] Consolidate pagination patterns across blueprints
-- [ ] Extract common database operations into reusable functions
-- [ ] Add type hints throughout the codebase
-
-### Configuration Management
-- [ ] Remove duplicated `config.ini` files
-- [ ] Add environment-specific configurations (dev, prod)
-- [ ] Validate configuration values at startup
-- [ ] Add configuration schema documentation
-
----
-
-## Security Improvements
-
-- [ ] Add CSRF protection for forms
-- [ ] Implement content security policy headers
-- [ ] Add clickjacking protection
-- [ ] Secure cookie settings
-- [ ] Add request rate limiting per IP
-- [ ] Sanitize user-generated content
-
----
-
-## Bug Tracking
-
-### Known Issues
-- *None currently documented*
-
-### Potential Issues to Investigate
-- [ ] Track version grouping (e.g., "Love Will Tear Us Apart" vs "Love Will Tear Us Apart 2 - Pennine Version")
-- [ ] Unicode normalization edge cases
-- [ ] Timezone handling for international users
+- Type hints throughout codebase
+- Remove code duplication
+- Environment-specific configurations (dev, prod)
 
 ---
 
