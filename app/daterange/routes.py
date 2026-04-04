@@ -104,9 +104,14 @@ def years():
     # Build a dict of year -> count from the query results
     year_counts = {r["year"]: r["count"] for r in rows}
 
-    # Generate all years from 2010 to current year
+    # Generate all years from the oldest scrobble to current year
     current_year = datetime.now().year
-    start_year = 2010
+
+    # Get the oldest year from the database, default to current year if no data
+    if year_counts:
+        start_year = min(year_counts.keys())
+    else:
+        start_year = current_year
 
     result = []
     for year in range(start_year, current_year + 1):

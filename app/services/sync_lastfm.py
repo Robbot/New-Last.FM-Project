@@ -62,6 +62,9 @@ _REMASTER_PATTERNS = [
     r"\s+(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*$",
     r"\s*[\(\[]\s*(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*[\)\]]\s*$",
     # Mix/version suffixes (e.g., "2007 Stereo Mix", "2009 Remaster", "2011 Mix")
+    r" -\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s+(?:Version|version)\s*$",
+    r"\s+[\(\[]\s*\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s+(?:Version|version)\s*[\)\]]\s*$",
+    r"\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s+(?:Version|version)\s*$",
     r" -\s+\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*$",
     r"\s+[\(\[]\s*\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*[\)\]]\s*$",
     r"\s+\d{4}\s+(?:Stereo Mix|Mono Mix|Remix|Mix|Version)\s*$",
@@ -470,7 +473,8 @@ def sync_lastfm() -> None:
                 scrobble_batch.append(
                     (artist_name, artist_mbid, album_name,
                      album_mbid, track_name, track_mbid, uts,
-                     artist_name)  # album_artist initially = track artist
+                     artist_name,  # album_artist initially = track artist
+                     'lastfm')     # source = 'lastfm' for Last.fm API scrobbles
                 )
 
                 # Collect album_art info for ALL albums (with or without MBID)
@@ -520,8 +524,8 @@ def sync_lastfm() -> None:
                 """
                 INSERT OR IGNORE INTO scrobble
                     (artist, artist_mbid, album, album_mbid,
-                     track, track_mbid, uts, album_artist)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                     track, track_mbid, uts, album_artist, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 scrobble_batch,
             )

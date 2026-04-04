@@ -94,12 +94,12 @@ def sample_scrobbles(app):
     db_path = app.config['DATABASE_PATH']
     with sqlite3.connect(db_path) as conn:
         scrobbles = [
-            ('Metallica', '123', 'Master of Puppets', '456', 'Metallica', 'Battery', '789', 1700000000),
-            ('Metallica', '123', 'Master of Puppets', '456', 'Metallica', 'Master of Puppets', '790', 1700000100),
-            ('Megadeth', '124', 'Rust in Peace', '457', 'Megadeth', 'Holy Wars', '791', 1700000200),
+            ('Metallica', '123', 'Master of Puppets', '456', 'Metallica', 'Battery', '789', 1700000000, 'lastfm'),
+            ('Metallica', '123', 'Master of Puppets', '456', 'Metallica', 'Master of Puppets', '790', 1700000100, 'lastfm'),
+            ('Megadeth', '124', 'Rust in Peace', '457', 'Megadeth', 'Holy Wars', '791', 1700000200, 'lastfm'),
         ]
         conn.executemany(
-            "INSERT OR IGNORE INTO scrobble (artist, artist_mbid, album, album_mbid, album_artist, track, track_mbid, uts) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR IGNORE INTO scrobble (artist, artist_mbid, album, album_mbid, album_artist, track, track_mbid, uts, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             scrobbles
         )
         conn.commit()
