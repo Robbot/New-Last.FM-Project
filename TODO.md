@@ -33,7 +33,6 @@ These are feature ideas for future consideration. No active work planned.
 ### Data Import/Export
 - Export scrobbles as CSV/JSON with date range filtering
 - Export album art metadata
-- Import historical scrobbles from Excel files (2009-2015 era data)
 
 ### User Experience
 - Loading spinners during API calls
