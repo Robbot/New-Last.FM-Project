@@ -6,6 +6,8 @@ This script cleans up multi-disc album suffixes like:
 - "Album Name CD1" → "Album Name"
 - "Album Name - CD2" → "Album Name"
 - "Album Name Cd1" → "Album Name"
+- "Album Name CD 1" → "Album Name" (with space)
+- "Album Name CD 2" → "Album Name" (with space)
 """
 
 import sqlite3
@@ -31,17 +33,19 @@ def remove_cd_postfix(album_name: str) -> str:
     - "Album Name CD1" → "Album Name"
     - "Album Name - CD2" → "Album Name"
     - "Album Name Cd1" → "Album Name"
+    - "Album Name CD 1" → "Album Name" (with space)
+    - "(CD 3 - Description)" → "" (remove entire parenthetical with CD marker)
     """
     if not album_name:
         return album_name
 
-    # Pattern: various separators + CD/Cd/cd + 1/2 (case insensitive)
-    # Matches: " CD1", " - CD2", " Cd1", "-cd2", " - CD1 (Album)", etc.
+    # Pattern: various separators + CD/Cd/cd + optional space + 1/2/3/4 (case insensitive)
+    # Matches: " CD1", " - CD2", " Cd1", "-cd2", " - CD1 (Album)", "CD 2", etc.
     patterns = [
-        r'\s*-\s*[Cc][Dd]\d+\s*(?:\([^)]*\))?\s*$',  # " - CD1", "-Cd2", " - CD1 (Album)"
-        r'\s+[Cc][Dd]\d+\s*(?:\([^)]*\))?\s*$',       # " CD1", " Cd2", " CD1 (Album)"
-        r'\s*\(\s*[Cc][Dd]\d+\s*\)\s*$',              # "(CD1)", "(Cd2)"
-        r'\s*\[\s*[Cc][Dd]\d+\s*\]\s*$',              # "[CD1]", "[Cd2]"
+        r'\s*-\s*[Cc][Dd]\s*\d+\s*(?:\([^)]*\))?\s*$',  # " - CD1", "-Cd2", " - CD 1", " - CD1 (Album)"
+        r'\s+[Cc][Dd]\s*\d+\s*(?:\([^)]*\))?\s*$',       # " CD1", " Cd2", " CD 1", " CD 2 (Album)"
+        r'\s*\(\s*[Cc][Dd]\s*\d+[^)]*\)\s*$',            # "(CD1)", "(Cd 2)", "(CD 3 - Description)"
+        r'\s*\[\s*[Cc][Dd]\s*\d+[^\]]*\]\s*$',            # "[CD1]", "[Cd 2]", "[CD 3 - Description]"
     ]
 
     result = album_name
@@ -61,17 +65,35 @@ def migrate_table(conn, table_name: str, album_column: str) -> dict:
     """
     cursor = conn.cursor()
 
-    # Find all unique albums with CD postfix
+    # Find all unique albums with CD postfix (with or without space)
     cursor.execute(
         f"""
         SELECT DISTINCT {album_column}, COUNT(*) as count
         FROM {table_name}
-        WHERE {album_column} LIKE '%CD1%'
+        WHERE {album_column} LIKE '%CD 1%'
+           OR {album_column} LIKE '%CD 2%'
+           OR {album_column} LIKE '%CD 3%'
+           OR {album_column} LIKE '%CD 4%'
+           OR {album_column} LIKE '%CD1%'
            OR {album_column} LIKE '%CD2%'
+           OR {album_column} LIKE '%CD3%'
+           OR {album_column} LIKE '%CD4%'
+           OR {album_column} LIKE '%Cd 1%'
+           OR {album_column} LIKE '%Cd 2%'
+           OR {album_column} LIKE '%Cd 3%'
+           OR {album_column} LIKE '%Cd 4%'
            OR {album_column} LIKE '%Cd1%'
            OR {album_column} LIKE '%Cd2%'
+           OR {album_column} LIKE '%Cd3%'
+           OR {album_column} LIKE '%Cd4%'
+           OR {album_column} LIKE '%cd 1%'
+           OR {album_column} LIKE '%cd 2%'
+           OR {album_column} LIKE '%cd 3%'
+           OR {album_column} LIKE '%cd 4%'
            OR {album_column} LIKE '%cd1%'
            OR {album_column} LIKE '%cd2%'
+           OR {album_column} LIKE '%cd3%'
+           OR {album_column} LIKE '%cd4%'
         GROUP BY {album_column}
         ORDER BY count DESC
         """
