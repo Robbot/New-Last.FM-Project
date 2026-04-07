@@ -332,7 +332,7 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
     # Step 4: Get scrobble play counts for all matching albums (with optional date filtering)
     placeholders = ','.join(['?' for _ in matching_album_names])
     scrobble_query = f"""
-        SELECT track, artist, COUNT(*) AS plays
+        SELECT track, artist, album, COUNT(*) AS plays
         FROM scrobble
         WHERE album_artist = ?
           AND album IN ({placeholders})
@@ -345,7 +345,7 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
                                AND date(uts, 'unixepoch', 'localtime') <= ?"""
         scrobble_params.extend([start, end])
 
-    scrobble_query += " GROUP BY track, artist"
+    scrobble_query += " GROUP BY track, artist, album"
 
     scrobbles = conn.execute(scrobble_query, scrobble_params).fetchall()
 
@@ -353,11 +353,12 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
 
     # Step 5: Match album_tracks with scrobbles using Python normalization
     # Build a dict of normalized track names to scrobble data
-    # Key: normalized_track_name, Value: [(track, artist, plays), ...]
+    # Key: (normalized_track_name, album), Value: [(track, artist, plays, album), ...]
     scrobble_dict = {}
     for scrobble in scrobbles:
         normalized = _normalize_track_name_for_matching(scrobble["track"])
-        key = (normalized, scrobble["artist"])
+        # Group by normalized track name AND album to avoid cross-album aggregation
+        key = (normalized, scrobble["album"])
         if key not in scrobble_dict:
             scrobble_dict[key] = []
         scrobble_dict[key].append(scrobble)
@@ -372,29 +373,28 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
             track_artist = track["artist"]
             # Try to find matching scrobbles for this specific track + artist
             plays = 0
-            key = (normalized_track, track_artist)
-            if key in scrobble_dict:
-                plays = sum(s["plays"] for s in scrobble_dict[key])
+            # Try each album variation to find matching scrobbles
+            for album_name_variant in matching_album_names:
+                key = (normalized_track, album_name_variant)
+                if key in scrobble_dict:
+                    # Filter by artist for Various Artists
+                    album_plays = sum(s["plays"] for s in scrobble_dict[key] if s["artist"] == track_artist)
+                    plays += album_plays
         else:
-            # For regular albums, try to find a matching scrobble (prefer same artist, fall back to any artist)
+            # For regular albums, sum plays across all matching album variations
             track_artist = album_artist_name
             plays = 0
 
-            # First try with the album artist
-            key_with_artist = (normalized_track, album_artist_name)
-            if key_with_artist in scrobble_dict:
-                plays = sum(s["plays"] for s in scrobble_dict[key_with_artist])
-                # Use the first matching track name for display
-                if scrobble_dict[key_with_artist]:
-                    track_artist = scrobble_dict[key_with_artist][0]["artist"]
-            else:
-                # Try without artist restriction (for compilations)
-                for key, scrobble_list in scrobble_dict.items():
-                    if key[0] == normalized_track:
-                        total_plays = sum(s["plays"] for s in scrobble_list)
-                        if total_plays > plays:
-                            plays = total_plays
-                            track_artist = scrobble_list[0]["artist"]
+            # Sum plays from all album variations for this track
+            for album_name_variant in matching_album_names:
+                key = (normalized_track, album_name_variant)
+                if key in scrobble_dict:
+                    # For regular albums, sum all plays for this track across album variations
+                    album_plays = sum(s["plays"] for s in scrobble_dict[key])
+                    plays += album_plays
+                    # Use the first matching track's artist for display
+                    if scrobble_dict[key]:
+                        track_artist = scrobble_dict[key][0]["artist"]
 
         results.append({
             "track_number": track["track_number"],
