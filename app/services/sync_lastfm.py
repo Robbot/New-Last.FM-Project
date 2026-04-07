@@ -14,6 +14,7 @@ import sqlite3
 import re
 import requests
 import logging
+import json
 from pathlib import Path
 from .config import get_api_key  # your helper: returns (api_key, username)
 from app.db.notifications import create_notification, ensure_notifications_table
@@ -90,6 +91,62 @@ _REMASTER_PATTERNS = [
     r"\s+[\(\[]\s*\d{4}\s*[\)\]]\s*$",
 ]
 
+# ---------- Spotify track name mappings ----------
+_SPOTIFY_MAPPINGS_PATH = BASE_DIR / "app" / "services" / "spotify_track_mappings.json"
+_spotify_mappings_cache = None
+
+
+def _load_spotify_mappings():
+    """Load Spotify track name mappings from JSON file."""
+    global _spotify_mappings_cache
+    if _spotify_mappings_cache is None:
+        try:
+            if _SPOTIFY_MAPPINGS_PATH.exists():
+                with open(_SPOTIFY_MAPPINGS_PATH, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    _spotify_mappings_cache = data.get('mappings', [])
+                    logger.debug(f"Loaded {len(_spotify_mappings_cache)} Spotify track mappings")
+            else:
+                _spotify_mappings_cache = []
+                logger.debug(f"No Spotify mappings file found at {_SPOTIFY_MAPPINGS_PATH}")
+        except Exception as e:
+            logger.error(f"Error loading Spotify mappings: {e}")
+            _spotify_mappings_cache = []
+    return _spotify_mappings_cache
+
+
+def clean_spotify_track_name(artist: str, album: str, track: str) -> str:
+    """
+    Apply Spotify-specific track name corrections based on mapping file.
+
+    This handles cases where Spotify uses non-standard naming that differs
+    from the official album tracklist (e.g., capitalization variations,
+    missing parentheticals, etc.).
+
+    Args:
+        artist: Artist name
+        album: Album name
+        track: Original track name from Last.fm/Spotify
+
+    Returns:
+        Standardized track name if mapping exists, otherwise original track name
+    """
+    if not track:
+        return track
+
+    mappings = _load_spotify_mappings()
+
+    for mapping in mappings:
+        if (mapping.get('artist') == artist and
+            mapping.get('album') == album and
+            mapping.get('from') == track):
+            standard_name = mapping.get('to')
+            logger.debug(f"Spotify mapping: '{track}' -> '{standard_name}' for {artist} - {album}")
+            return standard_name
+
+    return track
+
+
 def clean_remastered_suffix(title: str) -> str:
     """
     Remove artificial remastered/remaster, expanded edition, deluxe edition, and live suffixes from album or track titles.
@@ -151,18 +208,24 @@ def _fix_small_words_case(title: str) -> str:
     return ' '.join(words)
 
 
-def clean_title(title: str) -> str:
+def clean_title(title: str, artist: str = None, album: str = None) -> str:
     """
     Clean a title by applying all cleaning functions in order.
 
     Args:
         title: The original title from Last.fm API
+        artist: Artist name (optional, for Spotify-specific mappings)
+        album: Album name (optional, for Spotify-specific mappings)
 
     Returns:
         Cleaned title with remastered suffixes removed and small words fixed
     """
     if not title:
         return title
+
+    # Apply Spotify-specific mappings first (if artist/album provided)
+    if artist and album:
+        title = clean_spotify_track_name(artist, album, title)
 
     title = clean_remastered_suffix(title)
     title = _fix_small_words_case(title)
@@ -432,7 +495,8 @@ def sync_lastfm() -> None:
                 if album_mbid == "":
                     album_mbid = None
 
-                track_name = clean_title(t["name"])
+                # Clean track name with Spotify-specific mappings
+                track_name = clean_title(t["name"], artist_name, album_name)
                 track_mbid = t.get("mbid") or None
 
                 # ---------- Album Validation ----------

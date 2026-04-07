@@ -1,0 +1,41 @@
+{
+  "mappings": [
+    {
+      "artist": "Wolfsheim",
+      "album": "55578",
+      "from": "A Look into Your Heart",
+      "to": "A Look Into Your Heart (Different Version)"
+    },
+    {
+      "artist": "Wolfsheim",
+      "album": "55578",
+      "from": "A Look into Your Heart - Different Version",
+      "to": "A Look Into Your Heart (Different Version)"
+    },
+    {
+      "artist": "Wolfsheim",
+      "album": "55578",
+      "from": "A Look into Your Heart (Different Version)",
+      "to": "A Look Into Your Heart (Different Version)"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Greatest Hits",
+      "from": "Why Can't I Be with You",
+      "to": "Why Can't I Be You?"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Galore",
+      "from": "Why Can't I Be You-",
+      "to": "Why Can't I Be You?"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Greatest Hits",
+      "from": "A Forest - Shortened Edit",
+      "to": "A Forest"
+    }
+  ],
+  "last_updated": "2026-04-07"
+}

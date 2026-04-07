@@ -20,6 +20,11 @@ python wsgi.py
 # Sync Last.fm scrobbles to database
 python -m app.services.sync_lastfm
 
+# Manage Spotify-specific track name mappings
+python -m app.services.rename_and_map_track "Artist" "Album" "Wrong Name" "Correct Name"
+# Or interactive mode (shows variations, renames scrobbles, AND adds mapping)
+python -m app.services.rename_and_map_track
+
 # Clean remastered/expanded suffixes from existing database records
 python -m app.services.clean_remastered_db
 
@@ -68,6 +73,9 @@ The Flask app uses a modular Blueprint architecture:
 - **Database Layer (`app/db.py`)**: All database queries centralized module. Uses `sqlite3.Row` factory for dict-like access. Includes error logging for database operations.
 - **Services (`app/services/`)**: External integrations and utilities:
   - `sync_lastfm.py`: Syncs scrobbles from Last.fm API to SQLite with data cleaning (uses logging for progress/errors)
+  - `rename_and_map_track.py`: Rename scrobbles AND add to Spotify mappings in one step (recommended)
+  - `add_spotify_mapping.py`: Interactive tool to add Spotify-specific track name corrections
+  - `spotify_track_mappings.json`: Stores Spotify-to-standard track name mappings
   - `fetch_tracklist.py`: Fetches album tracklists from Last.fm API
   - `fetch_wikipedia.py`: Fetches Wikipedia URLs for albums
   - `clean_remastered_db.py`: One-time migration script to clean remastered suffixes from existing data
@@ -111,8 +119,12 @@ The Flask app uses a modular Blueprint architecture:
 
 ### Data Cleaning Features
 
-The application includes sophisticated data cleaning to handle inconsistencies from Last.fm:
+The application includes sophisticated data cleaning to handle inconsistencies from Last.fm and Spotify:
 
+- **Spotify Track Name Normalization**: Automatically corrects Spotify-specific track name variations to standard album tracklist names using `spotify_track_mappings.json`. Examples:
+  - "A Look into Your Heart" → "A Look Into Your Heart (Different Version)"
+  - Handles capitalization, parentheticals, and other formatting differences
+  - Apply during sync via `sync_lastfm.py` and manage with `add_spotify_mapping.py`
 - **Remastered/Expanded Edition Suffix Stripping**: Automatically removes artificial suffixes like:
   - " - Remastered 2014", " - 2009 Remastered", "(Remastered)", "[2014 Remaster]"
   - " - Expanded Edition", "(Expanded Edition)"
