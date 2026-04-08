@@ -241,6 +241,60 @@ def get_conn() -> sqlite3.Connection:
     return conn
 
 
+def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str | None, current_artist: str) -> bool:
+    """
+    Check if an album is a compilation by examining existing scrobbles.
+
+    An album is considered a compilation if:
+    1. It has 2+ distinct artists in existing scrobbles, OR
+    2. It has 1+ existing scrobbles by a different artist than the current one
+
+    Args:
+        conn: Database connection
+        album: Album name
+        album_mbid: MusicBrainz ID for the album (can distinguish albums with same name)
+        current_artist: The artist of the scrobble being processed
+
+    Returns:
+        True if the album should be marked as a compilation (album_artist = "Various Artists")
+    """
+    if not album:
+        return False
+
+    # Count distinct artists for this album in existing scrobbles
+    cursor = conn.execute(
+        """
+        SELECT COUNT(DISTINCT artist) as artist_count
+        FROM scrobble
+        WHERE album = ? AND (album_mbid = ? OR (album_mbid IS NULL AND ? IS NULL))
+        """,
+        (album, album_mbid, album_mbid)
+    )
+    row = cursor.fetchone()
+    existing_artist_count = row["artist_count"] if row else 0
+
+    # If we already have 2+ distinct artists, it's definitely a compilation
+    if existing_artist_count >= 2:
+        return True
+
+    # If we have 1 existing artist and it's different from current artist, it's a compilation
+    if existing_artist_count == 1:
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT artist
+            FROM scrobble
+            WHERE album = ? AND (album_mbid = ? OR (album_mbid IS NULL AND ? IS NULL))
+            LIMIT 1
+            """,
+            (album, album_mbid, album_mbid)
+        )
+        row = cursor.fetchone()
+        if row and row["artist"] != current_artist:
+            return True
+
+    return False
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     cur = conn.cursor()
 
@@ -534,10 +588,17 @@ def sync_lastfm() -> None:
 
                         logger.info(f"Auto-corrected album for {artist_name} - {track_name}: '{correct_album}' (confidence: {confidence}%)")
 
+                # Determine album_artist: check if album is a compilation
+                # by looking at existing scrobbles in the database
+                if _is_album_compilation(conn, album_name, album_mbid, artist_name):
+                    album_artist = "Various Artists"
+                else:
+                    album_artist = artist_name
+
                 scrobble_batch.append(
                     (artist_name, artist_mbid, album_name,
                      album_mbid, track_name, track_mbid, uts,
-                     artist_name,  # album_artist initially = track artist
+                     album_artist,  # Set based on compilation detection
                      'lastfm')     # source = 'lastfm' for Last.fm API scrobbles
                 )
 
