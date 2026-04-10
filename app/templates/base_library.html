@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <!-- Date range sidebar -->
-  {% set artist = artist_name | default('') %}
+  {% set artist = artist_name | default(album_artist_name | default('')) %}
   {% set album = album_name | default('') %}
   {% set track = track_name | default('') %}
   {% include '_daterange.html' %}

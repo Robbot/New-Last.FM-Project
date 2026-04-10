@@ -35,7 +35,43 @@
       "album": "Greatest Hits",
       "from": "A Forest - Shortened Edit",
       "to": "A Forest"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Works",
+      "from": "Fearless (Interpolating You'll",
+      "to": "Fearless"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Works",
+      "from": "Several Species of Small Furry",
+      "to": "Several Species of Small Furry Animals Gathered Together in a Cave and Grooving with a Pict"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Echoes - the Best of Pink Floyd",
+      "from": "Marooned",
+      "to": "Marooned (Excerpt)"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Works",
+      "from": "Embryo",
+      "to": "Echoes - Edit"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Echoes",
+      "from": "Set the Controls for the Heart",
+      "to": "Set the Controls for the Heart of the Sun"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Echoes - the Best of Pink Floyd",
+      "from": "Shine on You Crazy Diamond",
+      "to": "Shine On You Crazy Diamond, Parts 1–7"
     }
   ],
-  "last_updated": "2026-04-07"
+  "last_updated": "2026-04-09"
 }

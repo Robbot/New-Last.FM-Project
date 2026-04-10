@@ -147,6 +147,28 @@ def clean_spotify_track_name(artist: str, album: str, track: str) -> str:
     return track
 
 
+def normalize_album_separators(title: str) -> str:
+    """
+    Normalize album title separators to use hyphens instead of colons.
+    This handles cases where different sources use different separators.
+
+    Examples:
+        "Echoes: the Best of Pink Floyd" -> "Echoes - the Best of Pink Floyd"
+        "The Best: The Singles" -> "The Best - The Singles"
+
+    Args:
+        title: The original title
+
+    Returns:
+        Title with colons normalized to hyphens
+    """
+    if not title:
+        return title
+
+    # Replace " : " or ": " with " - " (common pattern in album titles)
+    return re.sub(r'\s*:\s+', ' - ', title).strip()
+
+
 def clean_remastered_suffix(title: str) -> str:
     """
     Remove artificial remastered/remaster, expanded edition, deluxe edition, and live suffixes from album or track titles.
@@ -218,7 +240,7 @@ def clean_title(title: str, artist: str = None, album: str = None) -> str:
         album: Album name (optional, for Spotify-specific mappings)
 
     Returns:
-        Cleaned title with remastered suffixes removed and small words fixed
+        Cleaned title with separators normalized, remastered suffixes removed, and small words fixed
     """
     if not title:
         return title
@@ -227,6 +249,7 @@ def clean_title(title: str, artist: str = None, album: str = None) -> str:
     if artist and album:
         title = clean_spotify_track_name(artist, album, title)
 
+    title = normalize_album_separators(title)
     title = clean_remastered_suffix(title)
     title = _fix_small_words_case(title)
 
