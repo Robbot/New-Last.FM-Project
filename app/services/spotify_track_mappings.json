@@ -71,7 +71,61 @@
       "album": "Echoes - the Best of Pink Floyd",
       "from": "Shine on You Crazy Diamond",
       "to": "Shine On You Crazy Diamond, Parts 1–7"
+    },
+    {
+      "artist": "The Beatles",
+      "album": "With the Beatles",
+      "from": "Money",
+      "to": "Money (That's What I Want)"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Monster",
+      "from": "What's the Frequency, Kenneth? - Live at the Palace / 1999",
+      "to": "What's the Frequency, Kenneth?"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Up",
+      "from": "Walk Unafraid - Live at the Palace / 1999",
+      "to": "Walk Unafraid"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Out of Time",
+      "from": "Country Feedback - Live at the Palace / 1999",
+      "to": "Country Feedback"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Up",
+      "from": "Daysleeper - Live at the Palace / 1999",
+      "to": "Daysleeper"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Up",
+      "from": "Lotus - Live at the Palace / 1999",
+      "to": "Lotus"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Up",
+      "from": "Introduction - Live at the Palace / 1999",
+      "to": "Daysleeper"
+    },
+    {
+      "artist": "Stone Temple Pilots",
+      "album": "Tiny Music ... Songs from the Vatican Gift Shop",
+      "from": "Ride the Cliché",
+      "to": "Ride the Cliche"
+    },
+    {
+      "artist": "Queen",
+      "album": "A Kind of Magic",
+      "from": "Gimme the Prize",
+      "to": "Gimme the Prize (Kurgan's Theme)"
     }
   ],
-  "last_updated": "2026-04-09"
+  "last_updated": "2026-04-11"
 }

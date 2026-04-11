@@ -1,0 +1,42 @@
+{
+  "mappings": [
+    {
+      "artist": "R.E.M.",
+      "from": "Reconstruction of the Fables",
+      "to": "Fables of the Reconstruction",
+      "reason": "Correct album title"
+    },
+    {
+      "artist": "R.E.M.",
+      "from": "New Adventures in Hifi",
+      "to": "New Adventures in Hi‐Fi",
+      "reason": "Correct capitalization and hyphenation"
+    },
+    {
+      "artist": "Stone Temple Pilots",
+      "from": "Tiny Music...Songs from the Vatican Gift Shop",
+      "to": "Tiny Music ... Songs from the Vatican Gift Shop",
+      "reason": "Correct spacing around ellipsis"
+    },
+    {
+      "artist": "Stone Temple Pilots",
+      "from": "No. 4",
+      "to": "№4",
+      "reason": "Proper numero sign (№) instead of 'No.'"
+    },
+    {
+      "artist": "Stone Temple Pilots",
+      "from": "Shangri-La Dee Da",
+      "to": "Shangri‐La Dee Da",
+      "reason": "Correct hyphen/dash character"
+    },
+    {
+      "artist": "Slade",
+      "from": "Sladest (Expanded)",
+      "to": "Sladest",
+      "reason": "Remove (Expanded) suffix - not part of original album title"
+    }
+  ],
+  "last_updated": "2026-04-11",
+  "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns."
+}

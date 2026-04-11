@@ -58,10 +58,10 @@ _REMASTER_PATTERNS = [
     r" -\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s+(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*$",
     r"\s*[\(\[]\s*(?:Remastered|Remaster|remastered|remaster)(?:\s+\d{4})?\s*[\)\]]\s*$",
-    # Expanded Edition variants
-    r" -\s+(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*$",
-    r"\s+(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*$",
-    r"\s*[\(\[]\s*(?:Expanded Edition|Expanded Version|expanded edition|expanded version)\s*[\)\]]\s*$",
+    # Expanded Edition variants (including just "Expanded")
+    r" -\s+(?:Expanded\s+Edition|Expanded\s+Version|Expanded)\s*$",
+    r"\s+(?:Expanded\s+Edition|Expanded\s+Version|Expanded)\s*$",
+    r"\s*[\(\[]\s*(?:Expanded\s+Edition|Expanded\s+Version|expanded\s+edition|expanded\s+version|Expanded)\s*[\)\]]\s*$",
     # Mix/version suffixes (e.g., "2007 Stereo Mix", "2009 Remaster", "2011 Mix")
     r" -\s+\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s+(?:Version|version)\s*$",
     r"\s+[\(\[]\s*\d{4}\s+(?:Remastered|Remaster|remastered|remaster)\s+(?:Version|version)\s*[\)\]]\s*$",
@@ -89,6 +89,15 @@ _REMASTER_PATTERNS = [
     # Bare year suffix (e.g., " - 2011", " - 2009")
     r" -\s+\d{4}\s*$",
     r"\s+[\(\[]\s*\d{4}\s*[\)\]]\s*$",
+    # Anniversary Edition suffixes (e.g., "25th Anniversary Edition", "40th Anniversary")
+    # Colon separator (e.g., "Gladiator: 20th Anniversary Edition") - must be first before dash patterns
+    r":\s+\d{1,2}(?:st|nd|rd|th)\s+Anniversary\s+(?:Edition|Version|Remaster|Remastered)\s*$",
+    r" -\s+\d{1,2}(?:st|nd|rd|th)\s+Anniversary\s+(?:Edition|Version|Remaster|Remastered)\s*$",
+    r"\s+[\(\[]\s*\d{1,2}(?:st|nd|rd|th)\s+Anniversary\s+(?:Edition|Version|Remaster|Remastered)\s*[\)\]]\s*$",
+    r" -\s+\d{1,2}(?:st|nd|rd|th)\s+Anniversary\s*$",
+    r"\s+[\(\[]\s*\d{1,2}(?:st|nd|rd|th)\s+Anniversary\s*[\)\]]\s*$",
+    r" -\s+Anniversary\s+Edition\s*$",
+    r"\s+[\(\[]\s*Anniversary\s+Edition\s*[\)\]]\s*$",
 ]
 
 # ---------- Spotify track name mappings ----------
@@ -145,6 +154,59 @@ def clean_spotify_track_name(artist: str, album: str, track: str) -> str:
             return standard_name
 
     return track
+
+
+# ---------- Album name mappings ----------
+_ALBUM_MAPPINGS_PATH = BASE_DIR / "app" / "services" / "album_name_mappings.json"
+_album_mappings_cache = None
+
+
+def _load_album_mappings():
+    """Load album name mappings from JSON file."""
+    global _album_mappings_cache
+    if _album_mappings_cache is None:
+        try:
+            if _ALBUM_MAPPINGS_PATH.exists():
+                with open(_ALBUM_MAPPINGS_PATH, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    _album_mappings_cache = data.get('mappings', [])
+                    logger.debug(f"Loaded {len(_album_mappings_cache)} album name mappings")
+            else:
+                _album_mappings_cache = []
+                logger.debug(f"No album mappings file found at {_ALBUM_MAPPINGS_PATH}")
+        except Exception as e:
+            logger.error(f"Error loading album mappings: {e}")
+            _album_mappings_cache = []
+    return _album_mappings_cache
+
+
+def clean_album_name(artist: str, album: str) -> str:
+    """
+    Apply album name corrections based on mapping file.
+
+    This handles cases where Last.fm/Spotify uses incorrect album names
+    that won't be caught by automatic cleaning patterns.
+
+    Args:
+        artist: Artist name
+        album: Original album name from Last.fm/Spotify
+
+    Returns:
+        Corrected album name if mapping exists, otherwise original album name
+    """
+    if not album:
+        return album
+
+    mappings = _load_album_mappings()
+
+    for mapping in mappings:
+        if (mapping.get('artist') == artist and
+            mapping.get('from') == album):
+            correct_name = mapping.get('to')
+            logger.info(f"Album mapping: '{album}' -> '{correct_name}' for {artist}")
+            return correct_name
+
+    return album
 
 
 def normalize_album_separators(title: str) -> str:
@@ -568,6 +630,9 @@ def sync_lastfm() -> None:
                 else:
                     album_name = clean_title(t.get("album", ""))
                     album_mbid = None
+
+                # Apply album name mappings (for known incorrect album names)
+                album_name = clean_album_name(artist_name, album_name)
 
                 if album_mbid == "":
                     album_mbid = None
