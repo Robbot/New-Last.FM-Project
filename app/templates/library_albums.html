@@ -37,7 +37,7 @@
     <tr>
       <th>#</th>
       <th>Album</th>
-      <th>Artist</th>
+      <th>Year</th>
       <th>Scrobbles</th>
     </tr>
   </thead>
@@ -50,11 +50,7 @@
          <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album'], from=request.args.get('from', ''), to=request.args.get('to', ''), rangetype=request.args.get('rangetype', '')) }}">
         {{ row.album }}</a>
       </td>
-      <td>
-        <a href="{{ url_for('artists.artist_detail', artist_name=row['artist'])}}">
-          {{ row["artist"] }}
-        </a>
-      </td>
+      <td>{{ row.year_col if row.year_col else '—' }}</td>
       <td>{{ row["plays"] }}</td>
     </tr>
     {% endfor %}

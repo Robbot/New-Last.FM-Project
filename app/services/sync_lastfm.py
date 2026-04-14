@@ -76,13 +76,15 @@ _REMASTER_PATTERNS = [
     r" -\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
     r"\s+(?:Platinum Collection Version|Platinum Collection)\s*$",
     r"\s*[\(\[]\s*(?:Platinum Collection Version|Platinum Collection)\s*[\)\]]\s*$",
-    # Deluxe Edition variants
-    r" -\s+(?:Deluxe Edition|deluxe edition)\s*$",
-    r"\s+(?:Deluxe Edition|deluxe edition)\s*$",
-    r"\s*[\(\[]\s*(?:Deluxe Edition|deluxe edition)\s*[\)\]]\s*$",
+    # Deluxe Edition/Version/Reissue variants (comprehensive)
+    r" -\s+(?:Deluxe Edition|Deluxe Version|Deluxe Reissue|Deluxe)\s*$",
+    r"\s+(?:Deluxe Edition|Deluxe Version|Deluxe Reissue|deluxe edition|deluxe version|Deluxe)\s*$",
+    r"\s*[\(\[]\s*(?:Deluxe Edition|Deluxe Version|Deluxe Reissue|deluxe edition|deluxe version|Deluxe)\s*[\)\]]\s*$",
+    r"\s*\[Deluxe\]\s*$",
+    r"\s*\(Deluxe\)\s*$",
     # Slash separator patterns (e.g., "Soundtrack / Deluxe Edition")
-    r"\s*/\s*(?:Deluxe Edition|deluxe edition)\s*[\)\]]*\s*$",
-    r"\s+/ *(?:Deluxe Edition|deluxe edition)\s*$",
+    r"\s*/\s*(?:Deluxe Edition|Deluxe Version|deluxe edition)\s*[\)\]]*\s*$",
+    r"\s+/ *(?:Deluxe Edition|Deluxe Version|deluxe edition)\s*$",
     # Live suffixes (e.g., " - Live", " - Live Version")
     r" -\s+(?:Live|live|Live Version|live version)\s*$",
     r"\s+[\(\[]\s*(?:Live|live|Live Version|live version)\s*[\)\]]\s*$",

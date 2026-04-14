@@ -125,7 +125,145 @@
       "album": "A Kind of Magic",
       "from": "Gimme the Prize",
       "to": "Gimme the Prize (Kurgan's Theme)"
+    },
+    {
+      "artist": "Syd Barrett",
+      "album": "Barrett",
+      "from": "Love Song (Take 1)",
+      "to": "Love Song"
+    },
+    {
+      "artist": "Syd Barrett",
+      "album": "Barrett",
+      "from": "Dominoes (Take 1)",
+      "to": "Dominoes"
+    },
+    {
+      "artist": "Syd Barrett",
+      "album": "Barrett",
+      "from": "Dominoes (Take 2)",
+      "to": "Dominoes"
+    },
+    {
+      "artist": "Syd Barrett",
+      "album": "Barrett",
+      "from": "It Is Obvious (Take 2)",
+      "to": "It Is Obvious"
+    },
+    {
+      "artist": "Syd Barrett",
+      "album": "Barrett",
+      "from": "I Never Lied to You (Take 1)",
+      "to": "I Never Lied to You"
+    },
+    {
+      "artist": "Swans",
+      "album": "White Light from the Mouth of Infinity",
+      "from": "Why Are We Alive",
+      "to": "Why Are We Alive?"
+    },
+    {
+      "artist": "Van Der Graaf Generator",
+      "album": "Least We Can Do Is Wave to Each Other",
+      "from": "Least We Can Do Is Wave to Each Other",
+      "to": "The Least We Can Do Is Wave to Each Other"
+    },
+    {
+      "artist": "Van Der Graaf Generator",
+      "album": "Quiet Zone - the Pleasure Dome",
+      "from": "Quiet Zone - the Pleasure Dome",
+      "to": "The Quiet Zone / The Pleasure Dome"
+    },
+    {
+      "artist": "Yes",
+      "album": "The Yes Album",
+      "from": "Siberian Khartu",
+      "to": "Siberian Khatru"
+    },
+    {
+      "artist": "Yes",
+      "album": "Tales from Topographic Ocean",
+      "from": "The Revealing Sciene of God",
+      "to": "The Revealing Science of God"
+    },
+    {
+      "artist": "Yes",
+      "album": "Keys to Ascension",
+      "from": "Keys to Ascention",
+      "to": "Keys to Ascension"
+    },
+    {
+      "artist": "Yes",
+      "album": "Keys to Ascension",
+      "from": "That, That It",
+      "to": "That, That Is"
+    },
+    {
+      "artist": "XTC",
+      "album": "White Music",
+      "from": "This Is Pop?",
+      "to": "This Is Pop"
+    },
+    {
+      "artist": "Slade",
+      "album": "Nobody's Fool",
+      "from": "Nobody's Fool",
+      "to": "Nobody's Fools"
+    },
+    {
+      "artist": "Van Der Graaf Generator",
+      "album": "World Record",
+      "from": "Van Der Graaf Generator",
+      "to": "Van der Graaf Generator"
+    },
+    {
+      "artist": "Van der Graaf Generator",
+      "album": "World Record",
+      "from": "Meurglys III",
+      "to": "Meurglys III (The Songwriters Guild)"
+    },
+    {
+      "artist": "Van Der Graaf Generator",
+      "album": "",
+      "from": "Van Der Graaf Generator",
+      "to": "Van der Graaf Generator"
+    },
+    {
+      "artist": "Sexbomba",
+      "album": "Zamachy bombowe",
+      "from": "Obcy 4-ty pasażer syberyjskiego expressu",
+      "to": "Obcy 4ty pasażer syberyjskiego expressu"
+    },
+    {
+      "artist": "Sexbomba",
+      "album": "Zamachy bombowe",
+      "from": "Nigdy",
+      "to": "Najlepiej nigdy"
+    },
+    {
+      "artist": "Sexbomba",
+      "album": "Zamachy bombowe",
+      "from": "Z trzema gwiazdkami",
+      "to": "Zamachy bombowe"
+    },
+    {
+      "artist": "",
+      "album": "",
+      "from": "Shoot High, Aim Low",
+      "to": "Shoot High Aim Low"
+    },
+    {
+      "artist": "Yes",
+      "album": "Big Generator",
+      "from": "Shoot High, Aim Low",
+      "to": "Shoot High Aim Low"
+    },
+    {
+      "artist": "The Doors",
+      "album": "Strange Days",
+      "from": "I Can't See Your Face in My",
+      "to": "I Can't See Your Face in My Mind"
     }
   ],
-  "last_updated": "2026-04-11"
+  "last_updated": "2026-04-14"
 }

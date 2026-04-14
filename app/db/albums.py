@@ -49,12 +49,16 @@ def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
 
     sql = """
         SELECT
-            album,
-            artist,
-            album_artist,
-            COUNT(*) AS plays
-        FROM scrobble
-        WHERE album IS NOT NULL AND album != ''
+            s.album,
+            s.artist,
+            s.album_artist,
+            COUNT(*) AS plays,
+            aa.year_col
+        FROM scrobble s
+        LEFT JOIN album_art aa ON
+            aa.artist = s.album_artist AND
+            aa.album = s.album
+        WHERE s.album IS NOT NULL AND s.album != ''
     """
     params = []
 
@@ -66,12 +70,12 @@ def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
 
     # Search filter - case-insensitive partial matching on album, artist, or album_artist
     if search_term:
-        sql += """ AND (LOWER(album) LIKE ? OR LOWER(artist) LIKE ? OR LOWER(album_artist) LIKE ?)"""
+        sql += """ AND (LOWER(s.album) LIKE ? OR LOWER(s.artist) LIKE ? OR LOWER(s.album_artist) LIKE ?)"""
         search_pattern = f"%{search_term.lower()}%"
         params.extend([search_pattern, search_pattern, search_pattern])
 
     sql += """
-        GROUP BY album, artist, album_artist
+        GROUP BY s.album, s.artist, s.album_artist, aa.year_col
         ORDER BY plays DESC
     """
 

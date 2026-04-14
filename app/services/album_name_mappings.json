@@ -35,8 +35,20 @@
       "from": "Sladest (Expanded)",
       "to": "Sladest",
       "reason": "Remove (Expanded) suffix - not part of original album title"
+    },
+    {
+      "artist": "Seal",
+      "from": "Best 1991",
+      "to": "Best 1991 - 2004",
+      "reason": "Preserve year range in album title - prevent clean_remastered_suffix from stripping ' - 2004'"
+    },
+    {
+      "artist": "Phil Collins",
+      "from": "Hello, I Must Be Going",
+      "to": "Hello, I Must Be Going!",
+      "reason": "Restore missing exclamation mark in album title"
     }
   ],
-  "last_updated": "2026-04-11",
+  "last_updated": "2026-04-14",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns."
 }
