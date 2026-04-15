@@ -6,6 +6,16 @@ def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str
     Uses Last.fm method album.getInfo.
     Returns empty list if API fails or album not found.
     Skips entries where track artist is "Various Artists" to avoid duplicates.
+
+    Track names are cleaned using the same normalization as scrobbles (removes remaster suffixes, etc.)
+    """
+    # Import cleaning functions to normalize track names
+    from app.services.sync_lastfm import clean_title
+    """
+    Returns list of dicts with artist, track_number and track name in album order.
+    Uses Last.fm method album.getInfo.
+    Returns empty list if API fails or album not found.
+    Skips entries where track artist is "Various Artists" to avoid duplicates.
     """
     url = "https://ws.audioscrobbler.com/2.0/"
     params = {
@@ -51,6 +61,9 @@ def fetch_album_tracklist_lastfm(api_key: str, artist_name: str, album_name: str
         # that duplicate individual artist tracks
         if track_artist.lower() == "various artists":
             continue
+
+        # Clean track name to remove remaster suffixes and normalize
+        name = clean_title(name, track_artist, album_name)
 
         try:
             track_number = int(rank)

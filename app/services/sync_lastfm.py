@@ -315,6 +315,14 @@ def clean_title(title: str, artist: str = None, album: str = None) -> str:
 
     title = normalize_album_separators(title)
     title = clean_remastered_suffix(title)
+
+    # Normalize Unicode quotes to regular quotes before small words fix
+    # This handles smart quotes from MusicBrainz: ' ' " " → ' "
+    title = title.replace('\u2018', "'")  # Left single quote
+    title = title.replace('\u2019', "'")  # Right single quote (apostrophe)
+    title = title.replace('\u201c', '"')  # Left double quote
+    title = title.replace('\u201d', '"')  # Right double quote
+
     title = _fix_small_words_case(title)
 
     return title
@@ -380,6 +388,74 @@ def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str 
             return True
 
     return False
+
+
+def validate_scrobble_track(conn, artist, album, track, track_mbid=None):
+    """
+    Validate a scrobble track against existing album_tracks data.
+
+    Returns dict with:
+        - is_valid: bool (True if match found or no album_tracks exist)
+        - matched_track: str | None (the matched track name from album_tracks)
+        - confidence: int (0-100)
+        - issue_type: str ('exact_match', 'normalized_match', 'no_match', 'no_album_tracks')
+        - album_tracks: list (all tracks from album_tracks for this album)
+    """
+    from app.db.connections import _normalize_track_name_for_matching
+
+    # Check if album_tracks exist for this artist/album
+    cursor = conn.execute(
+        """
+        SELECT track, track_number
+        FROM album_tracks
+        WHERE artist = ? AND album = ?
+        ORDER BY track_number
+        """,
+        (artist, album)
+    )
+    album_tracks_list = cursor.fetchall()
+
+    if not album_tracks_list:
+        return {
+            'is_valid': True,
+            'matched_track': None,
+            'confidence': 100,
+            'issue_type': 'no_album_tracks',
+            'album_tracks': []
+        }
+
+    # Normalize the scrobble track name
+    normalized_scrobble = _normalize_track_name_for_matching(track)
+
+    # Try to find a match
+    for at in album_tracks_list:
+        normalized_at = _normalize_track_name_for_matching(at['track'])
+        if normalized_scrobble == normalized_at:
+            if track != at['track']:
+                # Names differ but normalize the same
+                return {
+                    'is_valid': True,
+                    'matched_track': at['track'],
+                    'confidence': 95,
+                    'issue_type': 'normalized_match',
+                    'album_tracks': [dict(at) for at in album_tracks_list]
+                }
+            return {
+                'is_valid': True,
+                'matched_track': at['track'],
+                'confidence': 100,
+                'issue_type': 'exact_match',
+                'album_tracks': [dict(at) for at in album_tracks_list]
+            }
+
+    # No match found
+    return {
+        'is_valid': False,
+        'matched_track': None,
+        'confidence': 0,
+        'issue_type': 'no_match',
+        'album_tracks': [dict(at) for at in album_tracks_list]
+    }
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -684,6 +760,32 @@ def sync_lastfm() -> None:
                     album_artist = "Various Artists"
                 else:
                     album_artist = artist_name
+
+                # ---------- Track Validation ----------
+                # Check if track name matches existing album_tracks data
+                track_validation = validate_scrobble_track(
+                    conn, artist_name, album_name, track_name, track_mbid
+                )
+
+                if not track_validation['is_valid']:
+                    # Create warning notification
+                    create_notification(
+                        notification_type='track_mismatch',
+                        title=f'Track mismatch: {artist_name} - {track_name}',
+                        message=f'Scrobble track "{track_name}" does not match any track in album_tracks for {artist_name} - {album_name}',
+                        details={
+                            'artist': artist_name,
+                            'album': album_name,
+                            'scrobble_track': track_name,
+                            'track_mbid': track_mbid,
+                            'album_tracks': track_validation.get('album_tracks', [])
+                        },
+                        severity='warning'
+                    )
+                    logger.warning(f'Track mismatch: {artist_name} - {album_name} - "{track_name}"')
+                elif track_validation['issue_type'] == 'normalized_match':
+                    # Track names differ but normalize the same - log for review
+                    logger.info(f'Track name variation: "{track_name}" → "{track_validation["matched_track"]}" for {artist_name} - {album_name}')
 
                 scrobble_batch.append(
                     (artist_name, artist_mbid, album_name,

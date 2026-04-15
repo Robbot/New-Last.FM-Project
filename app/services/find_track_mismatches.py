@@ -14,7 +14,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.db.connections import get_db_connection
+from app.db.connections import get_db_connection, _normalize_track_name_for_matching
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -72,6 +72,28 @@ def similarity_score(s1: str, s2: str) -> float:
     final_score = base_score * (0.7 + 0.3 * length_ratio)
 
     return final_score
+
+
+def categorize_mismatch(scrobble_track: str, album_tracks: list[dict]) -> str:
+    """
+    Categorize the type of mismatch using normalization.
+
+    Returns:
+        'normalization_match' - Same after normalization
+        'partial_match' - Similar but not identical
+        'no_match' - Completely different
+    """
+    normalized_scrobble = _normalize_track_name_for_matching(scrobble_track)
+
+    for at in album_tracks:
+        normalized_at = _normalize_track_name_for_matching(at['track'])
+
+        if normalized_scrobble == normalized_at:
+            return "normalization_match"
+        elif normalized_scrobble in normalized_at or normalized_at in normalized_scrobble:
+            return "partial_match"
+
+    return "no_match"
 
 
 def find_potential_matches(scrobble_track: str, album_tracks: list[dict], threshold: float = 0.7) -> list[tuple]:
@@ -192,6 +214,7 @@ def find_all_mismatches(threshold: float = 0.7) -> list[dict]:
             SELECT
                 s.track as scrobble_track,
                 COUNT(*) as scrobble_count,
+                MIN(s.uts) as first_played,
                 MAX(s.uts) as last_played
             FROM scrobble s
             LEFT JOIN album_tracks at
@@ -207,19 +230,25 @@ def find_all_mismatches(threshold: float = 0.7) -> list[dict]:
         for scrobble_row in unmatched:
             scrobble_track = scrobble_row['scrobble_track']
             scrobble_count = scrobble_row['scrobble_count']
+            first_played = scrobble_row['first_played']
             last_played = scrobble_row['last_played']
 
             # Find potential matches
             matches = find_potential_matches(scrobble_track, album_tracks, threshold)
 
-            if matches:
+            # Categorize the mismatch
+            category = categorize_mismatch(scrobble_track, album_tracks)
+
+            if matches or category != 'no_match':
                 results.append({
                     'artist': artist,
                     'album': album,
                     'scrobble_track': scrobble_track,
                     'scrobble_count': scrobble_count,
+                    'first_played': first_played,
                     'last_played': last_played,
-                    'matches': matches
+                    'matches': matches,
+                    'category': category
                 })
 
     conn.close()
@@ -307,6 +336,7 @@ def generate_update_sql(results: list[dict], min_score: float = 0.85) -> str:
 
 def main():
     import argparse
+    from collections import defaultdict
 
     parser = argparse.ArgumentParser(
         description='Find scrobbles with track names that may need correction'
@@ -341,6 +371,16 @@ def main():
         default=0.85,
         help='Minimum score for SQL generation (default: 0.85)'
     )
+    parser.add_argument(
+        '--summary',
+        action='store_true',
+        help='Show summary statistics only'
+    )
+    parser.add_argument(
+        '--details',
+        action='store_true',
+        help='Show detailed mismatch information'
+    )
 
     args = parser.parse_args()
 
@@ -358,7 +398,46 @@ def main():
     else:
         # Full analysis mode
         results = find_all_mismatches(args.threshold)
-        print_results(results, args.show_all)
+
+        # Calculate statistics
+        total_mismatches = len(results)
+        total_scrobbles_affected = sum(r['scrobble_count'] for r in results)
+
+        by_category = defaultdict(list)
+        for r in results:
+            by_category[r['category']].append(r)
+
+        print(f"\n{'='*60}")
+        print(f"Track Mismatch Report")
+        print(f"{'='*60}")
+        print(f"Total distinct mismatches: {total_mismatches}")
+        print(f"Total scrobbles affected: {total_scrobbles_affected}")
+        print(f"\nBy category:")
+        for category, items in sorted(by_category.items(), key=lambda x: len(x[1]), reverse=True):
+            count = len(items)
+            scrobbles = sum(r['scrobble_count'] for r in items)
+            print(f"  {category}: {count} mismatches ({scrobbles} scrobbles)")
+
+        if not args.summary:
+            print(f"\n{'='*60}")
+            if args.details:
+                print(f"All mismatches:")
+            else:
+                print(f"Top 20 mismatches by play count:")
+            print(f"{'='*60}")
+
+            display_results = results if args.details else results[:20]
+
+            for r in display_results:
+                print(f"\n{r['artist']} - {r['album']}")
+                print(f"  Scrobble: \"{r['scrobble_track']}\" ({r['scrobble_count']} plays)")
+                print(f"  Category: {r['category']}")
+                if r['matches']:
+                    for match_track, track_num, score in r['matches'][:3]:
+                        if args.show_all or score >= 0.8:
+                            print(f"  → Track #{track_num}: \"{match_track}\" (similarity: {score:.2%})")
+                else:
+                    print(f"  → No fuzzy matches found (but category: {r['category']})")
 
         if args.generate_sql:
             sql = generate_update_sql(results, args.min_score)

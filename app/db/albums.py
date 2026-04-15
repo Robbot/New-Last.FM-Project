@@ -213,15 +213,27 @@ def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[di
     Args:
         album_artist_name: The artist name (fallback if track lacks individual artist)
         album_name: The album name
-        tracks: list of dicts: [{"artist": "Tool", "track": "The Grudge", "track_number": 1}, ...]
+        tracks: list of dicts: [
+            {"artist": "Tool", "track": "The Grudge", "track_number": 1, "track_mbid": "..."},
+            ...
+        ]
     """
     conn = get_db_connection()
     conn.executemany(
         """
-        INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number)
-        VALUES (?, ?, ?, ?)
+        INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number, track_mbid)
+        VALUES (?, ?, ?, ?, ?)
         """,
-        [(t.get("artist", album_artist_name), album_name, t["track"], t["track_number"]) for t in tracks],
+        [
+            (
+                t.get("artist", album_artist_name),
+                album_name,
+                t["track"],
+                t["track_number"],
+                t.get("track_mbid")  # Add track_mbid
+            )
+            for t in tracks
+        ],
     )
     conn.commit()
     conn.close()
