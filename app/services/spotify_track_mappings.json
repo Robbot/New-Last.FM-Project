@@ -269,6 +269,18 @@
       "album": "Abbey Road",
       "from": "Mean Mr Mustard",
       "to": "Mean Mr. Mustard"
+    },
+    {
+      "artist": "Goo Goo Dolls",
+      "album": "Dizzy up the Girl",
+      "from": "Name",
+      "to": "Iris"
+    },
+    {
+      "artist": "Staind",
+      "album": "Chapter V",
+      "from": "Trippy",
+      "to": "Right Here"
     }
   ],
   "last_updated": "2026-04-15"

@@ -47,6 +47,12 @@
       "from": "Hello, I Must Be Going",
       "to": "Hello, I Must Be Going!",
       "reason": "Restore missing exclamation mark in album title"
+    },
+    {
+      "artist": "Robbie Williams",
+      "from": "Greatest Hits of Robbie Williams",
+      "to": "Greatest Hits",
+      "reason": "Simplify to standard album title"
     }
   ],
   "last_updated": "2026-04-14",
