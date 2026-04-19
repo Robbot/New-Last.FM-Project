@@ -1,0 +1,76 @@
+{% extends "base_library.html" %}
+
+{% block summary_header %}
+<div class="d-flex gap-4 mb-3">
+  <div>
+    <strong>{{ stats.total_compilations }}</strong><br>
+    Compilations scrobbled
+  </div>
+  <div>
+    <strong>{{ stats.total_scrobbles }}</strong><br>
+    Total scrobbles
+  </div>
+</div>
+
+<form method="GET" action="{{ url_for('compilations.library_compilations') }}" class="search-form d-flex gap-2 mb-3">
+  <input type="text"
+         name="search"
+         value="{{ search_term or '' }}"
+         placeholder="Search compilations..."
+         class="search-input">
+  <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  {% if search_term %}
+  <a href="{{ url_for('compilations.library_compilations', from=from_arg, to=to_arg, rangetype=rangetype) }}" class="btn btn-secondary btn-sm">Clear</a>
+  {% endif %}
+  <input type="hidden" name="from" value="{{ from_arg }}">
+  <input type="hidden" name="to" value="{{ to_arg }}">
+  <input type="hidden" name="rangetype" value="{{ rangetype }}">
+</form>
+{% endblock %}
+
+{% block main_content %}
+<h2>Most played compilations {{ (page - 1) * per_page + 1 }} - {{ min(page * per_page, total_rows) }}</h2>
+<p>{{ top_compilations|length }} compilations in list</p>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Compilation</th>
+      <th>Artists</th>
+      <th>Year</th>
+      <th>Scrobbles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in top_compilations %}
+    <tr>
+      <td>{{ (page - 1) * per_page + loop.index }}</td>
+      <td>
+         <a href="{{ url_for('compilations.compilation_detail', album_identifier=row.album_mbid if row.album_mbid else row.album, from=request.args.get('from', ''), to=request.args.get('to', ''), rangetype=request.args.get('rangetype', '')) }}">
+        {{ row.album }}{% if row.representative_artist %} <small class="text-muted">({{ row.representative_artist }})</small>{% endif %}</a>
+      </td>
+      <td>{{ row.artist_count }}</td>
+      <td>{{ row.year_col if row.year_col else '—' }}</td>
+      <td>{{ row["plays"] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="pagination-wrapper">
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('compilations.library_compilations', page=1, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">« First</a>
+        <a href="{{ url_for('compilations.library_compilations', page=page-1, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">‹ {{page - 1}}</a>
+    {% endif %}
+
+    Page {{ page }} of {{ total_pages }}
+
+    {% if page < total_pages %}
+        <a href="{{ url_for('compilations.library_compilations', page=page+1, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">{{page + 1}} ›</a>
+        <a href="{{ url_for('compilations.library_compilations', page=total_pages, from=from_arg, to=to_arg, rangetype=rangetype, search=search_term) }}">Last »</a>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

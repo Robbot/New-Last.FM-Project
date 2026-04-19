@@ -724,3 +724,288 @@ def save_uploaded_cover(album_artist_name: str, album_name: str, file_storage) -
     except Exception as e:
         logger.error(f"Error processing uploaded cover: {e}", exc_info=True)
         return {"error": "Failed to process image"}
+
+
+def get_compilation_stats():
+    """Total distinct compilations and total compilation scrobbles."""
+    conn = get_db_connection()
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(DISTINCT COALESCE(s.album_mbid, s.album)) AS total_compilations,
+            COUNT(*)              AS total_scrobbles
+        FROM scrobble s
+        WHERE s.album_artist = 'Various Artists'
+          AND s.album IS NOT NULL AND s.album != ''
+        """
+    ).fetchone()
+    conn.close()
+
+    if row is None:
+        return {"total_compilations": 0, "total_scrobbles": 0}
+
+    return {
+        "total_compilations": row["total_compilations"],
+        "total_scrobbles": row["total_scrobbles"],
+    }
+
+
+def get_top_compilations(start: str = "", end: str = "", search_term: str = ""):
+    """Compilations sorted by plays (scrobbles) desc."""
+    conn = get_db_connection()
+
+    # Single efficient query using window function to get representative artist
+    sql = """
+        WITH compilation_stats AS (
+            SELECT
+                COALESCE(s.album_mbid, s.album) AS album_key,
+                s.album_mbid,
+                MAX(s.album) AS album,
+                COUNT(DISTINCT s.artist) AS artist_count,
+                COUNT(*) AS plays,
+                MAX(aa.year_col) AS year_col
+            FROM scrobble s
+            LEFT JOIN album_art aa ON
+                aa.artist = s.album_artist AND
+                aa.album = s.album
+            WHERE s.album_artist = 'Various Artists'
+              AND s.album IS NOT NULL AND s.album != ''
+        """
+    params = []
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    # Search filter - case-insensitive partial matching on album
+    if search_term:
+        sql += """ AND LOWER(s.album) LIKE ?"""
+        search_pattern = f"%{search_term.lower()}%"
+        params.append(search_pattern)
+
+    sql += """
+            GROUP BY COALESCE(s.album_mbid, s.album)
+        ),
+        top_artists AS (
+            SELECT
+                COALESCE(s.album_mbid, s.album) AS album_key,
+                s.artist AS representative_artist
+            FROM scrobble s
+            WHERE s.album_artist = 'Various Artists'
+              AND s.album IS NOT NULL AND s.album != ''
+            GROUP BY COALESCE(s.album_mbid, s.album), s.artist, s.album
+            ORDER BY COALESCE(s.album_mbid, s.album), COUNT(*) DESC
+        )
+        SELECT
+            cs.*,
+            ta.representative_artist
+        FROM compilation_stats cs
+        LEFT JOIN (
+            SELECT album_key, representative_artist,
+                   ROW_NUMBER() OVER (PARTITION BY album_key ORDER BY representative_artist) AS rn
+            FROM top_artists
+        ) ta ON cs.album_key = ta.album_key AND ta.rn = 1
+        ORDER BY cs.plays DESC
+    """
+
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return rows
+
+
+def get_compilation_artists(album_name: str) -> list[dict]:
+    """Get all distinct artists for a compilation album."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT artist
+        FROM scrobble
+        WHERE album_artist = 'Various Artists'
+          AND album = ?
+        ORDER BY artist
+        """,
+        (album_name,)
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_album_total_plays_by_mbid(album_mbid: str, album_name: str, start: str = "", end: str = "") -> int:
+    """Get total plays for an album by MBID, optionally filtered by date range."""
+    conn = get_db_connection()
+
+    sql = """
+        SELECT COUNT(*) AS total
+        FROM scrobble
+        WHERE album_mbid = ?
+    """
+    params = [album_mbid]
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        params.extend([start, end])
+
+    row = conn.execute(sql, params).fetchone()
+    conn.close()
+
+    return row["total"] if row else 0
+
+
+def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", end: str = "", sort_by: str = "tracklist"):
+    """
+    Get album tracks by MBID.
+    Returns exactly ONE row per track, ordered by album track number (default)
+    or by play count (if sort_by='plays'), with correct play counts.
+    """
+    conn = get_db_connection()
+
+    # Normalize the album name for fuzzy matching
+    normalized_album = _normalize_for_matching(album_name)
+
+    # Step 1: Find the canonical album_tracks album name using MBID
+    album_track_rows = conn.execute(
+        """
+        SELECT DISTINCT album
+        FROM scrobble
+        WHERE album_mbid = ?
+        LIMIT 1
+        """,
+        (album_mbid,),
+    ).fetchall()
+
+    canonical_album = None
+    if album_track_rows:
+        canonical_album = album_track_rows[0]["album"]
+
+    # If no match found, use the provided album_name and return empty results
+    if canonical_album is None:
+        conn.close()
+        return []
+
+    # Step 2: Get all album_tracks for this album
+    album_tracks = conn.execute(
+        """
+        SELECT track_number, track, artist
+        FROM album_tracks
+        WHERE album = ?
+          AND rowid IN (
+              SELECT rowid
+              FROM (
+                  SELECT rowid,
+                         ROW_NUMBER() OVER (
+                             PARTITION BY track_number, track
+                             ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
+                         ) as rn
+                  FROM album_tracks
+                  WHERE album = ?
+              )
+              WHERE rn = 1
+          )
+        ORDER BY track_number ASC
+        """,
+        (canonical_album, canonical_album),
+    ).fetchall()
+
+    # Step 3: Find all scrobble albums that match the normalized album name with this MBID
+    all_scrobble_albums = conn.execute(
+        """
+        SELECT DISTINCT album
+        FROM scrobble
+        WHERE album_mbid = ?
+        """,
+        (album_mbid,),
+    ).fetchall()
+
+    # Get all matching scrobble album names
+    matching_album_names = [canonical_album]
+    for row in all_scrobble_albums:
+        if row["album"] != canonical_album:
+            matching_album_names.append(row["album"])
+
+    # Step 4: Get scrobble play counts for all matching albums (with optional date filtering)
+    placeholders = ','.join(['?' for _ in matching_album_names])
+    scrobble_query = f"""
+        SELECT track, artist, album, COUNT(*) AS plays
+        FROM scrobble
+        WHERE album_mbid = ?
+          AND album IN ({placeholders})
+    """
+    scrobble_params = [album_mbid] + matching_album_names
+
+    # Use SQLite's date function to filter by local date, not UTC
+    if start and end:
+        scrobble_query += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                               AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        scrobble_params.extend([start, end])
+
+    scrobble_query += " GROUP BY track, artist, album"
+
+    scrobbles = conn.execute(scrobble_query, scrobble_params).fetchall()
+
+    conn.close()
+
+    # Step 5: Match album_tracks with scrobbles using Python normalization
+    scrobble_dict = {}
+    for scrobble in scrobbles:
+        normalized = _normalize_track_name_for_matching(scrobble["track"])
+        key = (normalized, scrobble["album"])
+        if key not in scrobble_dict:
+            scrobble_dict[key] = []
+        scrobble_dict[key].append(scrobble)
+
+    # Match album_tracks with scrobbles and build results
+    results = []
+    for track in album_tracks:
+        normalized_track = _normalize_track_name_for_matching(track["track"])
+        track_artist = track["artist"]
+        plays = 0
+
+        for album_name_variant in matching_album_names:
+            key = (normalized_track, album_name_variant)
+            if key in scrobble_dict:
+                album_plays = sum(s["plays"] for s in scrobble_dict[key] if s["artist"] == track_artist)
+                plays += album_plays
+
+        results.append({
+            "track_number": track["track_number"],
+            "track_name": track["track"],
+            "track_artist": track_artist,
+            "plays": plays,
+        })
+
+    # Sort by play count if requested
+    if sort_by == "plays":
+        results.sort(key=lambda x: (-x["plays"], x["track_number"]))
+
+    # Convert to sqlite3.Row-like objects for compatibility
+    class Row:
+        def __init__(self, data: dict[str, Any]):
+            self._data = data
+        def __getitem__(self, key: str) -> Any:
+            return self._data[key]
+        def keys(self):
+            return self._data.keys()
+        def __iter__(self):
+            return iter(self._data.values())
+
+    return [Row(r) for r in results]
+
+
+def get_compilation_artists_by_mbid(album_mbid: str, album_name: str) -> list[dict]:
+    """Get all distinct artists for a compilation album by MBID."""
+    conn = get_db_connection()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT artist
+        FROM scrobble
+        WHERE album_mbid = ?
+        ORDER BY artist
+        """,
+        (album_mbid,)
+    ).fetchall()
+    conn.close()
+    return rows

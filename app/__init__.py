@@ -43,6 +43,7 @@ def create_app():
     from .scrobbles import scrobbles_bp
     from .artists import artists_bp
     from .albums import albums_bp
+    from .compilations import compilations_bp
     from .tracks import tracks_bp
     from .trackgaps import trackgaps_bp
     from .daterange import daterange_bp
@@ -53,6 +54,7 @@ def create_app():
     app.register_blueprint(scrobbles_bp)
     app.register_blueprint(artists_bp)
     app.register_blueprint(albums_bp)
+    app.register_blueprint(compilations_bp)
     app.register_blueprint(tracks_bp)
     app.register_blueprint(trackgaps_bp)
     app.register_blueprint(daterange_bp)

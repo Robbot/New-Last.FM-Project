@@ -1,0 +1,136 @@
+{# templates/compilation_detail.html #}
+{% extends "base_library.html" %}
+
+{% block summary_header %}
+<h2>
+  <a href="{{ url_for('compilations.library_compilations') }}">
+    Compilations</a> — {{ album_name }}</h2>
+{% endblock %}
+
+{% block main_content %}
+
+<div class="album-detail-container">
+  <div class="album-cover">
+    {% if cover_url %}
+      <img src="{{ cover_url }}" alt="Album art" class="album-cover-img">
+    {% else %}
+      <div class="album-cover-placeholder">
+        no cover
+      </div>
+    {% endif %}
+  </div>
+
+  <div>
+    {% if start and end %}
+      <p><strong>Plays ({{ start }} to {{ end }}):</strong> {{ total_plays }}</p>
+      <p class="text-muted"><small>All-time plays: {{ all_time_total }}</small></p>
+    {% else %}
+      <p><strong>Total plays (All time):</strong> {{ total_plays }}</p>
+    {% endif %}
+    <p><strong>Tracks:</strong> {{ tracks|length }}</p>
+    <p><strong>Artists on compilation:</strong> {{ artists|length }}</p>
+    <p><strong>Release date:</strong> {{ release_year }}</p>
+    {% if wikipedia_url and wikipedia_url != "N/A" %}
+      <p><strong>Wikipedia:</strong> <a href="{{ wikipedia_url }}" target="_blank" rel="noopener noreferrer">View article</a></p>
+    {% endif %}
+    {% if album_mbid %}
+      <p><strong>MusicBrainz:</strong> <a href="https://musicbrainz.org/release/{{ album_mbid }}" target="_blank" rel="noopener noreferrer">View release</a></p>
+    {% endif %}
+
+    {% if not cover_url and upload_allowed %}
+    <div class="cover-upload-section">
+      <p class="text-muted"><small><em>No cover available. Upload one?</em></small></p>
+      <form id="coverUploadForm" class="cover-upload-form" action="{{ url_for('albums.upload_album_cover', album_artist_name=album_artist_name, album_name=album_name) }}" enctype="multipart/form-data">
+        <input type="file" id="coverFile" name="cover" accept="image/jpeg,image/png,image/webp" class="cover-file-input" required>
+        <button type="submit" class="cover-upload-btn">Upload Cover</button>
+      </form>
+      <div id="uploadStatus" class="upload-status"></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<h2>Artists on this compilation</h2>
+{% if artists %}
+<div class="artist-list">
+  {% for row in artists %}
+  <a href="{{ url_for('artists.artist_detail', artist_name=row['artist']) }}" class="artist-tag">
+    {{ row["artist"] }}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p><em>No artists found for this compilation.</em></p>
+{% endif %}
+
+<h2>Tracklist</h2>
+<div class="mb-4">
+  <strong>Sort by:</strong>
+  {% set query_params = {'from': from_arg, 'to': to_arg, 'rangetype': rangetype} %}
+  {% set album_id = album_mbid if album_mbid else album_name %}
+  {% if sort_by == 'tracklist' %}
+    <span class="fw-bold text-dark">Tracklist</span>
+    <a href="{{ url_for('compilations.compilation_detail', album_identifier=album_id, sort='plays', **query_params) }}" class="ms-3 sort-link">Popularity</a>
+  {% else %}
+    <a href="{{ url_for('compilations.compilation_detail', album_identifier=album_id, sort='tracklist', **query_params) }}" class="sort-link">Tracklist</a>
+    <span class="ms-3 fw-bold text-dark">Popularity</span>
+  {% endif %}
+</div>
+{% if start and end %}
+  <p class="text-muted"><small>Showing plays from {{ start }} to {{ end }}</small></p>
+{% endif %}
+{% if tracks %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Track</th>
+      <th>Artist</th>
+      <th>Plays</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in tracks %}
+    <tr>
+      <td>{{ row["track_number"] }}</td>
+      <td><a href="{{ url_for('tracks.track_detail', artist_name=row['track_artist'], track_name=row['track_name']) }}">
+        {{ row["track_name"] }}</a>
+      </td>
+      <td><a href="{{ url_for('artists.artist_detail', artist_name=row['track_artist']) }}">
+        {{ row["track_artist"] }}</a>
+      </td>
+      <td>{{ row["plays"] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p><em>Tracklist not available for this compilation. Last.fm may not have information about this release.</em></p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+.artist-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.artist-tag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: #f0f0f0;
+  border-radius: 1rem;
+  text-decoration: none;
+  color: #333;
+  font-size: 0.875rem;
+}
+
+.artist-tag:hover {
+  background-color: #e0e0e0;
+  text-decoration: none;
+}
+</style>
+{% endblock %}

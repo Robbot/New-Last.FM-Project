@@ -53,8 +53,44 @@
       "from": "Greatest Hits of Robbie Williams",
       "to": "Greatest Hits",
       "reason": "Simplify to standard album title"
+    },
+    {
+      "artist": "Robbie Williams",
+      "from": "I've Been Expecting You",
+      "to": "Greatest Hits",
+      "reason": "Tracks belong to Greatest Hits compilation"
+    },
+    {
+      "artist": "Sex Pistols",
+      "from": "Never Mind the Bollocks",
+      "to": "Never Mind the Bollocks, Here's the Sex Pistols",
+      "reason": "Use full album title"
+    },
+    {
+      "artist": "New Model Army",
+      "from": "History - the Best of New Model Army",
+      "to": "History - the Singles 85-91",
+      "reason": "Correct album title"
+    },
+    {
+      "artist": "New Model Army",
+      "from": "Vengeance - the Whole Story 1980-84",
+      "to": "Vengeance: The Independent Story",
+      "reason": "MusicBrainz canonical title with proper colon punctuation - use 18-track tracklist from MBID f59fc0e1-2b1e-4878-b6bc-bbcbfba0eba9"
+    },
+    {
+      "artist": "Róże Europy",
+      "from": "Krew Marilyn Monroe",
+      "to": "Krew Marylin Monroe",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Public Image Ltd.",
+      "from": "Public Image",
+      "to": "First Issue",
+      "reason": "Manual correction"
     }
   ],
-  "last_updated": "2026-04-14",
+  "last_updated": "2026-04-18",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns."
 }

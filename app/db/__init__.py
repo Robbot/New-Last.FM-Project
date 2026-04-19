@@ -67,6 +67,12 @@ from .albums import (
     get_album_tracks,
     ensure_album_art_cached,
     save_uploaded_cover,
+    get_compilation_stats,
+    get_top_compilations,
+    get_compilation_artists,
+    get_album_total_plays_by_mbid,
+    get_album_tracks_by_mbid,
+    get_compilation_artists_by_mbid,
 )
 
 # Import and re-export tracks
@@ -123,6 +129,12 @@ __all__ = [
     "get_album_tracks",
     "ensure_album_art_cached",
     "save_uploaded_cover",
+    "get_compilation_stats",
+    "get_top_compilations",
+    "get_compilation_artists",
+    "get_album_total_plays_by_mbid",
+    "get_album_tracks_by_mbid",
+    "get_compilation_artists_by_mbid",
     # Tracks
     "get_track_stats",
     "get_track_stats_detail",
