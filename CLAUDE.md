@@ -69,6 +69,15 @@ python -m app.services.assign_compilation_tracks
 # Merge artists (when one artist has multiple names)
 python -m app.services.merge_artists
 
+# Batch update artist MusicBrainz IDs (MBIDs)
+python -m app.services.batch_update_artist_mbids
+# Or update top N artists
+python -m app.services.batch_update_artist_mbids --limit 50
+# Or update a single artist
+python -m app.services.batch_update_artist_mbids --artist "Artist Name"
+# Dry run first (no changes)
+python -m app.services.batch_update_artist_mbids --dry-run
+
 # Activate virtual environment (if needed)
 source .venv/bin/activate
 
@@ -102,6 +111,8 @@ The Flask app uses a modular Blueprint architecture:
   - `fetch_tracklist.py` / `fetch_tracklist_musicbrainz.py`: Fetches album tracklists from Last.fm/MusicBrainz API
   - `fetch_wikipedia.py` / `fetch_wikipedia_lenient.py`: Fetches Wikipedia URLs for albums
   - `fetch_artist_info.py`: Fetches artist info and images from Last.fm API
+  - `fetch_artist_mbid.py`: Looks up MusicBrainz artist IDs via MusicBrainz API or Wikidata fallback
+  - `batch_update_artist_mbids.py`: Batch update artist MBIDs for all artists missing them in database
   - `clean_remastered_db.py` / `clean_deluxe_edition_db.py` / `clean_all_editions_db.py`: Clean edition suffixes from existing data
   - `clean_track_case_db.py` / `clean_small_words_db.py`: Normalize track name case inconsistencies
   - `backfill_album_years.py` / `backfill_album_years_enhanced.py`: Populate album years from Last.fm API
@@ -134,6 +145,7 @@ The Flask app uses a modular Blueprint architecture:
   - Unique constraint on `(uts, artist, album, track)` prevents duplicates
   - All timestamps stored in UTC
   - `album_artist` field for compilation album detection
+  - `artist_mbid` and `album_mbid` fields for MusicBrainz integration (can be backfilled via batch_update_artist_mbids.py)
 - **`album_art`**: Album artwork and metadata
   - Fields: `artist`, `album`, `album_mbid`, `artist_mbid`, `image_small`, `image_medium`, `image_large`, `image_xlarge`, `last_updated`, `year_col`
   - Primary key on `(artist, album)`
@@ -209,6 +221,10 @@ The application integrates with MusicBrainz for enhanced metadata:
 - **Release Data**: Cached release information from MusicBrainz API
 - **Fetch via `fetch_musicbrainz_releases.py`**: Populates `musicbrainz_releases` table
 - **Cache Management**: `refresh_musicbrainz_cache.py` updates cached data
+- **Batch Artist MBID Updates**: `batch_update_artist_mbids.py` fetches and updates MBIDs for artists missing them
+  - Uses MusicBrainz API with automatic Wikidata fallback when MB API is unavailable
+  - Supports batch processing, single artist updates, and dry-run mode
+  - Includes intelligent scoring to find best matches for artist names
 
 ### Compilation Album Handling
 

@@ -1,6 +1,6 @@
 from flask import abort, render_template, request, current_app, jsonify, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
-from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
+from app.services.fetch_tracklist_musicbrainz import fetch_album_tracklist_by_mbid, fetch_album_tracklist_musicbrainz
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
 from app import db
 import math
@@ -80,16 +80,6 @@ def artist_album_detail(album_artist_name: str, album_name: str):
     # Get plays within the date range (or all-time if no date filter)
     total = db.get_album_total_plays(album_artist_name, album_name, start=start or "", end=end or "")
 
-    # Try to fetch tracklist if not already cached
-    if not db.album_tracks_exist(album_artist_name, album_name):
-        api_key = current_app.config["api_key"]
-        tracks = fetch_album_tracklist_lastfm(api_key, album_artist_name, album_name)
-        if tracks:  # Only insert if we got tracks back
-            db.upsert_album_tracks(album_artist_name, album_name, tracks)
-
-    # Get tracklist from database (may be empty if Last.fm doesn't have it)
-    rows = db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
-
     art_row = db.get_album_art(album_artist_name, album_name)
     release_year = db.get_album_release_year(album_artist_name, album_name)
 
@@ -99,6 +89,21 @@ def artist_album_detail(album_artist_name: str, album_name: str):
 
     cache_key = album_mbid or f"{album_artist_name}_{album_name}"
     cover_url = db.ensure_album_art_cached(album_artist_name, album_name)
+
+    # Try to fetch tracklist from MusicBrainz if not already cached
+    if not db.album_tracks_exist(album_artist_name, album_name):
+        # Prefer MBID-based fetching for accuracy
+        if album_mbid:
+            tracks = fetch_album_tracklist_by_mbid(album_mbid)
+        else:
+            # Fall back to name-based search
+            tracks = fetch_album_tracklist_musicbrainz(album_artist_name, album_name)
+
+        if tracks:
+            db.upsert_album_tracks(album_artist_name, album_name, tracks)
+
+    # Get tracklist from database (may be empty if MusicBrainz doesn't have it)
+    rows = db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
 
     # Fetch Wikipedia URL
     wikipedia_url = db.get_album_wikipedia_url(album_artist_name, album_name)

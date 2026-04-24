@@ -5,7 +5,7 @@ from . import compilations_bp
 from app.utils.range import compute_range_validated
 from app.utils.validators import validate_int, validate_album_name
 from app.utils.constants import PAGE_MIN
-from app.services.fetch_tracklist import fetch_album_tracklist_lastfm
+from app.services.fetch_tracklist_musicbrainz import fetch_album_tracklist_by_mbid, fetch_album_tracklist_musicbrainz
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
 
 
@@ -123,17 +123,22 @@ def compilation_detail(album_identifier: str):
     # Get plays within the date range (or all-time if no date filter)
     total = db.get_album_total_plays_by_mbid(album_mbid, album_name, start=start or "", end=end or "") if album_mbid else db.get_album_total_plays(album_artist_name, album_name, start=start or "", end=end or "")
 
-    # Try to fetch tracklist if not already cached
+    art_row = db.get_album_art(album_artist_name, album_name)
+
+    # Try to fetch tracklist from MusicBrainz if not already cached
     if not db.album_tracks_exist(album_artist_name, album_name):
-        api_key = current_app.config["api_key"]
-        tracks = fetch_album_tracklist_lastfm(api_key, album_artist_name, album_name)
-        if tracks:  # Only insert if we got tracks back
+        # Prefer MBID-based fetching for accuracy
+        if album_mbid:
+            tracks = fetch_album_tracklist_by_mbid(album_mbid)
+        else:
+            # Fall back to name-based search
+            tracks = fetch_album_tracklist_musicbrainz(album_artist_name, album_name)
+
+        if tracks:
             db.upsert_album_tracks(album_artist_name, album_name, tracks)
 
-    # Get tracklist from database (may be empty if Last.fm doesn't have it)
+    # Get tracklist from database (may be empty if MusicBrainz doesn't have it)
     rows = db.get_album_tracks_by_mbid(album_mbid, album_name, start=start or "", end=end or "", sort_by=sort_by) if album_mbid else db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
-
-    art_row = db.get_album_art(album_artist_name, album_name)
     release_year = db.get_album_release_year(album_artist_name, album_name)
 
     artist_mbid = art_row["artist_mbid"] if art_row and art_row["artist_mbid"] else None

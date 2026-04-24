@@ -89,8 +89,44 @@
       "from": "Public Image",
       "to": "First Issue",
       "reason": "Manual correction"
+    },
+    {
+      "artist": "Pink Floyd",
+      "from": "The Final Cut",
+      "to": "Echoes - the Best of Pink Floyd",
+      "reason": "When the Tigers Broke Free belongs to this compilation"
+    },
+    {
+      "artist": "Pink Floyd",
+      "from": "The Wall",
+      "to": "Echoes - the Best of Pink Floyd",
+      "reason": "When the Tigers Broke Free belongs to this compilation"
+    },
+    {
+      "artist": "Various Artists",
+      "from": "OST the Crow",
+      "to": "The Crow Original Motion Picture Soundtrack",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Various Artists",
+      "from": "OST Matrix Reloaded",
+      "to": "The Matrix Reloaded: the Album",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Various Artists",
+      "from": "OST the Matrix",
+      "to": "Music from and Inspired by the Motion Picture the Matrix",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Various Artists",
+      "from": "OST Cruel Intentions",
+      "to": "Cruel Intentions",
+      "reason": "Manual correction"
     }
   ],
-  "last_updated": "2026-04-18",
+  "last_updated": "2026-04-20",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns."
 }
