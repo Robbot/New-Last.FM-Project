@@ -377,7 +377,49 @@
       "album": "Drama",
       "from": "Man in a White Car - LP/Single Version",
       "to": "Man in a White Car"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Seventeen Seconds",
+      "from": "Play For Today",
+      "to": "Play for Today"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Staring at the Sea - the Singles",
+      "from": "Play For Today",
+      "to": "Play for Today"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Standing on the Beach: The Singles",
+      "from": "Play For Today",
+      "to": "Play for Today"
+    },
+    {
+      "artist": "Armia",
+      "album": "Legenda",
+      "from": "3 Bajki",
+      "to": "Trzy bajki"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Faith",
+      "from": "Charlotte Sometimes (Single)",
+      "to": "Charlotte Sometimes"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Faith",
+      "from": "Charlotte Sometimes - Single 10/81",
+      "to": "Charlotte Sometimes"
+    },
+    {
+      "artist": "The Cure",
+      "album": "Galore - the Singles 1987-1997",
+      "from": "Pictures Of You",
+      "to": "Pictures of You"
     }
   ],
-  "last_updated": "2026-04-24"
+  "last_updated": "2026-04-27"
 }

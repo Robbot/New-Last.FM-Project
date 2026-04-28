@@ -579,6 +579,7 @@ def get_artist_albums_with_years(
         SELECT
             album,
             album_artist,
+            MAX(album_mbid) AS album_mbid,
             COUNT(*) AS plays
         FROM scrobble
         WHERE artist = ?

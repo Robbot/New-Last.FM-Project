@@ -328,6 +328,47 @@ def clean_title(title: str, artist: str = None, album: str = None) -> str:
     return title
 
 
+# ---------- Compilation album patterns ----------
+# Known compilation album series and patterns
+# These are albums that typically contain tracks from various artists
+# ONLY used for additional validation, NOT for auto-detection
+# Auto-detection is based SOLELY on artist count (4+ artists = compilation)
+_COMPILATION_PATTERNS = [
+    # German compilation series
+    r'Kuschel Rock\s*\d*',
+    r'Kuschelrock\s*\d*',
+    r'Bravo Hits\s*\d*',
+    # Various Artists compilation series
+    r'Now That\'?s What I Call Music',
+    r'Now \d+',
+    r'Totally \w+',
+    # Various Artists indicators in album name
+    r'Various Artists',
+    r'VA\s*-',
+    r'\[VA\]',
+]
+
+def _matches_compilation_pattern(album: str) -> bool:
+    """
+    Check if album name matches known compilation patterns.
+    NOTE: Only used for validation hints, NOT for auto-detection.
+    Auto-detection is based solely on artist count (4+ artists).
+
+    Args:
+        album: Album name
+
+    Returns:
+        True if album matches a known compilation pattern
+    """
+    if not album:
+        return False
+
+    for pattern in _COMPILATION_PATTERNS:
+        if re.search(pattern, album, re.IGNORECASE):
+            return True
+    return False
+
+
 # ---------- DB helpers ----------
 
 def get_conn() -> sqlite3.Connection:
@@ -340,9 +381,9 @@ def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str 
     """
     Check if an album is a compilation by examining existing scrobbles.
 
-    An album is considered a compilation if:
-    1. album_mbid is NOT NULL AND it has 2+ distinct artists in existing scrobbles, OR
-    2. album_mbid is NOT NULL AND it has 1+ existing scrobbles by a different artist
+    An album is considered a compilation if it has 4+ distinct artists.
+    This threshold prevents single-artist greatest hits albums from being
+    incorrectly flagged as compilations.
 
     IMPORTANT: Only considers albums with a non-NULL album_mbid to avoid
     incorrectly flagging different artists' albums with the same name as compilations.
@@ -356,7 +397,11 @@ def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str 
     Returns:
         True if the album should be marked as a compilation (album_artist = "Various Artists")
     """
-    if not album or album_mbid is None:
+    if not album:
+        return False
+
+    # Only proceed if we have an MBID to avoid false positives
+    if album_mbid is None:
         return False
 
     # Count distinct artists for this album in existing scrobbles
@@ -371,23 +416,29 @@ def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str 
     row = cursor.fetchone()
     existing_artist_count = row["artist_count"] if row else 0
 
-    # If we already have 2+ distinct artists, it's definitely a compilation
-    if existing_artist_count >= 2:
+    # Include current artist in the count
+    total_artists = existing_artist_count
+
+    # If we already have 3+ existing artists, adding current artist makes 4+
+    if total_artists >= 3:
         return True
 
-    # If we have 1 existing artist and it's different from current artist, it's a compilation
-    if existing_artist_count == 1:
+    # If we have 1-2 existing artists, check if current artist is different
+    if existing_artist_count > 0:
         cursor = conn.execute(
             """
             SELECT DISTINCT artist
             FROM scrobble
             WHERE album = ? AND album_mbid = ?
-            LIMIT 1
+            LIMIT 4
             """,
             (album, album_mbid)
         )
-        row = cursor.fetchone()
-        if row and row["artist"] != current_artist:
+        existing_artists = {row["artist"] for row in cursor.fetchall()}
+        # Add current artist to the set
+        existing_artists.add(current_artist)
+        # Check if we now have 4+ distinct artists
+        if len(existing_artists) >= 4:
             return True
 
     return False
@@ -592,7 +643,8 @@ def fetch_recent_tracks(api_key: str,
 def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     """
     Update album_artist to 'Various Artists' for compilation albums.
-    A compilation is defined as an album with 2+ distinct artists.
+
+    A compilation is defined as an album with 4+ distinct artists.
     Albums are identified by (album, album_mbid) to distinguish different
     albums that happen to have the same name (e.g., "21" by Adele vs "21" by KSU).
 
@@ -600,15 +652,14 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     incorrectly flagging different artists' albums with the same name as compilations.
     """
     # Find all (album, album_mbid) combinations that should be compilations
-    # Only consider albums with non-NULL album_mbid to avoid false positives
-    # from different artists having albums with the same name
+    # Threshold: 4+ distinct artists (not 2+ to avoid single-artist greatest hits)
     cursor = conn.execute(
         """
         SELECT album, album_mbid
         FROM scrobble
         WHERE album IS NOT NULL AND album != '' AND album_mbid IS NOT NULL
         GROUP BY album, album_mbid
-        HAVING COUNT(DISTINCT artist) >= 2
+        HAVING COUNT(DISTINCT artist) >= 4
         """
     )
     compilation_albums = [(row["album"], row["album_mbid"]) for row in cursor.fetchall()]
@@ -638,7 +689,7 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     conn.commit()
     logger.info(
         f"Updated album_artist to 'Various Artists' for {updated} scrobbles "
-        f"across {len(compilation_albums)} compilation albums."
+        f"across {len(compilation_albums)} compilation albums (4+ artists each)."
     )
 
 
