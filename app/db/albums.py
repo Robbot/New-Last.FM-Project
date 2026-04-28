@@ -886,12 +886,12 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
         conn.close()
         return []
 
-    # Step 2: Get all album_tracks for this album
+    # Step 2: Get all album_tracks for this album by MBID
     album_tracks = conn.execute(
         """
         SELECT track_number, track, artist
         FROM album_tracks
-        WHERE album = ?
+        WHERE album_mbid = ?
           AND rowid IN (
               SELECT rowid
               FROM (
@@ -901,13 +901,13 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
                              ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
                          ) as rn
                   FROM album_tracks
-                  WHERE album = ?
+                  WHERE album_mbid = ?
               )
               WHERE rn = 1
           )
         ORDER BY track_number ASC
         """,
-        (canonical_album, canonical_album),
+        (album_mbid, album_mbid),
     ).fetchall()
 
     # Step 3: Find all scrobble albums that match the normalized album name with this MBID

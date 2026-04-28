@@ -101,10 +101,10 @@
         <td>
           {% set album_artist = row['album_artist'] if 'album_artist' in row.keys() and row['album_artist'] else artist_name %}
           {% if row.get('has_scrobbles', True) %}
-            {% if row.get('album_mbid') %}
+            {% if row.get('album_mbid') and album_artist == 'Various Artists' %}
               <a href="{{ url_for('compilations.compilation_detail', album_identifier=row['album_mbid']) }}">
             {% else %}
-              <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
+              <a href="{{ url_for('albums.artist_album_detail', album_artist_name=artist_name, album_name=row['album']) }}">
             {% endif %}
             {{ row["album"] }}</a>
           {% else %}
