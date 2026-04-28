@@ -644,6 +644,7 @@ def get_artist_albums_with_years(
         albums_with_years.append({
             "album": album_name,
             "album_artist": album_data.get("album_artist") or album_artist_name,
+            "album_mbid": album_data.get("album_mbid"),
             "plays": album_data["plays"],
             "year": year,
             "has_scrobbles": True,
