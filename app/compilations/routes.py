@@ -1,4 +1,5 @@
-from flask import render_template, request, current_app, abort
+from flask import render_template, request, current_app, abort, jsonify, url_for
+from werkzeug.exceptions import RequestEntityTooLarge
 from app import db
 import math
 from . import compilations_bp
@@ -7,6 +8,9 @@ from app.utils.validators import validate_int, validate_album_name
 from app.utils.constants import PAGE_MIN
 from app.services.fetch_tracklist_musicbrainz import fetch_album_tracklist_by_mbid, fetch_album_tracklist_musicbrainz
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 @compilations_bp.route("/library/compilations")
@@ -126,7 +130,7 @@ def compilation_detail(album_identifier: str):
     art_row = db.get_album_art(album_artist_name, album_name)
 
     # Try to fetch tracklist from MusicBrainz if not already cached
-    if not db.album_tracks_exist(album_artist_name, album_name):
+    if not db.album_tracks_exist(album_artist_name, album_name, album_mbid):
         # Prefer MBID-based fetching for accuracy
         if album_mbid:
             tracks = fetch_album_tracklist_by_mbid(album_mbid)
@@ -135,7 +139,7 @@ def compilation_detail(album_identifier: str):
             tracks = fetch_album_tracklist_musicbrainz(album_artist_name, album_name)
 
         if tracks:
-            db.upsert_album_tracks(album_artist_name, album_name, tracks)
+            db.upsert_album_tracks(album_artist_name, album_name, tracks, album_mbid)
 
     # Get tracklist from database (may be empty if MusicBrainz doesn't have it)
     rows = db.get_album_tracks_by_mbid(album_mbid, album_name, start=start or "", end=end or "", sort_by=sort_by) if album_mbid else db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
@@ -181,6 +185,96 @@ def compilation_detail(album_identifier: str):
         artist_mbid=artist_mbid,
         artists=artists,
     )
+
+
+@compilations_bp.route("/library/compilations/<path:album_identifier>/upload-cover", methods=["POST"])
+def upload_compilation_cover(album_identifier: str):
+    """Handle compilation cover upload. Only allowed from localhost or local network (192.168.x.x)."""
+
+    # Security: Only allow uploads from localhost or local network
+    if not _is_localhost_request():
+        logger.warning(f"Upload attempt from non-local network: {request.remote_addr}")
+        return jsonify({"error": "Uploads are only allowed from local network"}), 403
+
+    # Detect if this is an MBID (UUID-like format)
+    is_mbid = len(album_identifier) == 36 and album_identifier.count('-') == 4
+
+    album_name = None
+    album_mbid = None
+    album_artist_name = "Various Artists"
+
+    if is_mbid:
+        # Look up album name by MBID
+        conn = db.get_db_connection()
+        row = conn.execute(
+            """
+            SELECT DISTINCT album, album_mbid
+            FROM scrobble
+            WHERE album_artist = 'Various Artists'
+              AND album_mbid = ?
+              AND album IS NOT NULL AND album != ''
+            LIMIT 1
+            """,
+            (album_identifier,)
+        ).fetchone()
+        if row:
+            album_name = row["album"]
+            album_mbid = row["album_mbid"]
+        conn.close()
+
+        if not album_name:
+            return jsonify({"error": "Compilation not found"}), 404
+    else:
+        # Validate album name
+        album_name = validate_album_name(album_identifier)
+
+        # Look up MBID for this album
+        conn = db.get_db_connection()
+        row = conn.execute(
+            """
+            SELECT album_mbid
+            FROM scrobble
+            WHERE album_artist = 'Various Artists'
+              AND album = ?
+            LIMIT 1
+            """,
+            (album_name,)
+        ).fetchone()
+        if row:
+            album_mbid = row["album_mbid"]
+        conn.close()
+
+    # Check if compilation exists
+    if album_mbid:
+        total = db.get_album_total_plays_by_mbid(album_mbid, album_name)
+    else:
+        total = db.get_album_total_plays(album_artist_name, album_name)
+
+    if total == 0:
+        return jsonify({"error": "Compilation not found"}), 404
+
+    # Check if file is present
+    if "cover" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files["cover"]
+
+    # Check if filename is empty
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+
+    # Validate and process the image
+    result = db.save_uploaded_cover(album_artist_name, album_name, file)
+
+    if result.get("error"):
+        logger.error(f"Cover upload failed for {album_artist_name} - {album_name}: {result['error']}")
+        return jsonify(result), 400
+
+    logger.info(f"Cover uploaded successfully for {album_artist_name} - {album_name}")
+    return jsonify({
+        "success": True,
+        "cover_url": result["cover_url"]
+    })
 
 
 def _is_localhost_request() -> bool:

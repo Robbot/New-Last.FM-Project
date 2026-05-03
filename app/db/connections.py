@@ -157,10 +157,12 @@ def _normalize_track_name_for_matching(text: str) -> str:
     #   – (U+2013 EN DASH) - commonly used in track names from Last.fm
     #   — (U+2014 EM DASH)
     #   − (U+2212 MINUS SIGN)
+    #   ‐ (U+2010 HYPHEN) - used by MusicBrainz
     dash_mapping = {
         '\u2013': '-',  # EN DASH
         '\u2014': '-',  # EM DASH
         '\u2212': '-',  # MINUS SIGN
+        '\u2010': '-',  # HYPHEN
     }
     for unicode_char, hyphen in dash_mapping.items():
         text = text.replace(unicode_char, hyphen)

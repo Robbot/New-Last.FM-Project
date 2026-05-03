@@ -32,7 +32,7 @@ YEAR_COL = "year_col"
 MB_BASE_URL = "https://musicbrainz.org"
 MB_TIMEOUT = 15
 MB_SLEEP_SECONDS = 1.5
-MB_USER_AGENT = "ScrobblesApp/1.0 (https://github.com/user/repo)"
+MB_USER_AGENT = "LastFMStats/1.0 (https://github.com/robbot/lastfmstats; lastfmstats@robbot.com)"
 
 # Last.fm settings
 LF_BASE_URL = "https://ws.audioscrobbler.com/2.0/"

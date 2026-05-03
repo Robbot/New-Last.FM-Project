@@ -419,7 +419,67 @@
       "album": "Galore - the Singles 1987-1997",
       "from": "Pictures Of You",
       "to": "Pictures of You"
+    },
+    {
+      "artist": "Tool",
+      "album": "Ænima",
+      "from": "Aenima",
+      "to": "Ænema"
+    },
+    {
+      "artist": "Tool",
+      "album": "Ænima",
+      "from": "Hooker with a Penis",
+      "to": "Hooker With a Penis"
+    },
+    {
+      "artist": "Tool",
+      "album": "Ænima",
+      "from": "(-) Ions",
+      "to": "(‐) Ions"
+    },
+    {
+      "artist": "Tool",
+      "album": "Ænima",
+      "from": "(-)Ions",
+      "to": "(‐) Ions"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Oxygène",
+      "from": "Oxygène (part 1)",
+      "to": "Oxygène, Part I"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Oxygène",
+      "from": "Oxygène (part 2)",
+      "to": "Oxygène, Part II"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Oxygène",
+      "from": "Oxygène (Part 3)",
+      "to": "Oxygène, Part III"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Oxygène",
+      "from": "Oxygène (part 4)",
+      "to": "Oxygène, Part IV"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Oxygène",
+      "from": "Oxygène (Part 5)",
+      "to": "Oxygène, Part V"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Oxygène",
+      "from": "Oxygène (Part 6)",
+      "to": "Oxygène, Part VI"
     }
   ],
-  "last_updated": "2026-04-27"
+  "last_updated": "2026-05-02"
 }

@@ -16,7 +16,7 @@ BASE_URL = "https://musicbrainz.org"
 TIMEOUT = 15
 SLEEP_SECONDS = 1.0                     # polite default for MusicBrainz
 
-USER_AGENT = "ScrobblesApp/1.0 (contact: you@example.com)"  # <- set yours
+USER_AGENT = "LastFMStats/1.0 (https://github.com/robbot/lastfmstats; lastfmstats@robbot.com)"
 
 YEAR_RE = re.compile(r"^(\d{4})")
 

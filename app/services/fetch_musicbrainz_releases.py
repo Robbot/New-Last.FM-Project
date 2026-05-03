@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 MB_BASE_URL = "https://musicbrainz.org"
 MB_TIMEOUT = 15
 MB_SLEEP_SECONDS = 1.5
-MB_USER_AGENT = "LastFMStats/1.0 (https://github.com/user; lastfmstats@example.com)"
+MB_USER_AGENT = "LastFMStats/1.0 (https://github.com/robbot/lastfmstats; lastfmstats@robbot.com)"
 
 YEAR_RE = re.compile(r"^(\d{4})")
 

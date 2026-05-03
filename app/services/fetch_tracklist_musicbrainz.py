@@ -18,7 +18,7 @@ from app.db.albums import upsert_album_tracks
 
 logger = get_logger(__name__)
 MUSICBRAINZ_API_BASE = "https://musicbrainz.org/ws/2"
-USER_AGENT = "LastFMStats/1.0 (https://github.com/yourusername/lastfmstats)"
+USER_AGENT = "LastFMStats/1.0 (https://github.com/robbot/lastfmstats; lastfmstats@robbot.com)"
 
 
 def fetch_album_tracklist_musicbrainz(artist_name: str, album_name: str) -> list[dict] | None:
@@ -133,7 +133,8 @@ def _extract_tracks_from_release(release_data: dict, artist_name: str | None, al
                 track_artist = track_credits[0].get("name", artist_name or "Unknown Artist")
 
             # Apply title cleaning to ensure consistent capitalization
-            track_name = clean_title(track["recording"]["title"], track_artist, album_name)
+            # MusicBrainz has track title at track["title"], not track["recording"]["title"]
+            track_name = clean_title(track.get("title", ""), track_artist, album_name)
 
             # Extract track number (handle formats like "1", "A1", etc.)
             track_number = track.get("number", "")
@@ -153,15 +154,55 @@ def _extract_tracks_from_release(release_data: dict, artist_name: str | None, al
     return tracks
 
 
-def fetch_and_store_tracklist(artist_name: str, album_name: str) -> bool:
+def fetch_and_store_tracklist(artist_name: str, album_name: str, album_mbid: str = None) -> bool:
     """
     Fetch tracklist from MusicBrainz and store in database.
 
+    Args:
+        artist_name: Artist name
+        album_name: Album name
+        album_mbid: MusicBrainz release ID (optional)
+
     Returns True if successful, False otherwise.
     """
-    tracks = fetch_album_tracklist_musicbrainz(artist_name, album_name)
+    if album_mbid:
+        tracks = fetch_album_tracklist_by_mbid(album_mbid)
+    else:
+        tracks = fetch_album_tracklist_musicbrainz(artist_name, album_name)
     if tracks:
-        upsert_album_tracks(artist_name, album_name, tracks)
+        upsert_album_tracks(artist_name, album_name, tracks, album_mbid)
+        return True
+    return False
+
+
+def fetch_and_store_tracklist_by_mbid(album_mbid: str, album_name: str = None) -> bool:
+    """
+    Fetch tracklist from MusicBrainz by MBID and store in database.
+
+    Args:
+        album_mbid: MusicBrainz release ID
+        album_name: Album name (optional, will be fetched from MusicBrainz if not provided)
+
+    Returns True if successful, False otherwise.
+    """
+    tracks = fetch_album_tracklist_by_mbid(album_mbid)
+    if tracks:
+        # Use album_name from MusicBrainz if not provided
+        if not album_name:
+            import requests
+            release_url = f"{MUSICBRAINZ_API_BASE}/release/{album_mbid}"
+            params = {"fmt": "json"}
+            headers = {"User-Agent": USER_AGENT}
+            try:
+                response = requests.get(release_url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                release_data = response.json()
+                album_name = release_data.get("title", "Unknown Album")
+            except requests.RequestException:
+                album_name = "Unknown Album"
+
+        # For Various Artists compilations
+        upsert_album_tracks("Various Artists", album_name, tracks, album_mbid)
         return True
     return False
 

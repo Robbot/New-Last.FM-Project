@@ -211,6 +211,57 @@ def clean_album_name(artist: str, album: str) -> str:
     return album
 
 
+# ---------- Artist name mappings ----------
+_ARTIST_MAPPINGS_PATH = BASE_DIR / "app" / "services" / "artist_name_mappings.json"
+_artist_mappings_cache = None
+
+
+def _load_artist_mappings():
+    """Load artist name mappings from JSON file."""
+    global _artist_mappings_cache
+    if _artist_mappings_cache is None:
+        try:
+            if _ARTIST_MAPPINGS_PATH.exists():
+                with open(_ARTIST_MAPPINGS_PATH, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    _artist_mappings_cache = data.get('mappings', [])
+                    logger.debug(f"Loaded {len(_artist_mappings_cache)} artist name mappings")
+            else:
+                _artist_mappings_cache = []
+                logger.debug(f"No artist mappings file found at {_ARTIST_MAPPINGS_PATH}")
+        except Exception as e:
+            logger.error(f"Error loading artist mappings: {e}")
+            _artist_mappings_cache = []
+    return _artist_mappings_cache
+
+
+def clean_artist_name(artist: str) -> str:
+    """
+    Apply artist name corrections based on mapping file.
+
+    This handles cases where Last.fm/Spotify uses incorrect artist names
+    that won't be caught by automatic cleaning patterns.
+
+    Args:
+        artist: Original artist name from Last.fm/Spotify
+
+    Returns:
+        Corrected artist name if mapping exists, otherwise original artist name
+    """
+    if not artist:
+        return artist
+
+    mappings = _load_artist_mappings()
+
+    for mapping in mappings:
+        if mapping.get('from') == artist:
+            correct_name = mapping.get('to')
+            logger.info(f"Artist mapping: '{artist}' -> '{correct_name}'")
+            return correct_name
+
+    return artist
+
+
 def normalize_album_separators(title: str) -> str:
     """
     Normalize album title separators to use hyphens instead of colons.
@@ -331,21 +382,35 @@ def clean_title(title: str, artist: str = None, album: str = None) -> str:
 # ---------- Compilation album patterns ----------
 # Known compilation album series and patterns
 # These are albums that typically contain tracks from various artists
-# ONLY used for additional validation, NOT for auto-detection
-# Auto-detection is based SOLELY on artist count (4+ artists = compilation)
+# Compilation detection patterns
+# Used as fallback when album_mbid is not available
 _COMPILATION_PATTERNS = [
-    # German compilation series
+    # Soundtrack patterns (high confidence)
+    r'.*Soundtrack.*',
+    r'.*OST.*',  # Original Soundtrack
+    r'.*Original Motion Picture Soundtrack.*',
+    r'.*Motion Picture Soundtrack.*',
+    r'.*Music From and Inspired.*',
+    r'.*Music from the Motion Picture.*',
+    r'.*Score.*',  # Film scores
+    # Compilation series
     r'Kuschel Rock\s*\d*',
     r'Kuschelrock\s*\d*',
     r'Bravo Hits\s*\d*',
-    # Various Artists compilation series
     r'Now That\'?s What I Call Music',
     r'Now \d+',
     r'Totally \w+',
-    # Various Artists indicators in album name
+    # Various Artists indicators
     r'Various Artists',
     r'VA\s*-',
     r'\[VA\]',
+    r'^VA\b',
+    # Explicit compilation keywords
+    r'\bCompilations?\b',
+    r'\bAnthology\b',
+    r'\bCollection\b',
+    r'\bGreatest Hits\b.*Various',  # Various artists greatest hits
+    r'\bThe Best\b.*Various',
 ]
 
 def _matches_compilation_pattern(album: str) -> bool:
@@ -439,6 +504,80 @@ def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str 
         existing_artists.add(current_artist)
         # Check if we now have 4+ distinct artists
         if len(existing_artists) >= 4:
+            return True
+
+    return False
+
+
+def _is_album_compilation_with_fallback(conn: sqlite3.Connection, album: str, album_mbid: str | None, current_artist: str) -> bool:
+    """
+    Check if an album is a compilation with fallback detection for missing MBIDs.
+
+    This extends _is_album_compilation() by adding fallback mechanisms:
+    1. First tries the MBID-based detection (most accurate)
+    2. Falls back to pattern matching for known compilation types (soundtracks, etc.)
+    3. Falls back to artist count by album name only (less accurate, but better than nothing)
+
+    Args:
+        conn: Database connection
+        album: Album name
+        album_mbid: MusicBrainz ID for the album (can be None)
+        current_artist: The artist of the scrobble being processed
+
+    Returns:
+        True if the album should be marked as a compilation (album_artist = "Various Artists")
+    """
+    if not album:
+        return False
+
+    # First, try the accurate MBID-based detection
+    if album_mbid is not None:
+        return _is_album_compilation(conn, album, album_mbid, current_artist)
+
+    # Fallback 1: Check if album name matches known compilation patterns
+    # This is high confidence for soundtracks, OSTs, etc.
+    if _matches_compilation_pattern(album):
+        logger.debug(f"Album '{album}' matches compilation pattern (no MBID)")
+        return True
+
+    # Fallback 2: Check artist count by album name only (without MBID)
+    # This is less accurate but catches multi-artist compilations without MBIDs
+    # We use a higher threshold (6+ artists) to reduce false positives
+    cursor = conn.execute(
+        """
+        SELECT COUNT(DISTINCT artist) as artist_count
+        FROM scrobble
+        WHERE album = ?
+        """,
+        (album,)
+    )
+    row = cursor.fetchone()
+    existing_artist_count = row["artist_count"] if row else 0
+
+    # Include current artist in the count
+    total_artists = existing_artist_count
+
+    # Use higher threshold (6+ artists) when we don't have MBID to avoid false positives
+    if total_artists >= 6:
+        logger.debug(f"Album '{album}' has {total_artists}+ artists (no MBID)")
+        return True
+
+    # If we have 3-5 existing artists, check if current artist is different
+    if existing_artist_count >= 3:
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT artist
+            FROM scrobble
+            WHERE album = ?
+            LIMIT 7
+            """,
+            (album,)
+        )
+        existing_artists = {row["artist"] for row in cursor.fetchall()}
+        existing_artists.add(current_artist)
+
+        if len(existing_artists) >= 6:
+            logger.debug(f"Album '{album}' has {len(existing_artists)}+ artists (no MBID)")
             return True
 
     return False
@@ -693,6 +832,94 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     )
 
 
+def _update_compilation_albums_no_mbid(conn: sqlite3.Connection) -> None:
+    """
+    Update album_artist to 'Various Artists' for compilation albums without MBIDs.
+
+    This is a fallback for albums that don't have MusicBrainz IDs.
+    Uses:
+    1. Pattern matching for known compilation types (soundtracks, OSTs, etc.)
+    2. Artist count threshold (6+ artists) when no MBID is available
+
+    IMPORTANT: Uses a higher threshold (6+ artists) and pattern matching
+    to reduce false positives for albums without MBIDs.
+    """
+    updated_total = 0
+
+    # 1. Find albums matching compilation patterns (high confidence)
+    cursor = conn.execute(
+        """
+        SELECT DISTINCT album
+        FROM scrobble
+        WHERE album IS NOT NULL
+          AND album != ''
+          AND album_mbid IS NULL
+          AND album_artist != 'Various Artists'
+        """
+    )
+    albums_to_check = [row["album"] for row in cursor.fetchall()]
+
+    pattern_albums = []
+    for album in albums_to_check:
+        if _matches_compilation_pattern(album):
+            pattern_albums.append(album)
+
+    # Update albums matching compilation patterns
+    if pattern_albums:
+        placeholders = ",".join(["?" for _ in pattern_albums])
+        cursor = conn.execute(
+            f"""
+            UPDATE scrobble
+            SET album_artist = 'Various Artists'
+            WHERE album IN ({placeholders})
+              AND album_mbid IS NULL
+              AND album_artist != 'Various Artists'
+            """,
+            pattern_albums,
+        )
+        updated = cursor.rowcount
+        updated_total += updated
+        logger.info(f"Pattern-based: Updated {updated} scrobbles across {len(pattern_albums)} compilation albums (matched by name).")
+
+    # 2. Find albums with 6+ distinct artists (lower confidence)
+    cursor = conn.execute(
+        """
+        SELECT album
+        FROM scrobble
+        WHERE album IS NOT NULL
+          AND album != ''
+          AND album_mbid IS NULL
+          AND album_artist != 'Various Artists'
+        GROUP BY album
+        HAVING COUNT(DISTINCT artist) >= 6
+        """
+    )
+    high_artist_albums = [row["album"] for row in cursor.fetchall()]
+
+    # Update albums with high artist count
+    if high_artist_albums:
+        placeholders = ",".join(["?" for _ in high_artist_albums])
+        cursor = conn.execute(
+            f"""
+            UPDATE scrobble
+            SET album_artist = 'Various Artists'
+            WHERE album IN ({placeholders})
+              AND album_mbid IS NULL
+              AND album_artist != 'Various Artists'
+            """,
+            high_artist_albums,
+        )
+        updated = cursor.rowcount
+        updated_total += updated
+        logger.info(f"Artist-count-based: Updated {updated} scrobbles across {len(high_artist_albums)} compilation albums (6+ artists, no MBID).")
+
+    if updated_total > 0:
+        conn.commit()
+
+    if updated_total == 0:
+        logger.debug("No compilation albums (no MBID) found to update.")
+
+
 # ---------- Sync logic ----------
 
 def sync_lastfm() -> None:
@@ -761,6 +988,9 @@ def sync_lastfm() -> None:
                 artist_name = t["artist"]["#text"]
                 artist_mbid = t["artist"].get("mbid") or None
 
+                # Apply artist name mappings (for known incorrect artist names)
+                artist_name = clean_artist_name(artist_name)
+
                 if isinstance(t.get("album"), dict):
                     album_name = clean_title(t["album"]["#text"])
                     album_mbid = t["album"].get("mbid") or None
@@ -815,7 +1045,8 @@ def sync_lastfm() -> None:
 
                 # Determine album_artist: check if album is a compilation
                 # by looking at existing scrobbles in the database
-                if _is_album_compilation(conn, album_name, album_mbid, artist_name):
+                # Uses fallback detection for albums without MBIDs
+                if _is_album_compilation_with_fallback(conn, album_name, album_mbid, artist_name):
                     album_artist = "Various Artists"
                 else:
                     album_artist = artist_name
@@ -986,6 +1217,7 @@ def sync_lastfm() -> None:
         if chunk_new_scrobbles > 0:
             logger.info(f"Chunk {chunks_processed}: updating compilation album artists...")
             _update_compilation_albums(conn)
+            _update_compilation_albums_no_mbid(conn)
 
         # Move to next chunk
         chunk_start = chunk_end + 1
@@ -994,6 +1226,7 @@ def sync_lastfm() -> None:
     if total_new_scrobbles > 0:
         logger.info("Post-sync: final compilation album detection...")
         _update_compilation_albums(conn)
+        _update_compilation_albums_no_mbid(conn)
 
     conn.close()
     logger.info(f"Sync complete. Total new scrobbles added: {total_new_scrobbles}")

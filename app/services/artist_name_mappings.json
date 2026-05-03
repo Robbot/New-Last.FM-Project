@@ -1,0 +1,11 @@
+{
+  "mappings": [
+    {
+      "from": "Angine de poitrine",
+      "to": "Angine de Poitrine",
+      "reason": "Correct capitalization of 'Poitrine'"
+    }
+  ],
+  "last_updated": "2026-04-28",
+  "notes": "Artist name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect artist names that won't be caught by the automatic cleaning patterns."
+}

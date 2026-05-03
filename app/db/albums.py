@@ -189,24 +189,39 @@ def set_album_wikipedia_url(album_artist_name: str, album_name: str, wikipedia_u
         conn.close()
 
 
-def album_tracks_exist(album_artist_name: str, album_name: str) -> bool:
+def album_tracks_exist(album_artist_name: str, album_name: str, album_mbid: str = None) -> bool:
     """Check if album tracks exist in the database."""
     conn = get_db_connection()
-    row = conn.execute(
-        """
-        SELECT 1
-        FROM album_tracks
-        WHERE artist = ?
-          AND album  = ?
-        LIMIT 1
-        """,
-        (album_artist_name, album_name),
-    ).fetchone()
+
+    # For compilations with MBID, check by MBID (tracks have individual artists)
+    if album_artist_name.lower() in ("various artists", "various artist") and album_mbid:
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM album_tracks
+            WHERE album_mbid = ?
+            LIMIT 1
+            """,
+            (album_mbid,),
+        ).fetchone()
+    else:
+        # For regular albums or compilations without MBID, check by artist and album
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM album_tracks
+            WHERE artist = ?
+              AND album  = ?
+            LIMIT 1
+            """,
+            (album_artist_name, album_name),
+        ).fetchone()
+
     conn.close()
     return row is not None
 
 
-def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[dict[str, Any]]):
+def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[dict[str, Any]], album_mbid: str = None):
     """
     Insert or replace album tracks in the database.
 
@@ -217,12 +232,13 @@ def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[di
             {"artist": "Tool", "track": "The Grudge", "track_number": 1, "track_mbid": "..."},
             ...
         ]
+        album_mbid: MusicBrainz release ID (optional)
     """
     conn = get_db_connection()
     conn.executemany(
         """
-        INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number, track_mbid)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number, track_mbid, album_mbid)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -230,7 +246,8 @@ def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[di
                 album_name,
                 t["track"],
                 t["track_number"],
-                t.get("track_mbid")  # Add track_mbid
+                t.get("track_mbid"),
+                album_mbid
             )
             for t in tracks
         ],

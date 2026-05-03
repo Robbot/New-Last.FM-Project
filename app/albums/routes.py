@@ -100,10 +100,11 @@ def artist_album_detail(album_artist_name: str, album_name: str):
             tracks = fetch_album_tracklist_musicbrainz(album_artist_name, album_name)
 
         if tracks:
-            db.upsert_album_tracks(album_artist_name, album_name, tracks)
+            db.upsert_album_tracks(album_artist_name, album_name, tracks, album_mbid)
 
     # Get tracklist from database (may be empty if MusicBrainz doesn't have it)
-    rows = db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
+    # Use MBID-based function for more accurate results when MBID is available
+    rows = db.get_album_tracks_by_mbid(album_mbid, album_name, start=start or "", end=end or "", sort_by=sort_by) if album_mbid else db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
 
     # Fetch Wikipedia URL
     wikipedia_url = db.get_album_wikipedia_url(album_artist_name, album_name)

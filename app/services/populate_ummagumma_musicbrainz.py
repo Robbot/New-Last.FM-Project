@@ -38,7 +38,7 @@ def fetch_musicbrainz_data():
     """Fetch release data from MusicBrainz API."""
     headers = {
         "Accept": "application/json",
-        "User-Agent": "PythonMusicBrainz/1.0 (https://github.com/robbot)"
+        "User-Agent": "LastFMStats/1.0 (https://github.com/robbot/lastfmstats; lastfmstats@robbot.com)"
     }
 
     params = {
