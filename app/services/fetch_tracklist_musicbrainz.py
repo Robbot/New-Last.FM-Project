@@ -175,19 +175,20 @@ def fetch_and_store_tracklist(artist_name: str, album_name: str, album_mbid: str
     return False
 
 
-def fetch_and_store_tracklist_by_mbid(album_mbid: str, album_name: str = None) -> bool:
+def fetch_and_store_tracklist_by_mbid(album_mbid: str, artist_name: str = None, album_name: str = None) -> bool:
     """
     Fetch tracklist from MusicBrainz by MBID and store in database.
 
     Args:
         album_mbid: MusicBrainz release ID
+        artist_name: Artist name (optional, will be fetched from MusicBrainz if not provided)
         album_name: Album name (optional, will be fetched from MusicBrainz if not provided)
 
     Returns True if successful, False otherwise.
     """
     tracks = fetch_album_tracklist_by_mbid(album_mbid)
     if tracks:
-        # Use album_name from MusicBrainz if not provided
+        # Get album_name from MusicBrainz if not provided
         if not album_name:
             import requests
             release_url = f"{MUSICBRAINZ_API_BASE}/release/{album_mbid}"
@@ -201,8 +202,25 @@ def fetch_and_store_tracklist_by_mbid(album_mbid: str, album_name: str = None) -
             except requests.RequestException:
                 album_name = "Unknown Album"
 
-        # For Various Artists compilations
-        upsert_album_tracks("Various Artists", album_name, tracks, album_mbid)
+        # Determine artist name from MusicBrainz if not provided
+        if not artist_name:
+            import requests
+            release_url = f"{MUSICBRAINZ_API_BASE}/release/{album_mbid}"
+            params = {"inc": "artist-credits", "fmt": "json"}
+            headers = {"User-Agent": USER_AGENT}
+            try:
+                response = requests.get(release_url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                release_data = response.json()
+                artist_credits = release_data.get("artist-credit", [])
+                if artist_credits:
+                    artist_name = artist_credits[0].get("name", "Various Artists")
+                else:
+                    artist_name = "Various Artists"
+            except requests.RequestException:
+                artist_name = "Various Artists"
+
+        upsert_album_tracks(artist_name, album_name, tracks, album_mbid)
         return True
     return False
 
@@ -213,13 +231,20 @@ def main():
     parser = argparse.ArgumentParser(description='Fetch album tracklist from MusicBrainz')
     parser.add_argument('artist', help='Artist name')
     parser.add_argument('album', help='Album name')
+    parser.add_argument('--mbid', help='MusicBrainz release ID (UUID) - fetch directly by MBID instead of searching')
 
     args = parser.parse_args()
 
-    if fetch_and_store_tracklist(args.artist, args.album):
-        print(f"Successfully fetched and stored tracklist for {args.artist} - {args.album}")
+    if args.mbid:
+        if fetch_and_store_tracklist_by_mbid(args.mbid, args.album):
+            print(f"Successfully fetched and stored tracklist for MBID {args.mbid}")
+        else:
+            print(f"Failed to fetch tracklist for MBID {args.mbid}")
     else:
-        print(f"Failed to fetch tracklist for {args.artist} - {args.album}")
+        if fetch_and_store_tracklist(args.artist, args.album):
+            print(f"Successfully fetched and stored tracklist for {args.artist} - {args.album}")
+        else:
+            print(f"Failed to fetch tracklist for {args.artist} - {args.album}")
 
 
 if __name__ == "__main__":
