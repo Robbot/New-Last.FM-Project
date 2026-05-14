@@ -167,8 +167,58 @@
       "from": "Everything Is Beautiful / a Retrospective 1983-1995",
       "to": "Everything Is Beautiful: A Retrospective 1983–1995",
       "reason": "Spotify uses slash (/) instead of colon (:) and hyphen - proper title uses colon with en dash"
+    },
+    {
+      "artist": "Budka Suflera",
+      "from": "Za Ostatni Grosz",
+      "to": "Za ostatni grosz",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Budka Suflera",
+      "from": "Przechodniem Bylem Miedzy Wami",
+      "to": "Przechodniem byłem między wami",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Budka Suflera",
+      "from": "Bal Wszystkich Swietych",
+      "to": "Bal wszystkich świętych",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Budka Suflera",
+      "from": "Cień Wielkiej Góry",
+      "to": "Cień wielkiej góry",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Budka Suflera",
+      "from": "Nic Nie Boli Tak Jak Zycie",
+      "to": "Nic nie boli tak jak życie",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Budka Suflera",
+      "from": "Mokre Oczy",
+      "to": "Mokre oczy",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "from": "Tranquility Base Hotel + Casino",
+      "to": "Tranquility Base Hotel & Casino",
+      "reason": "Correct ampersand in album title"
     }
   ],
-  "last_updated": "2026-05-07",
-  "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns."
+  "last_updated": "2026-05-14",
+  "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
+  "track_mappings": [
+    {
+      "artist": "Budka Suflera",
+      "album": "Noc",
+      "from_track": "Wino Spiew I Lzy",
+      "to_track": "Wino, śpiew i łzy"
+    }
+  ]
 }

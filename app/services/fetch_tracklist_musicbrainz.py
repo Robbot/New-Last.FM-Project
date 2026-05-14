@@ -110,6 +110,51 @@ def fetch_album_tracklist_by_mbid(album_mbid: str) -> list[dict] | None:
         return None
 
 
+def _normalize_track_number(track_number: str, position: int) -> int:
+    """
+    Normalize vinyl/cassette style track numbers to CD-style sequential numbers.
+
+    Converts formats like "A1", "A2", "B1", "C1" to sequential integers 1, 2, 3, 4...
+    Also handles single letters like "A", "B" for vinyl sides.
+
+    Args:
+        track_number: Original track number string from MusicBrainz
+        position: Zero-based position of the track in the release (fallback)
+
+    Returns:
+        Integer track number
+    """
+    if not track_number:
+        return position + 1
+
+    # If it's already a simple integer, return it
+    try:
+        return int(track_number)
+    except (ValueError, TypeError):
+        pass
+
+    # Handle vinyl/cassette formats: "A1", "B2", "C3", etc.
+    if len(track_number) >= 2:
+        side_letter = track_number[0].upper()
+        number_part = track_number[1:]
+
+        # Check if this is a vinyl side format (letter + number)
+        if side_letter.isalpha() and number_part.isdigit():
+            side_num = ord(side_letter) - ord('A')  # A=0, B=1, C=2, etc.
+            track_num = int(number_part)
+            # Assume standard vinyl/cassette with consistent tracks per side
+            # A1=1, A2=2, B1=3, B2=4 (if 2 tracks per side)
+            # We need to calculate based on position since we don't know tracks per side
+            return position + 1
+
+        # Handle single letter tracks (some releases use "A", "B", "C" for sides)
+        if track_number.isalpha() and len(track_number) == 1:
+            return position + 1
+
+    # Fallback to position-based numbering
+    return position + 1
+
+
 def _extract_tracks_from_release(release_data: dict, artist_name: str | None, album_name: str) -> list[dict]:
     """
     Extract and format tracks from MusicBrainz release data.
@@ -124,6 +169,8 @@ def _extract_tracks_from_release(release_data: dict, artist_name: str | None, al
     from app.services.sync_lastfm import clean_title
 
     tracks = []
+    position = 0  # Track position for fallback numbering
+
     for medium in release_data.get("media", []):
         for track in medium.get("tracks", []):
             # Get track artist from artist-credit (for compilations)
@@ -136,13 +183,9 @@ def _extract_tracks_from_release(release_data: dict, artist_name: str | None, al
             # MusicBrainz has track title at track["title"], not track["recording"]["title"]
             track_name = clean_title(track.get("title", ""), track_artist, album_name)
 
-            # Extract track number (handle formats like "1", "A1", etc.)
-            track_number = track.get("number", "")
-            # Try to convert to integer if possible
-            try:
-                track_number = int(track_number)
-            except (ValueError, TypeError):
-                pass  # Keep as string if not a simple integer
+            # Extract and normalize track number
+            raw_track_number = track.get("number", "")
+            track_number = _normalize_track_number(raw_track_number, position)
 
             tracks.append({
                 "artist": track_artist,
@@ -150,6 +193,8 @@ def _extract_tracks_from_release(release_data: dict, artist_name: str | None, al
                 "track_number": track_number,
                 "track_mbid": track["recording"]["id"]
             })
+
+            position += 1
 
     return tracks
 
