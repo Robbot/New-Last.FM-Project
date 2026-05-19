@@ -209,9 +209,57 @@
       "from": "Tranquility Base Hotel + Casino",
       "to": "Tranquility Base Hotel & Casino",
       "reason": "Correct ampersand in album title"
+    },
+    {
+      "artist": "Killing Joke",
+      "from": "What's This For...!",
+      "to": "What's THIS For...!",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "Suicidal Tendencies",
+      "from": "Lights...Camera...Revolution",
+      "to": "Lights… Camera… Revolution!",
+      "reason": "Spotify uses incorrect ellipsis characters (...) instead of proper ellipsis (…) with spaces - proper title uses en dash (…) with spaces and exclamation mark"
+    },
+    {
+      "artist": "Suicidal Tendencies",
+      "from": "Lights Camera Revolution",
+      "to": "Lights… Camera… Revolution!",
+      "reason": "Spotify omits ellipsis characters entirely - proper title uses en dash (…) with spaces and exclamation mark"
+    },
+    {
+      "artist": "Pixies",
+      "from": "Complete 'B' Sides",
+      "to": "Complete B Sides",
+      "reason": "Remove unnecessary quotes around B - standard formatting"
+    },
+    {
+      "artist": "Piersi",
+      "from": "My Juz Sa Amerykany",
+      "to": "My Już Są Amerykany",
+      "reason": "Correct Polish spelling and capitalization - juź = już, są = ą"
+    },
+    {
+      "artist": "Sugababes",
+      "from": "Overloaded: the Singles Collection (International eAlbum)",
+      "to": "Overloaded: the Singles Collection",
+      "reason": "Remove (International eAlbum) suffix - not part of original album title"
+    },
+    {
+      "artist": "Tiësto",
+      "from": "Magikal Journey -The Hits Collection 1998 - 2008",
+      "to": "Magikal Journey: The Hits Collection 1998 - 2008",
+      "reason": "Spotify uses hyphen (-) instead of colon (:) - MusicBrainz canonical title uses colon"
+    },
+    {
+      "artist": "Tiësto",
+      "from": "Magikal Journey -The Hits Collection 1998",
+      "to": "Magikal Journey: The Hits Collection 1998 - 2008",
+      "reason": "Spotify uses incomplete album title with hyphen - correct to full compilation title with colon"
     }
   ],
-  "last_updated": "2026-05-14",
+  "last_updated": "2026-05-19",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
   "track_mappings": [
     {
@@ -219,6 +267,55 @@
       "album": "Noc",
       "from_track": "Wino Spiew I Lzy",
       "to_track": "Wino, śpiew i łzy"
+    },
+    {
+      "artist": "Enya",
+      "album": "Remixes & Bootlegs",
+      "from_track": "Orinoco Flow (Thunderpuss Cory Mix 2000)",
+      "to_track": "Orinoco Flow",
+      "target_album": "Oceans"
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "Nie Boj Sie, Jonek",
+      "to_track": "Nie Bój Się, Jonek..."
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "Nie bój się, Jonek",
+      "to_track": "Nie Bój Się, Jonek..."
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "Ida Chlopcy",
+      "to_track": "Idą Chłopcy"
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "ZCHN Zbliza Sie",
+      "to_track": "ZCHN zbliża się"
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "Mila",
+      "to_track": "Miła"
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "MIŁA",
+      "to_track": "Miła"
+    },
+    {
+      "artist": "Piersi",
+      "album": "Piersi",
+      "from_track": "Rodzina Slowem Silna",
+      "to_track": "Rodzina słowem silna"
     }
   ]
 }

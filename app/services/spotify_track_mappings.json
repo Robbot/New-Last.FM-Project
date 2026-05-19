@@ -325,6 +325,12 @@
       "to": "Nothing's Gonna Change My Love for You"
     },
     {
+      "artist": "Infectious Grooves",
+      "album": "Friends & Family 2",
+      "from": "Cat Got My Tounge",
+      "to": "Cat Got My Tongue"
+    },
+    {
       "artist": "Suicidal Tendencies",
       "album": "Friends & Family 2",
       "from": "Ain't Gonna to Take It",
@@ -521,7 +527,163 @@
       "album": "Everything Is Beautiful: A Retrospective 1983–1995",
       "from": "Kansas",
       "to": "Kansas (Flood mix)"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 1",
+      "to": "Équinoxe, Pt. 1"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 2",
+      "to": "Équinoxe, Pt. 2"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 3",
+      "to": "Équinoxe, Pt. 3"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 4",
+      "to": "Équinoxe, Pt. 4"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 5",
+      "to": "Équinoxe, Pt. 5"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 6",
+      "to": "Équinoxe, Pt. 6"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 7",
+      "to": "Équinoxe, Pt. 7"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe, Pt. 3",
+      "to": "Équinoxe, Pt. 3"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe, Pt. 4",
+      "to": "Équinoxe, Pt. 4"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe Part 8",
+      "to": "Équinoxe, Pt. 8"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe, Pt. 6",
+      "to": "Équinoxe, Pt. 6"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Équinoxe",
+      "from": "Equinoxe, Pt. 7",
+      "to": "Équinoxe, Pt. 7"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Equinoxe",
+      "from": "Equinoxe Part 1",
+      "to": "Équinoxe, Pt. 1"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Equinoxe",
+      "from": "Equinoxe Part 2",
+      "to": "Équinoxe, Pt. 2"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Equinoxe",
+      "from": "Equinoxe Part 4",
+      "to": "Équinoxe, Pt. 4"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Equinoxe",
+      "from": "Equinoxe Part 7",
+      "to": "Équinoxe, Pt. 7"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Equinoxe",
+      "from": "Equinoxe Part 8",
+      "to": "Équinoxe, Pt. 8"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Images",
+      "from": "Equinoxe part 4",
+      "to": "Équinoxe, Pt. 4"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "Images",
+      "from": "Equinoxe part 5",
+      "to": "Équinoxe, Pt. 5"
+    },
+    {
+      "artist": "Jean-Michel Jarre",
+      "album": "The Concerts in China, Vols. 1-2",
+      "from": "Equinoxe, Pt. 7",
+      "to": "Équinoxe, Pt. 7"
+    },
+    {
+      "artist": "Terry Jacks",
+      "album": "",
+      "from": "Season in the Sun",
+      "to": "Seasons in the Sun"
+    },
+    {
+      "artist": "Terry Jacks",
+      "album": "Kuschel Rock3",
+      "from": "Season in the Sun",
+      "to": "Seasons in the Sun"
+    },
+    {
+      "artist": "The Mission",
+      "album": "Grains of Sand",
+      "from": "Tower of Strength - the Casbah Mix",
+      "to": "Tower Of Strength (The Casbah Mix)"
+    },
+    {
+      "artist": "The Mission",
+      "album": "",
+      "from": "Tower of Strength - the Casbah Mix",
+      "to": "Tower Of Strength (The Casbah Mix)"
+    },
+    {
+      "artist": "Chłopcy z Placu Broni",
+      "album": "Krzyż",
+      "from": "Kocham Wolność",
+      "to": "Kocham Wolność (live)"
+    },
+    {
+      "artist": "Chłopcy z Placu Broni",
+      "album": "Krzyż",
+      "from": "Nasz nowy hymn",
+      "to": "Nasz nowy hymn (live)"
     }
   ],
-  "last_updated": "2026-05-07"
+  "last_updated": "2026-05-14"
 }

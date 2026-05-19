@@ -256,6 +256,85 @@ def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[di
     conn.close()
 
 
+def ensure_album_mbid_consistency(artist_name: str, album_name: str, album_mbid: str = None) -> str | None:
+    """
+    Ensure MBID consistency across scrobble, album_art, and album_tracks tables.
+
+    When updating album MBIDs, this function ensures all three tables use the same MBID:
+    1. If album_art has an MBID, use that (most reliable source)
+    2. Otherwise, use the provided album_mbid parameter
+    3. Updates all three tables to use the consistent MBID
+
+    Args:
+        artist_name: Artist name
+        album_name: Album name
+        album_mbid: Optional MBID to set if album_art doesn't have one
+
+    Returns:
+        The final consistent MBID, or None if no MBID is available
+    """
+    conn = get_db_connection()
+
+    # First, check if album_art has an MBID (preferred source)
+    art_row = conn.execute(
+        """
+        SELECT album_mbid
+        FROM album_art
+        WHERE artist = ? AND album = ?
+        LIMIT 1
+        """,
+        (artist_name, album_name)
+    ).fetchone()
+
+    if art_row and art_row["album_mbid"]:
+        final_mbid = art_row["album_mbid"]
+    else:
+        final_mbid = album_mbid
+
+    if not final_mbid:
+        conn.close()
+        return None
+
+    # Update scrobbles that are missing MBID or have a different MBID
+    conn.execute(
+        """
+        UPDATE scrobble
+        SET album_mbid = ?
+        WHERE artist = ? AND album = ?
+          AND (album_mbid IS NULL OR album_mbid != ?)
+        """,
+        (final_mbid, artist_name, album_name, final_mbid)
+    )
+
+    # Update album_art MBID if missing
+    conn.execute(
+        """
+        UPDATE album_art
+        SET album_mbid = ?
+        WHERE artist = ? AND album = ?
+          AND (album_mbid IS NULL OR album_mbid = '')
+        """,
+        (final_mbid, artist_name, album_name)
+    )
+
+    # Update album_tracks MBID if missing
+    conn.execute(
+        """
+        UPDATE album_tracks
+        SET album_mbid = ?
+        WHERE artist = ? AND album = ?
+          AND (album_mbid IS NULL OR album_mbid = '')
+        """,
+        (final_mbid, artist_name, album_name)
+    )
+
+    conn.commit()
+    conn.close()
+
+    logger.info(f"Ensured MBID consistency for {artist_name} - {album_name}: {final_mbid}")
+    return final_mbid
+
+
 def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", end: str = "", sort_by: str = "tracklist"):
     """
     Returns exactly ONE row per track, ordered by album track number (default)
@@ -877,6 +956,9 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
     Get album tracks by MBID.
     Returns exactly ONE row per track, ordered by album track number (default)
     or by play count (if sort_by='plays'), with correct play counts.
+
+    Falls back to album name matching for tracks with 0 plays via MBID matching
+    (handles cases where different releases have different MBIDs).
     """
     conn = get_db_connection()
 
@@ -963,9 +1045,7 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
 
     scrobbles = conn.execute(scrobble_query, scrobble_params).fetchall()
 
-    conn.close()
-
-    # Step 5: Match album_tracks with scrobbles using Python normalization
+    # Step 5: Build scrobble dict for MBID-based matching
     scrobble_dict = {}
     for scrobble in scrobbles:
         normalized = _normalize_track_name_for_matching(scrobble["track"])
@@ -974,8 +1054,11 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
             scrobble_dict[key] = []
         scrobble_dict[key].append(scrobble)
 
-    # Match album_tracks with scrobbles and build results
-    results = []
+    # Step 6: For tracks with 0 plays via MBID, fall back to album name matching (ignore MBID)
+    # First, identify tracks with 0 plays
+    tracks_with_zero_plays = []
+    initial_results = []
+
     for track in album_tracks:
         normalized_track = _normalize_track_name_for_matching(track["track"])
         track_artist = track["artist"]
@@ -987,12 +1070,91 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
                 album_plays = sum(s["plays"] for s in scrobble_dict[key] if s["artist"] == track_artist)
                 plays += album_plays
 
-        results.append({
+        initial_results.append({
             "track_number": track["track_number"],
             "track_name": track["track"],
             "track_artist": track_artist,
             "plays": plays,
         })
+
+        if plays == 0:
+            tracks_with_zero_plays.append({
+                "track_number": track["track_number"],
+                "track_name": track["track"],
+                "track_artist": track_artist,
+                "normalized_track": normalized_track,
+            })
+
+    # Step 7: Fallback query for tracks with 0 plays - use album name matching without MBID filter
+    if tracks_with_zero_plays:
+        # Get album_artist from first album track
+        album_artist = album_tracks[0]["artist"] if album_tracks else None
+
+        if album_artist:
+            # Find all scrobble albums matching the normalized album name (any MBID)
+            fallback_scrobble_albums = conn.execute(
+                """
+                SELECT DISTINCT album
+                FROM scrobble
+                WHERE album_artist = ?
+                """,
+                (album_artist,),
+            ).fetchall()
+
+            # Get all matching album names by normalization
+            fallback_album_names = []
+            for row in fallback_scrobble_albums:
+                if _normalize_for_matching(row["album"]) == normalized_album:
+                    fallback_album_names.append(row["album"])
+
+            if fallback_album_names:
+                # Get scrobbles for these albums (without MBID filter)
+                fallback_placeholders = ','.join(['?' for _ in fallback_album_names])
+                fallback_query = f"""
+                    SELECT track, artist, album, COUNT(*) AS plays
+                    FROM scrobble
+                    WHERE album_artist = ?
+                      AND album IN ({fallback_placeholders})
+                """
+                fallback_params = [album_artist] + fallback_album_names
+
+                if start and end:
+                    fallback_query += """ AND date(uts, 'unixepoch', 'localtime') >= ?
+                                           AND date(uts, 'unixepoch', 'localtime') <= ?"""
+                    fallback_params.extend([start, end])
+
+                fallback_query += " GROUP BY track, artist, album"
+
+                fallback_scrobbles = conn.execute(fallback_query, fallback_params).fetchall()
+
+                # Build fallback scrobble dict
+                fallback_dict = {}
+                for scrobble in fallback_scrobbles:
+                    normalized = _normalize_track_name_for_matching(scrobble["track"])
+                    key = (normalized, scrobble["album"])
+                    if key not in fallback_dict:
+                        fallback_dict[key] = []
+                    fallback_dict[key].append(scrobble)
+
+                # Update results for tracks with 0 plays using fallback data
+                for result in initial_results:
+                    if result["plays"] == 0:
+                        track_info = next(
+                            (t for t in tracks_with_zero_plays if t["track_number"] == result["track_number"]),
+                            None
+                        )
+                        if track_info:
+                            plays = 0
+                            for album_name_variant in fallback_album_names:
+                                key = (track_info["normalized_track"], album_name_variant)
+                                if key in fallback_dict:
+                                    album_plays = sum(s["plays"] for s in fallback_dict[key] if s["artist"] == track_info["track_artist"])
+                                    plays += album_plays
+                            result["plays"] = plays
+
+    conn.close()
+
+    results = initial_results
 
     # Sort by play count if requested
     if sort_by == "plays":

@@ -78,6 +78,16 @@ python -m app.services.batch_update_artist_mbids --artist "Artist Name"
 # Dry run first (no changes)
 python -m app.services.batch_update_artist_mbids --dry-run
 
+# Move scrobble to a different album with MBID consistency
+python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album"
+# With specific MBID
+python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album" --mbid "xxx-xxx"
+# Dry run first (no changes)
+python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album" --dry-run
+
+# Backfill album_mbids in album_tracks table
+python -m app.services.backfill_album_tracks_mbid
+
 # Activate virtual environment (if needed)
 source .venv/bin/activate
 
@@ -123,6 +133,8 @@ The Flask app uses a modular Blueprint architecture:
   - `clean_mismatches.py`: Interactive tool to clean up mismatches
   - `assign_compilation_tracks.py`: Assign tracks to albums for compilation albums
   - `merge_artists.py`: Merge artists when one artist has multiple names
+  - `move_scrobble_to_album.py`: Move scrobbles to different albums with MBID consistency checks
+  - `backfill_album_tracks_mbid.py`: Backfill missing album_mbids in album_tracks table from album_art or scrobble tables
   - `periodic_full_sync.py`: Comprehensive scan for gaps in scrobble data (runs daily at 5 AM)
   - `monitor_new_scrobbles.py`: Monitor for new scrobbles in real-time
   - `check_missing_wikipedia.py` / `update_missing_wikipedia.py`: Check/update missing Wikipedia URLs
