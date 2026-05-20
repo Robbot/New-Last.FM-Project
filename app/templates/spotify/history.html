@@ -1,0 +1,53 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Playlist History{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clock-history"></i> Playlist Generation History</h2>
+    <a href="{{ url_for('spotify.index') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+{% if history %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Tracks</th>
+                <th>Generated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in history %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>
+                    <span class="badge bg-secondary">{{ item.type }}</span>
+                </td>
+                <td>{{ item.track_count }}</td>
+                <td>{{ item.generated_at }}</td>
+                <td>
+                    {% if item.spotify_id %}
+                    <a href="https://open.spotify.com/playlist/{{ item.spotify_id }}" target="_blank" class="btn btn-sm btn-success">
+                        <i class="fab fa-spotify"></i> Open
+                    </a>
+                    {% else %}
+                    <span class="text-muted small">Not created</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No playlists have been generated yet.
+</div>
+{% endif %}
+{% endblock %}

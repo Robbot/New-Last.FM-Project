@@ -48,6 +48,7 @@ def create_app():
     from .trackgaps import trackgaps_bp
     from .daterange import daterange_bp
     from .admin import admin_bp
+    from .spotify import spotify_bp
     from .db import notifications as db_notifications  # Ensures notifications module is loaded
 
 
@@ -59,6 +60,7 @@ def create_app():
     app.register_blueprint(trackgaps_bp)
     app.register_blueprint(daterange_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(spotify_bp)
 
     api_key, username = get_api_key()
     app.config["api_key"] = api_key

@@ -1,0 +1,102 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Spotify Settings{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-gear"></i> Playlist Generation Settings</h2>
+    <a href="{{ url_for('spotify.index') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Default Playlist Parameters</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Forgotten Albums Threshold (days)</label>
+                        <input type="number" class="form-control" name="forgotten_days" value="{{ settings.forgotten_days }}">
+                        <small class="form-text text-muted">Albums not played in this many days are considered "forgotten"</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Top Tracks Period (days)</label>
+                        <input type="number" class="form-control" name="top_tracks_days" value="{{ settings.top_tracks_days }}">
+                        <small class="form-text text-muted">Time period for "top tracks" calculations</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Default Track Limit</label>
+                        <input type="number" class="form-control" name="default_limit" value="{{ settings.default_limit }}" min="1" max="100">
+                        <small class="form-text text-muted">Maximum number of tracks in generated playlists</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoGenerate" name="auto_generate" {% if settings.auto_generate %}checked{% endif %}>
+                            <label class="form-check-label" for="autoGenerate">
+                                Auto-generate playlists on schedule
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Schedule</label>
+                        <select class="form-select" name="schedule">
+                            <option value="daily" {% if settings.schedule == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="weekly" {% if settings.schedule == 'weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="monthly" {% if settings.schedule == 'monthly' %}selected{% endif %}>Monthly</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3">
+            <h6><i class="bi bi-exclamation-triangle"></i> Note</h6>
+            <p class="mb-0">Settings are currently stored in environment variables. To make persistent changes, update your <code>.env</code> file or system environment variables.</p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Current Configuration</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-8">Auto-generate:</dt>
+                    <dd class="col-sm-4">
+                        {% if settings.auto_generate %}
+                        <span class="badge bg-success">Enabled</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Disabled</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-8">Schedule:</dt>
+                    <dd class="col-sm-4">{{ settings.schedule|title }}</dd>
+
+                    <dt class="col-sm-8">Forgotten threshold:</dt>
+                    <dd class="col-sm-4">{{ settings.forgotten_days }} days</dd>
+
+                    <dt class="col-sm-8">Top tracks period:</dt>
+                    <dd class="col-sm-4">{{ settings.top_tracks_days }} days</dd>
+
+                    <dt class="col-sm-8">Default limit:</dt>
+                    <dd class="col-sm-4">{{ settings.default_limit }} tracks</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

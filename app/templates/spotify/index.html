@@ -1,0 +1,226 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Spotify Integration{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fab fa-spotify text-success"></i> Spotify Integration</h2>
+    {% if not authenticated %}
+    <a href="{{ url_for('spotify.auth') }}" class="btn btn-success">
+        <i class="bi bi-link-45deg"></i> Connect Spotify
+    </a>
+    {% endif %}
+</div>
+
+{% if not authenticated %}
+<div class="alert alert-info">
+    <h5><i class="bi bi-info-circle"></i> Connect Your Spotify Account</h5>
+    <p class="mb-0">To generate playlists based on your Last.fm statistics, you need to authenticate with Spotify first.</p>
+    <a href="{{ url_for('spotify.auth') }}" class="btn btn-success mt-2">Connect Now</a>
+</div>
+{% else %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> Connected to Spotify! You can generate playlists below.
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-music-note-list"></i> Generate Playlist</h5>
+            </div>
+            <div class="card-body">
+                <form id="playlistForm">
+                    <div class="mb-3">
+                        <label class="form-label">Playlist Type</label>
+                        <select class="form-select" id="playlistType" name="type" required>
+                            <option value="">Select playlist type...</option>
+                            <option value="forgotten">Forgotten Albums</option>
+                            <option value="top_tracks">Top Tracks</option>
+                            <option value="deep_cuts">Deep Cuts</option>
+                            <option value="high_rotation">High Rotation</option>
+                            <option value="track_gaps">Track Gaps (Rediscover)</option>
+                            <option value="recent_discoveries">Recent Discoveries</option>
+                            <option value="ai_mix">AI Mix</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="optionsContainer">
+                        <label class="form-label">Options</label>
+                        <div id="dynamicOptions"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Track Limit</label>
+                        <input type="number" class="form-control" id="trackLimit" name="limit" value="50" min="1" max="100">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" {% if not authenticated %}disabled{% endif %}>
+                        <i class="bi bi-magic"></i> Generate Playlist
+                    </button>
+                </form>
+
+                <div id="result" class="mt-3" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> Recent Playlists</h5>
+            </div>
+            <div class="card-body">
+                {% if history %}
+                <div class="list-group list-group-flush">
+                    {% for item in history[:10] %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ item.name }}</h6>
+                            <small>{{ item.generated_at }}</small>
+                        </div>
+                        <p class="mb-1"><small class="text-muted">{{ item.track_count }} tracks</small></p>
+                        {% if item.spotify_id %}
+                        <a href="https://open.spotify.com/playlist/{{ item.spotify_id }}" target="_blank" class="btn btn-sm btn-outline-success">
+                            <i class="fab fa-spotify"></i> Open in Spotify
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('spotify.history') }}" class="btn btn-sm btn-outline-primary">View All History</a>
+                </div>
+                {% else %}
+                <p class="text-muted">No playlists generated yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('playlistType').addEventListener('change', function() {
+    const type = this.value;
+    const optionsContainer = document.getElementById('dynamicOptions');
+    optionsContainer.innerHTML = '';
+
+    const options = {
+        'forgotten': `
+            <div class="input-group">
+                <span class="input-group-text">Days since last play</span>
+                <input type="number" class="form-control" id="daysThreshold" name="days" value="180" min="1">
+            </div>
+        `,
+        'top_tracks': `
+            <div class="input-group">
+                <span class="input-group-text">Period (days)</span>
+                <input type="number" class="form-control" id="periodDays" name="days" value="30" min="1">
+            </div>
+        `,
+        'deep_cuts': `
+            <div class="input-group mb-2">
+                <span class="input-group-text">Min plays</span>
+                <input type="number" class="form-control" id="minPlays" name="min_plays" value="3" min="1">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text">Max plays</span>
+                <input type="number" class="form-control" id="maxPlays" name="max_plays" value="20" min="1">
+            </div>
+        `,
+        'high_rotation': `
+            <div class="input-group mb-2">
+                <span class="input-group-text">Days to look back</span>
+                <input type="number" class="form-control" id="rotationDays" name="days" value="7" min="1">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text">Min plays</span>
+                <input type="number" class="form-control" id="rotationMinPlays" name="min_plays" value="3" min="1">
+            </div>
+        `,
+        'recent_discoveries': `
+            <div class="input-group">
+                <span class="input-group-text">Days to look back</span>
+                <input type="number" class="form-control" id="discoveryDays" name="days" value="30" min="1">
+            </div>
+        `,
+        'ai_mix': `
+            <div class="input-group mb-2">
+                <span class="input-group-text">Style</span>
+                <select class="form-select" id="aiStyle" name="style">
+                    <option value="forgotten">Forgotten</option>
+                    <option value="discovery">Discovery</option>
+                    <option value="familiar">Familiar</option>
+                    <option value="balanced">Balanced</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <span class="input-group-text">Diversity</span>
+                <select class="form-select" id="aiDiversity" name="diversity">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+        `
+    };
+
+    if (options[type]) {
+        optionsContainer.innerHTML = options[type];
+    }
+});
+
+document.getElementById('playlistForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const type = document.getElementById('playlistType').value;
+    if (!type) return;
+
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    data.type = type;
+
+    const resultDiv = document.getElementById('result');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> Generating playlist...</div>';
+
+    try {
+        const response = await fetch('{{ url_for("spotify.generate_playlist") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle"></i> Playlist Created!</h6>
+                    <p class="mb-1"><strong>${result.playlist.name}</strong></p>
+                    <p class="mb-1">${result.playlist.matched_tracks} tracks matched to Spotify</p>
+                    ${result.playlist.spotify_url ? `<a href="${result.playlist.spotify_url}" target="_blank" class="btn btn-sm btn-success mt-2"><i class="fab fa-spotify"></i> Open in Spotify</a>` : ''}
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${result.error}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Error: ${error.message}
+            </div>
+        `;
+    }
+});
+</script>
+{% endblock %}

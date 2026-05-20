@@ -1,0 +1,41 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Connect Spotify{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fab fa-spotify text-success" style="font-size: 4rem;"></i>
+                <h3 class="mt-3">Connect Your Spotify Account</h3>
+                <p class="text-muted">
+                    Authorize this application to create playlists on your Spotify account
+                    based on your Last.fm listening statistics.
+                </p>
+
+                <div class="alert alert-info text-start">
+                    <h6><i class="bi bi-info-circle"></i> Permissions Required</h6>
+                    <ul class="mb-0 small">
+                        <li>Read your playlists</li>
+                        <li>Create and edit playlists</li>
+                        <li>Access your library</li>
+                    </ul>
+                </div>
+
+                <a href="{{ auth_url }}" class="btn btn-success btn-lg">
+                    <i class="bi bi-link-45deg"></i> Authorize with Spotify
+                </a>
+
+                <hr>
+
+                <p class="small text-muted mb-0">
+                    <i class="bi bi-shield-check"></i>
+                    Your credentials are stored securely and only used to create playlists.
+                    You can revoke access at any time from your Spotify account settings.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
