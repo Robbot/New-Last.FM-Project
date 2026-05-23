@@ -407,8 +407,6 @@ _COMPILATION_PATTERNS = [
     r'^VA\b',
     # Explicit compilation keywords
     r'\bCompilations?\b',
-    r'\bAnthology\b',
-    r'\bCollection\b',
     r'\bGreatest Hits\b.*Various',  # Various artists greatest hits
     r'\bThe Best\b.*Various',
 ]
@@ -507,6 +505,29 @@ def _is_album_compilation(conn: sqlite3.Connection, album: str, album_mbid: str 
             return True
 
     return False
+
+
+def _is_single_artist_album(conn: sqlite3.Connection, album: str, album_mbid: str | None, current_artist: str) -> bool:
+    """
+    Check if an album has only been scrobbled by a single artist.
+
+    This prevents false positives where a single-artist greatest hits or
+    collection album gets incorrectly tagged as "Various Artists" because
+    the album name matches a compilation pattern (e.g. "Collection", "Anthology").
+    """
+    if album_mbid:
+        cursor = conn.execute(
+            "SELECT COUNT(DISTINCT artist) as cnt FROM scrobble WHERE album = ? AND album_mbid = ?",
+            (album, album_mbid),
+        )
+    else:
+        cursor = conn.execute(
+            "SELECT COUNT(DISTINCT artist) as cnt FROM scrobble WHERE album = ?",
+            (album,),
+        )
+    row = cursor.fetchone()
+    # Only the current artist exists (count is 0 or 1)
+    return row["cnt"] <= 1
 
 
 def _is_album_compilation_with_fallback(conn: sqlite3.Connection, album: str, album_mbid: str | None, current_artist: str) -> bool:
@@ -862,7 +883,15 @@ def _update_compilation_albums_no_mbid(conn: sqlite3.Connection) -> None:
     pattern_albums = []
     for album in albums_to_check:
         if _matches_compilation_pattern(album):
-            pattern_albums.append(album)
+            # Safety check: skip single-artist albums that happen to match a pattern
+            artist_count = conn.execute(
+                "SELECT COUNT(DISTINCT artist) as cnt FROM scrobble WHERE album = ? AND album_mbid IS NULL",
+                (album,),
+            ).fetchone()["cnt"]
+            if artist_count >= 3:
+                pattern_albums.append(album)
+            else:
+                logger.debug(f"Skipping single-artist album matching compilation pattern: '{album}' ({artist_count} artist(s))")
 
     # Update albums matching compilation patterns
     if pattern_albums:
@@ -1047,7 +1076,12 @@ def sync_lastfm() -> None:
                 # by looking at existing scrobbles in the database
                 # Uses fallback detection for albums without MBIDs
                 if _is_album_compilation_with_fallback(conn, album_name, album_mbid, artist_name):
-                    album_artist = "Various Artists"
+                    # Safety check: if all existing scrobbles for this album are
+                    # by the same artist, it's a single-artist collection, not a compilation
+                    if _is_single_artist_album(conn, album_name, album_mbid, artist_name):
+                        album_artist = artist_name
+                    else:
+                        album_artist = "Various Artists"
                 else:
                     album_artist = artist_name
 

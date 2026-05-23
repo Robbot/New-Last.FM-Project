@@ -13,7 +13,7 @@ from typing import Optional, List, Dict
 from urllib.parse import urlencode
 
 from .spotify_config import get_spotify_credentials
-from .connections import get_db_connection
+from app.db.connections import get_db_connection
 
 logger = logging.getLogger(__name__)
 

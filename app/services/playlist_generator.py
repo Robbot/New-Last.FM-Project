@@ -13,7 +13,7 @@ from typing import List, Dict, Optional
 
 from .spotify_api import SpotifyAPI, get_spotify_client
 from .spotify_matcher import SpotifyTrackMatcher, get_matcher
-from .connections import get_db_connection
+from app.db.connections import get_db_connection
 from app.db import playlist_queries
 from app.db.notifications import create_notification
 

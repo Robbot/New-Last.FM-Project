@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 from typing import Optional, List, Dict
 
 from .spotify_api import SpotifyAPI, get_spotify_client
-from .connections import get_db_connection
+from app.db.connections import get_db_connection
 
 logger = logging.getLogger(__name__)
 

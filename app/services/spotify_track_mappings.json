@@ -737,7 +737,37 @@
       "album": "Magikal Journey: The Hits Collection 1998 - 2008",
       "from": "Traffic - Radio Edit",
       "to": "Traffic (radio edit)"
+    },
+    {
+      "artist": "Cocteau Twins",
+      "album": "Victorialand",
+      "from": "How to Bring a Blush to the Sn",
+      "to": "How to Bring a Blush to the Snow"
+    },
+    {
+      "artist": "Helloween",
+      "album": "Better Than Raw",
+      "from": "Deliberately Limited Preliminary Prelude in Z",
+      "to": "Deliberately Limited Preliminary Prelude Period in Z"
+    },
+    {
+      "artist": "Wolfsheim",
+      "album": "Popkiller",
+      "from": "Kaufraush",
+      "to": "Kaufrausch"
+    },
+    {
+      "artist": "Stevie Wonder",
+      "album": "The Definitive Collection",
+      "from": "As - Edit",
+      "to": "As"
+    },
+    {
+      "artist": "Stevie Wonder",
+      "album": "The Definitive Collection",
+      "from": "Signed, Sealed, Delivered (I'm Yours)",
+      "to": "Signed, Sealed, Delivered I'm Yours"
     }
   ],
-  "last_updated": "2026-05-19"
+  "last_updated": "2026-05-23"
 }
