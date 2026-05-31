@@ -767,7 +767,25 @@
       "album": "The Definitive Collection",
       "from": "Signed, Sealed, Delivered (I'm Yours)",
       "to": "Signed, Sealed, Delivered I'm Yours"
+    },
+    {
+      "artist": "Sheryl Crow",
+      "album": "Hits and Rarities",
+      "from": "Sweet Child o' Mine",
+      "to": "Sweet Child o'Mine"
+    },
+    {
+      "artist": "Kazik",
+      "album": "Czterdziesty pierwszy",
+      "from": "Czego Chcesz Synu, Gdy Wszystkiego Masz Juz W Bród",
+      "to": "Czego zechcesz synu, gdy wszystkiego masz już w bród?"
+    },
+    {
+      "artist": "The Offspring",
+      "album": "Conspiracy of One",
+      "from": "Track 14",
+      "to": "Original Prankster"
     }
   ],
-  "last_updated": "2026-05-23"
+  "last_updated": "2026-05-30"
 }
