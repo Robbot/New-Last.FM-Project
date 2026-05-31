@@ -257,6 +257,12 @@
       "from": "Magikal Journey -The Hits Collection 1998",
       "to": "Magikal Journey: The Hits Collection 1998 - 2008",
       "reason": "Spotify uses incomplete album title with hyphen - correct to full compilation title with colon"
+    },
+    {
+      "artist": "Sex Pistols",
+      "from": "The Great Rock 'N' Roll Swindle",
+      "to": "The Great Rock 'n' Roll Swindle",
+      "reason": "Spotify capitalizes N incorrectly - proper spelling uses lowercase 'n'"
     }
   ],
   "last_updated": "2026-05-19",
