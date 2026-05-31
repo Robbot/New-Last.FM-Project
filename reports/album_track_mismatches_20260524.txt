@@ -1,5 +1,5 @@
 Album Track Mismatch Report — 20260524
-Total mismatches: 2917 across 1110 albums
+Total mismatches: 2901 across 1109 albums
 ======================================================================
 
 2Pac — All Eyez on Me
@@ -1225,7 +1225,6 @@ Armia — Legenda
     • Trzy bajki
 
   Mismatched scrobbles:
-    ✗ "3 Bajki" (100 plays)
     ✗ "Niezwyciezony" (7 plays)
     ✗ "Pustynia Spi" (6 plays)
     ✗ "Podroz Na Wschod" (5 plays)
@@ -10905,29 +10904,6 @@ Lenny Kravitz — Best Ballads
 
 ------------------------------------------------------------
 
-Leonard Cohen — More Best Of
-------------------------------------------------------------
-  Album tracklisting:
-    • Anthem
-    • Closing Time
-    • Dance Me To The End Of Love - Live in Toronto
-    • Democracy
-    • Everybody Knows
-    • Hallelujah - Live in Austin
-    • I'm Your Man
-    • Never Any Good
-    • Suzanne
-    • Take This Waltz
-    • The Future
-    • The Great Event
-    • Tower of Song
-
-  Mismatched scrobbles:
-    ✗ "Dance Me to the End of Love" (49 plays)
-    ✗ "Hallelujah" (7 plays)
-
-------------------------------------------------------------
-
 Life of Agony — Soul Searching Sun
 ------------------------------------------------------------
   Album tracklisting:
@@ -20108,24 +20084,23 @@ System of a Down — System of a Down
 System of a Down — Toxicity
 ------------------------------------------------------------
   Album tracklisting:
-    • Marmalade
-    • Metro
+    • ATWA
+    • Aerials / Arto
+    • Bounce
+    • Chop Suey!
+    • Deer Dance
+    • Forest
+    • Jet Pilot
+    • Needles
+    • Prison Song
+    • Psycho
+    • Science
+    • Shimmy
     • Toxicity
+    • X
 
   Mismatched scrobbles:
-    ✗ "Chop Suey!" (91 plays)
-    ✗ "Prison Song" (41 plays)
     ✗ "Aerials" (40 plays)
-    ✗ "Deer Dance" (17 plays)
-    ✗ "Jet Pilot" (17 plays)
-    ✗ "Needles" (17 plays)
-    ✗ "ATWA" (15 plays)
-    ✗ "Forest" (15 plays)
-    ✗ "Bounce" (14 plays)
-    ✗ "X" (14 plays)
-    ✗ "Science" (13 plays)
-    ✗ "Shimmy" (13 plays)
-    ✗ "Psycho" (11 plays)
     ✗ "Arto" (5 plays)
     ✗ "Aerials + Arto" (3 plays)
 
@@ -21628,7 +21603,6 @@ The Cure — Three Imaginary Boys
     • Three Imaginary Boys
 
   Mismatched scrobbles:
-    ✗ "Boys Don't Cry" (82 plays)
     ✗ "Heroin Face - the Rocket Live 12/77" (1 plays)
     ✗ "I Want to Be Old - 'Easy Care' Sav Studio Demo 10/77" (1 plays)
     ✗ "I'm Cold - Sav Studio Demo 11/77" (1 plays)
