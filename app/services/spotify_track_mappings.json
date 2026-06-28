@@ -785,7 +785,49 @@
       "album": "Conspiracy of One",
       "from": "Track 14",
       "to": "Original Prankster"
+    },
+    {
+      "artist": "The Police",
+      "album": "Ghost in the Machine",
+      "from": "Re-Humanise Yourself",
+      "to": "Rehumanize Yourself"
+    },
+    {
+      "artist": "The Police",
+      "album": "Ghost in the Machine",
+      "from": "Hungry for You",
+      "to": "Hungry For You (J'Aurais Toujours Faim De Toi)"
+    },
+    {
+      "artist": "Pixies",
+      "album": "Doolittle",
+      "from": "No 13 Baby",
+      "to": "No. 13 Baby"
+    },
+    {
+      "artist": "Stevie Wonder",
+      "album": "The Definitive Collection",
+      "from": "I Don't Know Why I Love You",
+      "to": "I Don't Know Why (I Love You)"
+    },
+    {
+      "artist": "Stevie Wonder",
+      "album": "The Definitive Collection",
+      "from": "Fingertips Pts. 1 & 2 - Live at the Regal Theater, Chicago/1962",
+      "to": "Fingertips, Pts. 1 & 2"
+    },
+    {
+      "artist": "Stevie Wonder",
+      "album": "The Definitive Collection",
+      "from": "Fingertips, Part 2 - Live At The Regal Theater/1963/ Single Version",
+      "to": "Fingertips, Pts. 1 & 2"
+    },
+    {
+      "artist": "Stevie Wonder",
+      "album": "The Definitive Collection",
+      "from": "He's Misstra Know-It-All",
+      "to": "He's Misstra Know It All"
     }
   ],
-  "last_updated": "2026-05-30"
+  "last_updated": "2026-06-27"
 }

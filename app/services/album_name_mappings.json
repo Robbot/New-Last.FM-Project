@@ -69,14 +69,14 @@
     {
       "artist": "New Model Army",
       "from": "History - the Best of New Model Army",
-      "to": "History - the Singles 85-91",
-      "reason": "Correct album title"
+      "to": "History: The Best Of",
+      "reason": "Canonical MusicBrainz release title"
     },
     {
       "artist": "New Model Army",
       "from": "Vengeance - the Whole Story 1980-84",
-      "to": "Vengeance: The Independent Story",
-      "reason": "MusicBrainz canonical title with proper colon punctuation - use 18-track tracklist from MBID f59fc0e1-2b1e-4878-b6bc-bbcbfba0eba9"
+      "to": "Vengeance",
+      "reason": "Canonical MusicBrainz release-group title - uses 18-track tracklist from MBID f59fc0e1-2b1e-4878-b6bc-bbcbfba0eba9"
     },
     {
       "artist": "Róże Europy",
@@ -263,9 +263,51 @@
       "from": "The Great Rock 'N' Roll Swindle",
       "to": "The Great Rock 'n' Roll Swindle",
       "reason": "Spotify capitalizes N incorrectly - proper spelling uses lowercase 'n'"
+    },
+    {
+      "artist": "Neurosis",
+      "from": "The Eye of the Every Storm",
+      "to": "The Eye of Every Storm",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "The Mars Volta",
+      "from": "Deloused in the Comatorium",
+      "to": "De-Loused in the Comatorium",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "The Mars Volta",
+      "from": "De-loused in the Comatorium",
+      "to": "De-Loused in the Comatorium",
+      "reason": "Manual correction"
+    },
+    {
+      "artist": "The Birthday Party",
+      "from": "Hee Haw",
+      "to": "Hee-Haw",
+      "reason": "Canonical MB release title (3b3c9f6b-e74f-414c-9c39-74ab0c72778f); merges the space variant"
+    },
+    {
+      "artist": "New Model Army",
+      "from": "History - the Singles 85-91",
+      "to": "History: The Best Of",
+      "reason": "Canonical MusicBrainz release title (MBID 3a587c34-071b-380c-b72c-0fbd56504dad)"
+    },
+    {
+      "artist": "New Model Army",
+      "from": "Vengeance: The Independent Story",
+      "to": "Vengeance",
+      "reason": "Canonical MusicBrainz release-group title (7b223f3b-4a07-3dab-8581-a8e40b8a8880)"
+    },
+    {
+      "artist": "New Model Army",
+      "from": "Carnival (Redux)",
+      "to": "Carnival",
+      "reason": "Canonical MusicBrainz release-group title (8a9209c2-be11-33d9-8451-fac989af71e1)"
     }
   ],
-  "last_updated": "2026-05-19",
+  "last_updated": "2026-06-28",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
   "track_mappings": [
     {
