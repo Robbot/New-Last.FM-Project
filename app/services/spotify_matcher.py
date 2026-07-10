@@ -13,6 +13,7 @@ from typing import Optional, List, Dict
 
 from .spotify_api import SpotifyAPI, get_spotify_client
 from app.db.connections import get_db_connection
+from app.db.entities import Resolver
 
 logger = logging.getLogger(__name__)
 
@@ -157,16 +158,26 @@ class SpotifyTrackMatcher:
         """
         try:
             conn = get_db_connection()
+            # Resolve canonical ids (Phase 2). Guard against empty names — the
+            # cache stores whatever the caller passed, ids are best-effort here.
+            artist_id = None
+            track_id = None
+            if artist and track:
+                resolver = Resolver(conn)
+                artist_id = resolver.resolve_artist_id(artist)
+                track_id = resolver.resolve_track_id(artist_id, track)
 
             conn.execute(
                 """
-                INSERT INTO spotify_track_cache (artist, album, track, spotify_uri)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO spotify_track_cache (artist, album, track, spotify_uri, artist_id, track_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(artist, album, track) DO UPDATE SET
                     spotify_uri = excluded.spotify_uri,
+                    artist_id = COALESCE(excluded.artist_id, spotify_track_cache.artist_id),
+                    track_id = COALESCE(excluded.track_id, spotify_track_cache.track_id),
                     last_updated = strftime('%s', 'now')
                 """,
-                (artist, album, track, uri),
+                (artist, album, track, uri, artist_id, track_id),
             )
 
             conn.commit()

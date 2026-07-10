@@ -253,3 +253,37 @@ def resolve_track_id(
     track_mbid: str | None = None,
 ) -> int:
     return Resolver(conn).resolve_track_id(artist_id, track_title, track_mbid)
+
+
+# --- Read-only lookups (no entity creation) -------------------------------
+# For read paths that need to find an existing canonical id from a name without
+# creating entities. Returns None when the name is not in the alias tables.
+
+def lookup_track_id(conn: sqlite3.Connection, artist_name: str, track_name: str) -> int | None:
+    """Find the canonical track_id for (artist_name, track_name) using the alias
+    tables, without creating anything. Handles variant spellings (case/accent/
+    suffix) the same way writes do. Returns None if not found.
+    """
+    if not artist_name or not track_name:
+        return None
+
+    # Artist id: exact alias spelling, then a unique normalized match.
+    row = conn.execute(
+        "SELECT artist_id FROM artist_alias WHERE alias_name = ?", (artist_name,)
+    ).fetchone()
+    if not row:
+        norm_artist = _normalize_for_matching(artist_name)
+        rows = conn.execute(
+            "SELECT DISTINCT artist_id FROM artist_alias WHERE norm_name = ?", (norm_artist,)
+        ).fetchall()
+        if len(rows) != 1:
+            return None
+        row = rows[0]
+    artist_id = row[0]
+
+    norm_track = _normalize_track_name_for_matching(track_name)
+    t = conn.execute(
+        "SELECT track_id FROM track_alias WHERE artist_id = ? AND norm_title = ?",
+        (artist_id, norm_track),
+    ).fetchone()
+    return t[0] if t else None

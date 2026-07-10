@@ -20,8 +20,9 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.services.config import get_api_key
-from app.services.sync_lastfm import clean_title, ensure_schema
+from app.services.sync_lastfm import clean_title, clean_album_name, clean_artist_name, ensure_schema
 from app.services.track_album_routing import apply_track_album_routing
+from app.db.entities import Resolver
 from app.db.notifications import create_notification
 from app.logging_config import setup_logging
 from app.logging_config import get_logger
@@ -276,18 +277,30 @@ def run_full_gap_check():
                 # Insert missing scrobbles if auto-insert is enabled
                 if AUTO_INSERT_MISSING:
                     conn = get_conn()
+                    resolver = Resolver(conn)
                     inserted = 0
 
                     for uts, artist, album, track in missing:
                         try:
+                            # Apply the same cleaning as sync_lastfm so gap-filled
+                            # scrobbles are stored identically (artist/album name
+                            # mappings), then resolve canonical ids (Phase 2).
+                            artist = clean_artist_name(artist)
+                            album = clean_album_name(artist, album)
+                            track = clean_title(track)
+                            artist_id = resolver.resolve_artist_id(artist)
+                            album_id = resolver.resolve_album_id(artist_id, album)
+                            track_id = resolver.resolve_track_id(artist_id, track)
                             cur = conn.cursor()
                             cur.execute(
                                 """
                                 INSERT OR IGNORE INTO scrobble
-                                (artist, album, track, uts, album_artist)
-                                VALUES (?, ?, ?, ?, ?)
+                                (artist, album, track, uts, album_artist,
+                                 artist_id, album_id, track_id)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                                 """,
-                                (artist, album, track, uts, artist)
+                                (artist, album, track, uts, artist,
+                                 artist_id, album_id, track_id)
                             )
                             if cur.rowcount > 0:
                                 inserted += 1

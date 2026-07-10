@@ -13,6 +13,7 @@ import requests
 from flask import current_app, url_for
 
 from .connections import get_db_connection, _normalize_for_matching, _normalize_track_name_for_matching
+from .entities import Resolver
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,14 @@ def get_album_stats():
 
 
 def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
-    """Albums sorted by plays (scrobbles) desc."""
+    """Albums sorted by plays (scrobbles) desc.
+
+    Grouped by canonical album_id so name variants of the same album
+    (e.g. 'Heroes' vs '"Heroes"', case/accent differences) count together.
+    album_art is pre-collapsed to one row per album_id (MAX year_col) so the
+    join never multiplies scrobble rows. Display columns (album/artist) are a
+    representative spelling from the group.
+    """
     conn = get_db_connection()
 
     sql = """
@@ -55,10 +63,14 @@ def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
             COUNT(*) AS plays,
             aa.year_col
         FROM scrobble s
-        LEFT JOIN album_art aa ON
-            aa.artist = s.album_artist AND
-            aa.album = s.album
+        LEFT JOIN (
+            SELECT album_id, MAX(year_col) AS year_col
+            FROM album_art
+            WHERE album_id IS NOT NULL
+            GROUP BY album_id
+        ) aa ON aa.album_id = s.album_id
         WHERE s.album IS NOT NULL AND s.album != ''
+          AND s.album_id IS NOT NULL
     """
     params = []
 
@@ -75,7 +87,7 @@ def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
         params.extend([search_pattern, search_pattern, search_pattern])
 
     sql += """
-        GROUP BY s.album, s.artist, s.album_artist, aa.year_col
+        GROUP BY s.album_id
         ORDER BY plays DESC
     """
 
@@ -235,22 +247,29 @@ def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[di
         album_mbid: MusicBrainz release ID (optional)
     """
     conn = get_db_connection()
+    resolver = Resolver(conn)
+    # The album entity is shared across all tracks; key it under the album's
+    # nominal artist. Each track resolves its own artist_id / track_id.
+    album_owner_id = resolver.resolve_artist_id(album_artist_name)
+    album_id = resolver.resolve_album_id(album_owner_id, album_name, album_mbid)
+    rows = []
+    for t in tracks:
+        track_artist = t.get("artist", album_artist_name)
+        artist_id = resolver.resolve_artist_id(track_artist)
+        track_id = resolver.resolve_track_id(artist_id, t["track"], t.get("track_mbid"))
+        rows.append((
+            track_artist, album_name, t["track"], t["track_number"],
+            t.get("track_mbid"), album_mbid,
+            artist_id, album_id, track_id,
+        ))
     conn.executemany(
         """
-        INSERT OR REPLACE INTO album_tracks (artist, album, track, track_number, track_mbid, album_mbid)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO album_tracks
+            (artist, album, track, track_number, track_mbid, album_mbid,
+             artist_id, album_id, track_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        [
-            (
-                t.get("artist", album_artist_name),
-                album_name,
-                t["track"],
-                t["track_number"],
-                t.get("track_mbid"),
-                album_mbid
-            )
-            for t in tracks
-        ],
+        rows,
     )
     conn.commit()
     conn.close()
@@ -850,22 +869,29 @@ def get_top_compilations(start: str = "", end: str = "", search_term: str = ""):
     """Compilations sorted by plays (scrobbles) desc."""
     conn = get_db_connection()
 
-    # Single efficient query using window function to get representative artist
+    # Grouped by canonical album_id so a compilation fragmented by missing or
+    # mistagged album_mbid (or album-name variants) still counts as one album.
+    # album_art is pre-collapsed to one row per album_id so the join does not
+    # multiply scrobble rows; a window function picks a representative artist.
     sql = """
         WITH compilation_stats AS (
             SELECT
-                COALESCE(s.album_mbid, s.album) AS album_key,
-                s.album_mbid,
+                s.album_id AS album_key,
+                MAX(s.album_mbid) AS album_mbid,
                 MAX(s.album) AS album,
                 COUNT(DISTINCT s.artist) AS artist_count,
                 COUNT(*) AS plays,
                 MAX(aa.year_col) AS year_col
             FROM scrobble s
-            LEFT JOIN album_art aa ON
-                aa.artist = s.album_artist AND
-                aa.album = s.album
+            LEFT JOIN (
+                SELECT album_id, MAX(year_col) AS year_col
+                FROM album_art
+                WHERE album_id IS NOT NULL
+                GROUP BY album_id
+            ) aa ON aa.album_id = s.album_id
             WHERE s.album_artist = 'Various Artists'
               AND s.album IS NOT NULL AND s.album != ''
+              AND s.album_id IS NOT NULL
         """
     params = []
 
@@ -882,17 +908,17 @@ def get_top_compilations(start: str = "", end: str = "", search_term: str = ""):
         params.append(search_pattern)
 
     sql += """
-            GROUP BY COALESCE(s.album_mbid, s.album)
+            GROUP BY s.album_id
         ),
         top_artists AS (
             SELECT
-                COALESCE(s.album_mbid, s.album) AS album_key,
+                s.album_id AS album_key,
                 s.artist AS representative_artist
             FROM scrobble s
             WHERE s.album_artist = 'Various Artists'
               AND s.album IS NOT NULL AND s.album != ''
-            GROUP BY COALESCE(s.album_mbid, s.album), s.artist, s.album
-            ORDER BY COALESCE(s.album_mbid, s.album), COUNT(*) DESC
+              AND s.album_id IS NOT NULL
+            GROUP BY s.album_id, s.artist
         )
         SELECT
             cs.*,

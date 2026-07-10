@@ -5,6 +5,7 @@ import logging
 from datetime import timedelta
 
 from .connections import get_db_connection, _normalize_for_matching
+from .entities import Resolver
 
 logger = logging.getLogger(__name__)
 
@@ -323,12 +324,13 @@ def set_artist_info(artist_name: str, image_url: str | None, bio: str | None, wi
     """
     conn = get_db_connection()
     try:
+        artist_id = Resolver(conn).resolve_artist_id(artist_name)
         conn.execute(
             """
-            INSERT OR REPLACE INTO artist_info (artist_name, image_url, bio, wikipedia_url, last_updated)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT OR REPLACE INTO artist_info (artist_name, artist_id, image_url, bio, wikipedia_url, last_updated)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """,
-            (artist_name, image_url, bio, wikipedia_url),
+            (artist_name, artist_id, image_url, bio, wikipedia_url),
         )
         conn.commit()
         return True
@@ -460,6 +462,7 @@ def set_musicbrainz_releases(artist_mbid: str, artist_name: str, releases: list[
 
     conn = get_db_connection()
     try:
+        artist_id = Resolver(conn).resolve_artist_id(artist_name)
         # Insert or replace releases
         for release in releases:
             # Handle secondary_types - convert list to JSON string for storage
@@ -473,12 +476,13 @@ def set_musicbrainz_releases(artist_mbid: str, artist_name: str, releases: list[
             conn.execute(
                 """
                 INSERT OR REPLACE INTO musicbrainz_releases
-                (artist_mbid, artist_name, album_title, release_year, album_mbid, release_type, primary_type, secondary_types, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                (artist_mbid, artist_name, artist_id, album_title, release_year, album_mbid, release_type, primary_type, secondary_types, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 """,
                 (
                     artist_mbid,
                     artist_name,
+                    artist_id,
                     release.get("title", ""),
                     release.get("year"),
                     release.get("mbid", ""),

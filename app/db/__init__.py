@@ -32,6 +32,7 @@ from .entities import (
     resolve_artist_id,
     resolve_album_id,
     resolve_track_id,
+    lookup_track_id,
 )
 
 # Import and re-export scrobbles
@@ -109,6 +110,7 @@ __all__ = [
     "resolve_artist_id",
     "resolve_album_id",
     "resolve_track_id",
+    "lookup_track_id",
     # Scrobbles
     "get_latest_scrobbles",
     "average_scrobbles_per_day",

@@ -36,6 +36,7 @@ from .sync_lastfm import (
 
 from app.logging_config import setup_logging
 from app.db.notifications import create_notification
+from app.db.entities import Resolver
 
 # Setup logging
 setup_logging()
@@ -93,6 +94,7 @@ def import_scrobbles_from_csv(csv_path: Path, batch_size: int = 1000) -> dict:
 
     conn = get_conn()
     cur = conn.cursor()
+    resolver = Resolver(conn)
 
     # Statistics
     stats = {
@@ -156,8 +158,15 @@ def import_scrobbles_from_csv(csv_path: Path, batch_size: int = 1000) -> dict:
                 album_clean = clean_title(album) if album else None
                 track_clean = clean_title(track)
 
+                # Resolve canonical entity ids (Phase 2). album may be None
+                # for CSV rows without an album; the resolver handles empty titles.
+                artist_id = resolver.resolve_artist_id(artist_clean)
+                album_id = resolver.resolve_album_id(artist_id, album_clean or "")
+                track_id = resolver.resolve_track_id(artist_id, track_clean)
+
                 # Prepare insert tuple
-                # Format: (artist, artist_mbid, album, album_mbid, track, track_mbid, uts, album_artist, source)
+                # Format: (artist, artist_mbid, album, album_mbid, track, track_mbid,
+                #          uts, album_artist, source, artist_id, album_id, track_id)
                 scrobble_batch.append((
                     artist_clean,           # artist
                     None,                   # artist_mbid (not available in CSV)
@@ -167,7 +176,8 @@ def import_scrobbles_from_csv(csv_path: Path, batch_size: int = 1000) -> dict:
                     None,                   # track_mbid (not available in CSV)
                     uts,                    # uts (Unix timestamp)
                     artist_clean,           # album_artist (same as artist for CSV import)
-                    'csv_import'            # source (identifies these as imported from CSV)
+                    'csv_import',           # source (identifies these as imported from CSV)
+                    artist_id, album_id, track_id
                 ))
 
                 # Insert batch when it reaches batch_size
@@ -255,8 +265,9 @@ def _insert_batch(conn: sqlite3.Connection, cur: sqlite3.Cursor, batch: list[tup
             """
             INSERT OR IGNORE INTO scrobble
                 (artist, artist_mbid, album, album_mbid,
-                 track, track_mbid, uts, album_artist, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                 track, track_mbid, uts, album_artist, source,
+                 artist_id, album_id, track_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             batch
         )

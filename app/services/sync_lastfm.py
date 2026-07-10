@@ -20,6 +20,7 @@ from .config import get_api_key  # your helper: returns (api_key, username)
 from app.db.notifications import create_notification, ensure_notifications_table
 from app.services.track_album_routing import apply_track_album_routing
 from app.services.migrate_entity_tables import ensure_entity_schema
+from app.db.entities import Resolver
 
 # ---------- Constants ----------
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -967,6 +968,9 @@ def sync_lastfm() -> None:
 
     conn = get_conn()
     ensure_schema(conn)
+    # One resolver per sync connection; its cache warms as distinct entities
+    # are seen, so post-first-page resolves are dict hits. (Phase 2)
+    resolver = Resolver(conn)
 
     last_uts = get_last_uts(conn)
     logger.info(f"Last known timestamp in database: {last_uts} ({time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(last_uts))} UTC)")
@@ -1121,11 +1125,19 @@ def sync_lastfm() -> None:
                     # Track names differ but normalize the same - log for review
                     logger.info(f'Track name variation: "{track_name}" → "{track_validation["matched_track"]}" for {artist_name} - {album_name}')
 
+                # Resolve canonical entity ids (Phase 2 write-time resolution).
+                # Done after cleaning + album_artist detection so the ids match
+                # the cleaned values that get stored on the scrobble row.
+                artist_id = resolver.resolve_artist_id(artist_name, artist_mbid)
+                album_id = resolver.resolve_album_id(artist_id, album_name, album_mbid, album_artist)
+                track_id = resolver.resolve_track_id(artist_id, track_name, track_mbid)
+
                 scrobble_batch.append(
                     (artist_name, artist_mbid, album_name,
                      album_mbid, track_name, track_mbid, uts,
                      album_artist,  # Set based on compilation detection
-                     'lastfm')     # source = 'lastfm' for Last.fm API scrobbles
+                     'lastfm',      # source = 'lastfm' for Last.fm API scrobbles
+                     artist_id, album_id, track_id)
                 )
 
                 # Collect album_art info for ALL albums (with or without MBID)
@@ -1154,6 +1166,8 @@ def sync_lastfm() -> None:
                             "album": album_name,
                             "album_mbid": album_mbid,
                             "artist_mbid": artist_mbid,
+                            "artist_id": artist_id,
+                            "album_id": album_id,
                             "image_small": img_small,
                             "image_medium": img_medium,
                             "image_large": img_large,
@@ -1175,8 +1189,9 @@ def sync_lastfm() -> None:
                 """
                 INSERT OR IGNORE INTO scrobble
                     (artist, artist_mbid, album, album_mbid,
-                     track, track_mbid, uts, album_artist, source)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                     track, track_mbid, uts, album_artist, source,
+                     artist_id, album_id, track_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 scrobble_batch,
             )
@@ -1217,17 +1232,21 @@ def sync_lastfm() -> None:
                         """
                         INSERT INTO album_art (
                             artist, album, album_mbid, artist_mbid,
+                            artist_id, album_id,
                             image_small, image_medium, image_large, image_xlarge,
                             last_updated
                         )
                         VALUES (
                             :artist, :album, :album_mbid, :artist_mbid,
+                            :artist_id, :album_id,
                             :image_small, :image_medium, :image_large, :image_xlarge,
                             :last_updated
                         )
                         ON CONFLICT(artist, album) DO UPDATE SET
                             album_mbid      = COALESCE(excluded.album_mbid, album_art.album_mbid),
                             artist_mbid     = COALESCE(excluded.artist_mbid, album_art.artist_mbid),
+                            artist_id       = COALESCE(excluded.artist_id, album_art.artist_id),
+                            album_id        = COALESCE(excluded.album_id, album_art.album_id),
                             image_small     = COALESCE(excluded.image_small, album_art.image_small),
                             image_medium    = COALESCE(excluded.image_medium, album_art.image_medium),
                             image_large     = COALESCE(excluded.image_large, album_art.image_large),

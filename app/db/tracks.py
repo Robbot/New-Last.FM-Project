@@ -4,6 +4,7 @@ Track-related database queries.
 import logging
 
 from .connections import get_db_connection
+from .entities import lookup_track_id
 
 logger = logging.getLogger(__name__)
 
@@ -31,25 +32,37 @@ def get_track_stats():
 
 
 def get_track_stats_detail(artist_name: str, track_name: str):
-    """Get detailed statistics for a specific track."""
+    """Get detailed statistics for a specific track.
+
+    Matches by canonical track_id so variant/escaped spellings (case, accents,
+    remastered suffixes) resolve to one track instead of defeating the old
+    LOWER/REPLACE text matching.
+    """
     conn = get_db_connection()
+    track_id = lookup_track_id(conn, artist_name, track_name)
+    if track_id is None:
+        conn.close()
+        # Mimic the old row shape: a Row with plays = 0
+        return {"plays": 0}
     row = conn.execute(
-         """
-        SELECT
-            COUNT(*) AS plays
+        """
+        SELECT COUNT(*) AS plays
         FROM scrobble
-        WHERE lower(trim(artist)) = lower(trim(?))
-          AND lower(replace(replace(replace(trim(track), '\\!', '!'), '\\?', '?'), '\\[', '[')) = lower(trim(?))
+        WHERE track_id = ?
         """,
-        (artist_name, track_name),
+        (track_id,),
     ).fetchone()
     conn.close()
     return row
 
 
 def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
-    """Get recent scrobbles for a specific track."""
+    """Get recent scrobbles for a specific track (matched by canonical track_id)."""
     conn = get_db_connection()
+    track_id = lookup_track_id(conn, artist_name, track_name)
+    if track_id is None:
+        conn.close()
+        return []
     rows = conn.execute(
         """
         SELECT
@@ -59,12 +72,10 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
             track,
             strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
         FROM scrobble
-        WHERE
-            LOWER(TRIM(artist)) = LOWER(TRIM(?))
-            AND LOWER(replace(replace(replace(trim(track), '\\!', '!'), '\\?', '?'), '\\[', '[')) = LOWER(TRIM(?))
+        WHERE track_id = ?
         ORDER BY uts DESC
         """,
-        (artist_name, track_name),
+        (track_id,),
     ).fetchall()
     conn.close()
     return rows
@@ -130,19 +141,21 @@ def get_top_tracks(start: str = "", end: str = "", search_term: str = ""):
 
 
 def get_track_overview(artist_name: str, track_name: str):
-    """Get overview statistics for a specific track."""
+    """Get overview statistics for a specific track (matched by canonical track_id)."""
     conn = get_db_connection()
+    track_id = lookup_track_id(conn, artist_name, track_name)
+    if track_id is None:
+        conn.close()
+        return None
     row = conn.execute(
         """
         SELECT
             COUNT(*) AS plays,
             COUNT(DISTINCT album) AS albums
         FROM scrobble
-        WHERE
-            LOWER(TRIM(artist)) = LOWER(TRIM(?))
-            AND LOWER(TRIM(track)) = LOWER(TRIM(?))
+        WHERE track_id = ?
         """,
-        (artist_name, track_name),
+        (track_id,),
     ).fetchone()
     conn.close()
 

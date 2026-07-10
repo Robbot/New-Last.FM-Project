@@ -30,6 +30,7 @@ from app.db.connections import (
     _normalize_for_matching,
     _normalize_track_name_for_matching,
 )
+from app.db.entities import Resolver
 
 logger = get_logger(__name__)
 
@@ -113,6 +114,9 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
         rules = [r for r in rules if r.get("artist") == artist_filter]
 
     summary = {"rules": [], "total_moves": 0}
+    resolver = Resolver(conn)
+    # Cache resolved target album_ids by (artist_id, album, mbid) — few per rule.
+    target_album_ids: dict[tuple, int] = {}
 
     for rule in rules:
         artist = rule.get("artist")
@@ -120,6 +124,8 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
         routes = rule.get("routes") or []
         if not artist or not conflict_albums or not routes:
             continue
+
+        artist_id = resolver.resolve_artist_id(artist)
 
         # Build normalized track -> (album, album_mbid) lookup for this rule
         track_to_route = {}
@@ -157,11 +163,19 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
                 )
                 moved += 1
             else:
+                # Re-resolve the destination album_id so moved scrobbles point
+                # at the new album's canonical entity (Phase 2). Cached per target.
+                tk = (artist_id, new_album, new_mbid)
+                target_aid = target_album_ids.get(tk)
+                if target_aid is None:
+                    target_aid = resolver.resolve_album_id(artist_id, new_album, new_mbid or None)
+                    target_album_ids[tk] = target_aid
                 # UPDATE OR IGNORE so a UNIQUE(uts,artist,album,track) collision
                 # skips that row rather than aborting the whole batch.
                 cur = conn.execute(
-                    "UPDATE OR IGNORE scrobble SET album = ?, album_mbid = ? WHERE id = ?",
-                    (new_album, new_mbid, row["id"]),
+                    "UPDATE OR IGNORE scrobble "
+                    "SET album = ?, album_mbid = ?, album_id = ? WHERE id = ?",
+                    (new_album, new_mbid, target_aid, row["id"]),
                 )
                 moved += cur.rowcount
 
