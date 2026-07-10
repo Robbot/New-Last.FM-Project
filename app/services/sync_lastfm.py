@@ -18,6 +18,8 @@ import json
 from pathlib import Path
 from .config import get_api_key  # your helper: returns (api_key, username)
 from app.db.notifications import create_notification, ensure_notifications_table
+from app.services.track_album_routing import apply_track_album_routing
+from app.services.migrate_entity_tables import ensure_entity_schema
 
 # ---------- Constants ----------
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -437,6 +439,9 @@ def _matches_compilation_pattern(album: str) -> bool:
 def get_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    # Enforce FK constraints at runtime (entity *_id columns are nullable,
+    # so this is safe with existing data). See migrate_entity_tables.py.
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -743,6 +748,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_notifications_created
         ON notifications(created_at DESC)
     """)
+
+    # Canonical entity tables + nullable *_id FK columns (Phase 0 relational
+    # rework). Idempotent and additive; shared source of truth lives in
+    # migrate_entity_tables.py so fresh installs match migrated databases.
+    ensure_entity_schema(conn)
 
     conn.commit()
 
@@ -1261,6 +1271,10 @@ def sync_lastfm() -> None:
         logger.info("Post-sync: final compilation album detection...")
         _update_compilation_albums(conn)
         _update_compilation_albums_no_mbid(conn)
+
+        # Post-sync: re-route scrobbles on colliding self-titled albums by track name
+        logger.info("Post-sync: track-name album routing...")
+        apply_track_album_routing(conn)
 
     conn.close()
     logger.info(f"Sync complete. Total new scrobbles added: {total_new_scrobbles}")

@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.services.config import get_api_key
 from app.services.sync_lastfm import clean_title, ensure_schema
+from app.services.track_album_routing import apply_track_album_routing
 from app.db.notifications import create_notification
 from app.logging_config import setup_logging
 from app.logging_config import get_logger
@@ -341,6 +342,16 @@ def run_full_gap_check():
             severity='info'
         )
         logger.info(f"Gap check complete: {checked_gaps} gaps checked, no missing scrobbles found")
+
+    # Post-insert: re-route scrobbles on colliding self-titled albums by track name
+    if total_missing_found > 0 and AUTO_INSERT_MISSING:
+        logger.info("Post-gap-fill: track-name album routing...")
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        try:
+            apply_track_album_routing(conn)
+        finally:
+            conn.close()
 
 
 def main():

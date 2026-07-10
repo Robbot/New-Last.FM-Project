@@ -19,6 +19,12 @@
       "reason": "Correct spacing around ellipsis"
     },
     {
+      "artist": "Slayer",
+      "from": "OST Dracula",
+      "to": "God Hates Us All",
+      "reason": "'Bloodline' mis-tagged to Dracula 2000 OST album; belongs to God Hates Us All"
+    },
+    {
       "artist": "Stone Temple Pilots",
       "from": "No. 4",
       "to": "№4",
@@ -305,9 +311,57 @@
       "from": "Carnival (Redux)",
       "to": "Carnival",
       "reason": "Canonical MusicBrainz release-group title (8a9209c2-be11-33d9-8451-fac989af71e1)"
+    },
+    {
+      "artist": "Killing Joke",
+      "from": "Killing Joke 2003",
+      "to": "Killing Joke (2003)",
+      "reason": "Canonical 2003 self-titled name (no-parens source variant)"
+    },
+    {
+      "artist": "Alanis Morissette",
+      "from": "The Collection (Standard Edition)",
+      "to": "The Collection",
+      "reason": "Strip '(Standard Edition)' suffix to match canonical compilation name"
+    },
+    {
+      "artist": "System of a Down",
+      "from": "OST Dracula",
+      "to": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "reason": "System of a Down 'Metro' belongs to Dracula 2000 soundtrack"
+    },
+    {
+      "artist": "Endo",
+      "from": "OST Dracula",
+      "to": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "reason": "Dracula 2000 soundtrack track"
+    },
+    {
+      "artist": "Saliva",
+      "from": "OST Dracula",
+      "to": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "reason": "Dracula 2000 soundtrack track"
+    },
+    {
+      "artist": "Static-X",
+      "from": "OST Dracula",
+      "to": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "reason": "Dracula 2000 soundtrack track"
+    },
+    {
+      "artist": "Taproot",
+      "from": "OST Dracula",
+      "to": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "reason": "Dracula 2000 soundtrack track"
+    },
+    {
+      "artist": "Mass Kotki",
+      "from": "Chodz zobaczyc",
+      "to": "Chodź Zobaczyć",
+      "reason": "Polish diacritic spelling fix (ś, ć)"
     }
   ],
-  "last_updated": "2026-06-28",
+  "last_updated": "2026-07-05",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
   "track_mappings": [
     {

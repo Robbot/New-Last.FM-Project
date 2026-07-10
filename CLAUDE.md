@@ -88,6 +88,19 @@ python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album" --dry
 # Backfill album_mbids in album_tracks table
 python -m app.services.backfill_album_tracks_mbid
 
+# Relational rework (Phase 0/1): add canonical entity tables + nullable *_id
+# FK columns (idempotent, backs up first), then seed entities and backfill ids.
+# Verify-only mode prints stats without writing.
+python -m app.services.migrate_entity_tables
+python -m app.services.seed_entities
+python -m app.services.seed_entities --verify
+
+# Re-route scrobbles to the correct album by TRACK NAME (for colliding self-titled
+# albums). Runs automatically after each sync; run manually to preview or fix:
+python -m app.services.track_album_routing --dry-run
+python -m app.services.track_album_routing --dry-run --artist "Killing Joke"
+python -m app.services.track_album_routing            # apply for real
+
 # Activate virtual environment (if needed)
 source .venv/bin/activate
 
@@ -134,6 +147,7 @@ The Flask app uses a modular Blueprint architecture:
   - `assign_compilation_tracks.py`: Assign tracks to albums for compilation albums
   - `merge_artists.py`: Merge artists when one artist has multiple names
   - `move_scrobble_to_album.py`: Move scrobbles to different albums with MBID consistency checks
+  - `track_album_routing.py`: Re-route scrobbles to the correct album by track name for colliding self-titled albums (e.g. Killing Joke 1980 vs 2003), config-driven via `track_album_routing.json`; runs automatically after each sync
   - `backfill_album_tracks_mbid.py`: Backfill missing album_mbids in album_tracks table from album_art or scrobble tables
   - `periodic_full_sync.py`: Comprehensive scan for gaps in scrobble data (runs daily at 5 AM)
   - `monitor_new_scrobbles.py`: Monitor for new scrobbles in real-time
@@ -170,6 +184,7 @@ The Flask app uses a modular Blueprint architecture:
 - **`musicbrainz_releases`**: MusicBrainz release data cache
   - Fields: `artist_mbid`, `artist_name`, `release_mbid`, `release_title`, `date`, `country`, `type`
 - **`data_quality_issues`**: Data quality issue tracking (for monitoring and cleanup)
+- **Canonical entity tables** (relational rework, Phase 0/1): `artist`, `album`, `track` hold canonical entities keyed by surrogate integer ids (MBID stored as a nullable, non-unique *hint*). `artist_alias` / `album_alias` / `track_alias` map every variant name string to a canonical id. Dependent tables (`scrobble`, `album_art`, `album_tracks`, `artist_info`, `musicbrainz_releases`, `spotify_track_cache`) carry nullable `artist_id` / `album_id` / `track_id` columns populated by `app/db/entities.py` (`Resolver`) at write time and by `seed_entities.py` for backfill. Identity is conservative: case/accent variants merge via normalization; MBID never auto-merges two differently-named artists (collaboration mis-tags are indistinguishable from variant spellings), so substantive merges are deferred to the manual Phase 4 tool. `PRAGMA foreign_keys=ON` is set on every connection.
 
 ### Important Patterns
 
@@ -211,6 +226,10 @@ The application includes sophisticated data cleaning to handle inconsistencies f
   - "Reconstruction of the Fables" → "Fables of the Reconstruction"
   - "No. 4" → "№4" (proper numero sign)
   - Manage with `add_album_mapping.py`
+- **Track-Based Album Routing**: For artists with multiple albums that share a name (e.g. Killing Joke's self-titled **1980 debut** vs **2003 self-titled**), album-name mapping and MBID cannot disambiguate scrobbles — the source tags both as the same name and frequently mis-tags the MBID. This re-routes scrobbles to the correct album based on the **track name** (the colliding albums have disjoint tracklists), using `track_album_routing.json`.
+  - Runs automatically after every sync (`sync_lastfm.py` and `periodic_full_sync.py`) so ongoing mis-routed scrobbles self-correct; also runnable manually via `track_album_routing.py` (`--dry-run`, `--artist`)
+  - Config-driven and general: add a rule per colliding artist (`artist`, `conflict_albums`, and `routes` of `{album, album_mbid, tracks}`)
+  - Exact normalized matching only (lowercase, `&`↔`and`, leading-article stripping, suffix/remastered stripping) — non-destructive; unmatched tracks are left in place and logged
 - **Remastered/Expanded/Deluxe Edition Suffix Stripping**: Automatically removes artificial suffixes like:
   - " - Remastered 2014", " - 2009 Remastered", "(Remastered)", "[2014 Remaster]"
   - " - Expanded Edition", "(Expanded Edition)"
@@ -387,11 +406,14 @@ app/
 │   ├── artists.py           # Artist-related queries
 │   ├── albums.py            # Album-related queries
 │   ├── tracks.py            # Track-related queries
+│   ├── entities.py          # Canonical entity resolver (artist/album/track ids)
 │   └── notifications.py     # Notification system
 ├── services/                # External integrations and utilities
 │   ├── sync_lastfm.py       # Main sync script
 │   ├── spotify_track_mappings.json  # Track name mappings
 │   ├── album_name_mappings.json     # Album name mappings
+│   ├── migrate_entity_tables.py     # Phase 0: canonical entity tables + FK columns
+│   ├── seed_entities.py     # Phase 1: seed entities + backfill *_id columns
 │   └── [various cleaning/migration scripts]
 ├── utils/                   # Helper functions
 │   ├── constants.py         # Validation constants

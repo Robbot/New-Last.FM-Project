@@ -110,6 +110,20 @@ def clean_album_names(conn: sqlite3.Connection) -> int:
     # Update scrobble table
     for artist, old_album, new_album in album_updates:
         print(f"  [{artist}] '{old_album}' -> '{new_album}'")
+        # Remove old-name rows that are exact duplicates (same uts/artist/track) of a
+        # new-name row first; otherwise the UPDATE below would turn them into identical
+        # rows and violate the UNIQUE(uts, artist, album, track) constraint.
+        cur.execute("""
+            DELETE FROM scrobble
+            WHERE artist = ? AND album = ?
+              AND EXISTS (
+                  SELECT 1 FROM scrobble AS s2
+                  WHERE s2.uts = scrobble.uts
+                    AND s2.artist = scrobble.artist
+                    AND s2.album = ?
+                    AND s2.track = scrobble.track
+              )
+        """, (artist, old_album, new_album))
         cur.execute("""
             UPDATE scrobble
             SET album = ?

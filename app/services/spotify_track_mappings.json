@@ -1,6 +1,18 @@
 {
   "mappings": [
     {
+      "artist": "System of a Down",
+      "album": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "from": "System of Down - Metro",
+      "to": "Metro"
+    },
+    {
+      "artist": "Static-X",
+      "album": "Dracula 2000 - Music from the Dimension Motion Picture",
+      "from": "X-X",
+      "to": "Otsego Undead"
+    },
+    {
       "artist": "Wolfsheim",
       "album": "55578",
       "from": "A Look into Your Heart",
@@ -827,7 +839,103 @@
       "album": "The Definitive Collection",
       "from": "He's Misstra Know-It-All",
       "to": "He's Misstra Know It All"
+    },
+    {
+      "artist": "David Bowie",
+      "album": "Lost Highway",
+      "from": "I'm Deranged [Edit]",
+      "to": "I'm Deranged (edit)"
+    },
+    {
+      "artist": "David Bowie",
+      "album": "Lost Highway",
+      "from": "I'm Deranged - Lost Highway Edit,",
+      "to": "I'm Deranged (edit)"
+    },
+    {
+      "artist": "The White Stripes",
+      "album": "Elephant",
+      "from": "Girl, You Have No Faith in Med",
+      "to": "Girl, You Have No Faith in Medicine"
+    },
+    {
+      "artist": "The White Stripes",
+      "album": "Elephant",
+      "from": "It's True That We Love One Ano",
+      "to": "It's True That We Love One Another"
+    },
+    {
+      "artist": "The Police",
+      "album": "Zenyattà Mondatta",
+      "from": "De Do Do Do De Da Da Da",
+      "to": "De Do Do Do, De Da Da Da"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Live at Pompeii",
+      "from": "A Sacerful of Secrets",
+      "to": "A Saucerful of Secrets"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Live at Pompeii",
+      "from": "Echoe Part I",
+      "to": "Echoes Part I"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Live at Pompeii",
+      "from": "Echoes - Part 1 - Edit - Live at Pompeii - MCMLXXII",
+      "to": "Echoes Part I"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Live at Pompeii",
+      "from": "Echoe Part II",
+      "to": "Echoes Part II"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Live at Pompeii",
+      "from": "Mademoiselle Knobs",
+      "to": "Mademoiselle Nobs"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "Live at Pompeii",
+      "from": "Intro Pompeii I",
+      "to": "Pompeii Intro"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "The Dark Side of the Moon",
+      "from": "On the Run (studio)",
+      "to": "On the Run"
+    },
+    {
+      "artist": "Suicidal Tendencies",
+      "album": "Freedumb",
+      "from": "Half way up my Head",
+      "to": "Halfway Up My Head"
+    },
+    {
+      "artist": "The Mission",
+      "album": "Grains of Sand",
+      "from": "Mr. Pleseant",
+      "to": "Mr. Pleasant"
+    },
+    {
+      "artist": "The Mission",
+      "album": "Grains of Sand",
+      "from": "Bird of Passage",
+      "to": "Bird Of Passage"
+    },
+    {
+      "artist": "Mass Kotki",
+      "album": "Chodź Zobaczyć",
+      "from": "Brutalny erotyzm",
+      "to": "Brutalny Erotyzm"
     }
   ],
-  "last_updated": "2026-06-27"
+  "last_updated": "2026-07-09"
 }

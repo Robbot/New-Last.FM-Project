@@ -4,6 +4,16 @@
       "from": "Angine de poitrine",
       "to": "Angine de Poitrine",
       "reason": "Correct capitalization of 'Poitrine'"
+    },
+    {
+      "from": "Tom Araya",
+      "to": "Slayer",
+      "reason": "'Bloodline' (OST Dracula) mis-tagged to vocalist Tom Araya; belongs to Slayer / God Hates Us All"
+    },
+    {
+      "from": "Static",
+      "to": "Static-X",
+      "reason": "'Otsego Undead' (Dracula 2000 OST) mis-tagged to artist 'Static'; belongs to Static-X"
     }
   ],
   "last_updated": "2026-04-28",
