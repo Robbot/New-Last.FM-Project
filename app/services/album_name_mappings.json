@@ -365,6 +365,18 @@
       "from": "Made in Japan (Steven Wilson 2025 Remix)",
       "to": "Made in Japan",
       "reason": "Consolidate Steven Wilson 2025 remix mistags into parent album"
+    },
+    {
+      "artist": "Lush",
+      "from": "Ciao! Best Of",
+      "to": "Ciao! Best of Lush",
+      "reason": "Canonical best-of title; consolidate with 'Ciao!' mistags (MBID ad0afd06-0a55-4a7d-97d0-8af43d32fdce)"
+    },
+    {
+      "artist": "Lush",
+      "from": "Ciao!",
+      "to": "Ciao! Best of Lush",
+      "reason": "Canonical best-of title; consolidate 'Ciao!' mistags with 'Ciao! Best Of' (MBID ad0afd06-0a55-4a7d-97d0-8af43d32fdce)"
     }
   ],
   "last_updated": "2026-07-10",
