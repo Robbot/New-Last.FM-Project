@@ -12,8 +12,8 @@ from typing import Any
 import requests
 from flask import current_app, url_for
 
-from .connections import get_db_connection, _normalize_for_matching, _normalize_track_name_for_matching
-from .entities import Resolver
+from .connections import get_db_connection
+from .entities import Resolver, lookup_album_id
 
 logger = logging.getLogger(__name__)
 
@@ -359,197 +359,83 @@ def get_album_tracks(album_artist_name: str, album_name: str, start: str = "", e
     Returns exactly ONE row per track, ordered by album track number (default)
     or by play count (if sort_by='plays'), with correct play counts.
 
-    Uses Python-based normalization for track name matching instead of complex SQL REPLACE functions.
+    Play counts join scrobble on the canonical track_id, so name variants,
+    escaped characters, and mistagged album_mbids no longer fragment counts.
+    Regular albums select their tracklist by album_id (unifies album-name
+    variants); Various Artists compilations select by album name (their
+    album_tracks album_id is keyed by per-track artist).
     """
     conn = get_db_connection()
 
-    # Normalize the album name for fuzzy matching
-    normalized_album = _normalize_for_matching(album_name)
-
-    # For Various Artists compilations, query by album name only (not by artist)
     is_various_artists = album_artist_name.lower() in ("various artists", "various artist")
 
-    # Step 1: Find all album name variations in album_tracks that match the normalized name
-    if is_various_artists:
-        album_track_albums = conn.execute(
-            """
-            SELECT DISTINCT album
-            FROM album_tracks
-            WHERE album = ?
-            """,
-            (album_name,),
-        ).fetchall()
-    else:
-        album_track_albums = conn.execute(
-            """
-            SELECT DISTINCT album
-            FROM album_tracks
-            WHERE artist = ?
-            """,
-            (album_artist_name,),
-        ).fetchall()
-
-    # Find the canonical album_tracks album name (first match)
-    canonical_album = None
-    for row in album_track_albums:
-        if _normalize_for_matching(row["album"]) == normalized_album:
-            canonical_album = row["album"]
-            break
-
-    # If no exact normalized match, try exact match first
-    if canonical_album is None:
-        for row in album_track_albums:
-            if row["album"] == album_name:
-                canonical_album = row["album"]
-                break
-
-    # If still no match, use the provided album_name and return empty results
-    if canonical_album is None:
+    # Resolve the album's canonical id. Plays are scoped to this album_id, so
+    # counts reflect THIS album only (no cross-album inflation for tracks that
+    # appear elsewhere) while still uniting its album_mbid/name variants.
+    album_id = lookup_album_id(conn, album_artist_name, album_name)
+    if album_id is None:
         conn.close()
         return []
 
-    # Step 2: Get all album_tracks for this album
-    # For Various Artists, prefer entries with actual track artists over "Various Artists"
-    if is_various_artists:
-        album_tracks = conn.execute(
-            """
-            SELECT track_number, track, artist
-            FROM album_tracks
-            WHERE album = ?
-              AND rowid IN (
-                  SELECT rowid
-                  FROM (
-                      SELECT rowid,
-                             ROW_NUMBER() OVER (
-                                 PARTITION BY track_number, track
-                                 ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
-                             ) as rn
-                      FROM album_tracks
-                      WHERE album = ?
-                  )
-                  WHERE rn = 1
-              )
-            ORDER BY track_number ASC
-            """,
-            (canonical_album, canonical_album),
-        ).fetchall()
-    else:
-        album_tracks = conn.execute(
-            """
-            SELECT track_number, track
-            FROM album_tracks
-            WHERE artist = ? AND album = ?
-            ORDER BY track_number ASC
-            """,
-            (album_artist_name, canonical_album),
-        ).fetchall()
-
-    # Step 3: Find all scrobble albums that match the normalized album name
-    all_scrobble_albums = conn.execute(
-        """
-        SELECT DISTINCT album
-        FROM scrobble
-        WHERE album_artist = ?
-        """,
-        (album_artist_name,),
-    ).fetchall()
-
-    # Get all matching scrobble album names
-    matching_album_names = [album_name]  # Start with the input album
-    for row in all_scrobble_albums:
-        if _normalize_for_matching(row["album"]) == normalized_album and row["album"] != album_name:
-            matching_album_names.append(row["album"])
-
-    # Step 4: Get scrobble play counts for all matching albums (with optional date filtering)
-    placeholders = ','.join(['?' for _ in matching_album_names])
-    scrobble_query = f"""
-        SELECT track, artist, album, COUNT(*) AS plays
-        FROM scrobble
-        WHERE album_artist = ?
-          AND album IN ({placeholders})
-    """
-    scrobble_params = [album_artist_name] + matching_album_names
-
-    # Use SQLite's date function to filter by local date, not UTC
+    # Date predicate lives in the LEFT JOIN's ON clause so tracks with 0 plays
+    # in the range still appear.
+    date_join = ""
+    date_params: list = []
     if start and end:
-        scrobble_query += """ AND date(uts, 'unixepoch', 'localtime') >= ?
-                               AND date(uts, 'unixepoch', 'localtime') <= ?"""
-        scrobble_params.extend([start, end])
+        date_join = ("AND date(s.uts, 'unixepoch', 'localtime') >= ? "
+                     "AND date(s.uts, 'unixepoch', 'localtime') <= ?")
+        date_params = [start, end]
 
-    scrobble_query += " GROUP BY track, artist, album"
+    if is_various_artists:
+        # VA compilations: album_tracks.album_id is keyed by per-track artist, so
+        # select the tracklist by album NAME (deduped to a real artist per track).
+        # Plays still scope by the sentinel album_id on the scrobble side.
+        tracklist = """
+            FROM (
+                SELECT track_number, track, artist, track_id
+                FROM album_tracks
+                WHERE album = ?
+                  AND rowid IN (
+                      SELECT rowid FROM (
+                          SELECT rowid, ROW_NUMBER() OVER (
+                              PARTITION BY track_number, track
+                              ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
+                          ) AS rn
+                          FROM album_tracks
+                          WHERE album = ?
+                      )
+                      WHERE rn = 1
+                  )
+            ) at
+        """
+        tracklist_params = [album_name, album_name]
+    else:
+        # Regular albums: select the tracklist by canonical album_id.
+        tracklist = "FROM album_tracks at"
+        tracklist_params = []
 
-    scrobbles = conn.execute(scrobble_query, scrobble_params).fetchall()
+    sql = f"""
+        SELECT at.track_number, at.track AS track_name, at.artist AS track_artist,
+               COUNT(s.id) AS plays
+        {tracklist}
+        LEFT JOIN scrobble s
+               ON s.track_id = at.track_id
+              AND s.album_id = ?
+              {date_join}
+        {"WHERE at.album_id = ?" if not is_various_artists else ""}
+        GROUP BY at.track_id, at.track_number, at.track, at.artist
+        ORDER BY at.track_number
+    """
+    params = tracklist_params + [album_id] + date_params + ([] if is_various_artists else [album_id])
 
+    results = conn.execute(sql, params).fetchall()
     conn.close()
-
-    # Step 5: Match album_tracks with scrobbles using Python normalization
-    # Build a dict of normalized track names to scrobble data
-    # Key: (normalized_track_name, album), Value: [(track, artist, plays, album), ...]
-    scrobble_dict = {}
-    for scrobble in scrobbles:
-        normalized = _normalize_track_name_for_matching(scrobble["track"])
-        # Group by normalized track name AND album to avoid cross-album aggregation
-        key = (normalized, scrobble["album"])
-        if key not in scrobble_dict:
-            scrobble_dict[key] = []
-        scrobble_dict[key].append(scrobble)
-
-    # Match album_tracks with scrobbles and build results
-    results = []
-    for track in album_tracks:
-        normalized_track = _normalize_track_name_for_matching(track["track"])
-
-        # For Various Artists, use the track artist from album_tracks directly
-        if is_various_artists and "artist" in track.keys():
-            track_artist = track["artist"]
-            # Try to find matching scrobbles for this specific track + artist
-            plays = 0
-            # Try each album variation to find matching scrobbles
-            for album_name_variant in matching_album_names:
-                key = (normalized_track, album_name_variant)
-                if key in scrobble_dict:
-                    # Filter by artist for Various Artists
-                    album_plays = sum(s["plays"] for s in scrobble_dict[key] if s["artist"] == track_artist)
-                    plays += album_plays
-        else:
-            # For regular albums, sum plays across all matching album variations
-            track_artist = album_artist_name
-            plays = 0
-
-            # Sum plays from all album variations for this track
-            for album_name_variant in matching_album_names:
-                key = (normalized_track, album_name_variant)
-                if key in scrobble_dict:
-                    # For regular albums, sum all plays for this track across album variations
-                    album_plays = sum(s["plays"] for s in scrobble_dict[key])
-                    plays += album_plays
-                    # Use the first matching track's artist for display
-                    if scrobble_dict[key]:
-                        track_artist = scrobble_dict[key][0]["artist"]
-
-        results.append({
-            "track_number": track["track_number"],
-            "track_name": track["track"],
-            "track_artist": track_artist,
-            "plays": plays,
-        })
 
     # Sort by play count if requested
     if sort_by == "plays":
-        results.sort(key=lambda x: (-x["plays"], x["track_number"]))
+        results = sorted(results, key=lambda r: (-r["plays"], r["track_number"]))
 
-    # Convert to sqlite3.Row-like objects for compatibility
-    class Row:
-        def __init__(self, data: dict[str, Any]):
-            self._data = data
-        def __getitem__(self, key: str) -> Any:
-            return self._data[key]
-        def keys(self):
-            return self._data.keys()
-        def __iter__(self):
-            return iter(self._data.values())
-
-    return [Row(r) for r in results]
+    return results
 
 
 # Album Art Caching Functions
@@ -983,221 +869,75 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
     Returns exactly ONE row per track, ordered by album track number (default)
     or by play count (if sort_by='plays'), with correct play counts.
 
-    Falls back to album name matching for tracks with 0 plays via MBID matching
-    (handles cases where different releases have different MBIDs).
+    The tracklist is selected by album_mbid (shared by every track of one
+    release, VA compilations included). Plays join scrobble on the canonical
+    track_id AND scope to this album's album_id (resolved from the scrobbles
+    carrying this mbid), so a track scrobbled under a different album_mbid of
+    the SAME album still counts, while plays from other albums do not inflate
+    it. The old 0-plays album-name fallback is obsolete.
+    (album_name is retained for signature compatibility but unused.)
     """
-    conn = get_db_connection()
-
-    # Normalize the album name for fuzzy matching
-    normalized_album = _normalize_for_matching(album_name)
-
-    # Step 1: Find the canonical album_tracks album name using MBID
-    album_track_rows = conn.execute(
-        """
-        SELECT DISTINCT album
-        FROM scrobble
-        WHERE album_mbid = ?
-        LIMIT 1
-        """,
-        (album_mbid,),
-    ).fetchall()
-
-    canonical_album = None
-    if album_track_rows:
-        canonical_album = album_track_rows[0]["album"]
-
-    # If no match found, use the provided album_name and return empty results
-    if canonical_album is None:
-        conn.close()
+    if not album_mbid:
         return []
 
-    # Step 2: Get all album_tracks for this album by MBID
-    album_tracks = conn.execute(
-        """
-        SELECT track_number, track, artist
-        FROM album_tracks
-        WHERE album_mbid = ?
-          AND rowid IN (
-              SELECT rowid
-              FROM (
-                  SELECT rowid,
-                         ROW_NUMBER() OVER (
-                             PARTITION BY track_number, track
-                             ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
-                         ) as rn
-                  FROM album_tracks
-                  WHERE album_mbid = ?
-              )
-              WHERE rn = 1
-          )
-        ORDER BY track_number ASC
-        """,
-        (album_mbid, album_mbid),
-    ).fetchall()
+    conn = get_db_connection()
 
-    # Step 3: Find all scrobble albums that match the normalized album name with this MBID
-    all_scrobble_albums = conn.execute(
+    # Resolve the album's canonical album_id from scrobbles carrying this mbid.
+    aid_row = conn.execute(
         """
-        SELECT DISTINCT album
-        FROM scrobble
-        WHERE album_mbid = ?
+        SELECT album_id FROM scrobble
+        WHERE album_mbid = ? AND album_id IS NOT NULL
+        GROUP BY album_id ORDER BY COUNT(*) DESC LIMIT 1
         """,
         (album_mbid,),
-    ).fetchall()
+    ).fetchone()
+    if aid_row is None:
+        conn.close()
+        return []
+    album_id = aid_row[0]
 
-    # Get all matching scrobble album names
-    matching_album_names = [canonical_album]
-    for row in all_scrobble_albums:
-        if row["album"] != canonical_album:
-            matching_album_names.append(row["album"])
-
-    # Step 4: Get scrobble play counts for all matching albums (with optional date filtering)
-    placeholders = ','.join(['?' for _ in matching_album_names])
-    scrobble_query = f"""
-        SELECT track, artist, album, COUNT(*) AS plays
-        FROM scrobble
-        WHERE album_mbid = ?
-          AND album IN ({placeholders})
-    """
-    scrobble_params = [album_mbid] + matching_album_names
-
-    # Use SQLite's date function to filter by local date, not UTC
+    date_join = ""
+    date_params: list = []
     if start and end:
-        scrobble_query += """ AND date(uts, 'unixepoch', 'localtime') >= ?
-                               AND date(uts, 'unixepoch', 'localtime') <= ?"""
-        scrobble_params.extend([start, end])
+        date_join = ("AND date(s.uts, 'unixepoch', 'localtime') >= ? "
+                     "AND date(s.uts, 'unixepoch', 'localtime') <= ?")
+        date_params = [start, end]
 
-    scrobble_query += " GROUP BY track, artist, album"
+    sql = f"""
+        SELECT at.track_number, at.track AS track_name, at.artist AS track_artist,
+               COUNT(s.id) AS plays
+        FROM (
+            SELECT track_number, track, artist, track_id
+            FROM album_tracks
+            WHERE album_mbid = ?
+              AND rowid IN (
+                  SELECT rowid FROM (
+                      SELECT rowid, ROW_NUMBER() OVER (
+                          PARTITION BY track_number, track
+                          ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
+                      ) AS rn
+                      FROM album_tracks
+                      WHERE album_mbid = ?
+                  )
+                  WHERE rn = 1
+              )
+        ) at
+        LEFT JOIN scrobble s
+               ON s.track_id = at.track_id
+              AND s.album_id = ?
+              {date_join}
+        GROUP BY at.track_id, at.track_number, at.track, at.artist
+        ORDER BY at.track_number
+    """
+    params = [album_mbid, album_mbid, album_id] + date_params
 
-    scrobbles = conn.execute(scrobble_query, scrobble_params).fetchall()
-
-    # Step 5: Build scrobble dict for MBID-based matching
-    scrobble_dict = {}
-    for scrobble in scrobbles:
-        normalized = _normalize_track_name_for_matching(scrobble["track"])
-        key = (normalized, scrobble["album"])
-        if key not in scrobble_dict:
-            scrobble_dict[key] = []
-        scrobble_dict[key].append(scrobble)
-
-    # Step 6: For tracks with 0 plays via MBID, fall back to album name matching (ignore MBID)
-    # First, identify tracks with 0 plays
-    tracks_with_zero_plays = []
-    initial_results = []
-
-    for track in album_tracks:
-        normalized_track = _normalize_track_name_for_matching(track["track"])
-        track_artist = track["artist"]
-        plays = 0
-
-        for album_name_variant in matching_album_names:
-            key = (normalized_track, album_name_variant)
-            if key in scrobble_dict:
-                album_plays = sum(s["plays"] for s in scrobble_dict[key] if s["artist"] == track_artist)
-                plays += album_plays
-
-        initial_results.append({
-            "track_number": track["track_number"],
-            "track_name": track["track"],
-            "track_artist": track_artist,
-            "plays": plays,
-        })
-
-        if plays == 0:
-            tracks_with_zero_plays.append({
-                "track_number": track["track_number"],
-                "track_name": track["track"],
-                "track_artist": track_artist,
-                "normalized_track": normalized_track,
-            })
-
-    # Step 7: Fallback query for tracks with 0 plays - use album name matching without MBID filter
-    if tracks_with_zero_plays:
-        # Get album_artist from first album track
-        album_artist = album_tracks[0]["artist"] if album_tracks else None
-
-        if album_artist:
-            # Find all scrobble albums matching the normalized album name (any MBID)
-            fallback_scrobble_albums = conn.execute(
-                """
-                SELECT DISTINCT album
-                FROM scrobble
-                WHERE album_artist = ?
-                """,
-                (album_artist,),
-            ).fetchall()
-
-            # Get all matching album names by normalization
-            fallback_album_names = []
-            for row in fallback_scrobble_albums:
-                if _normalize_for_matching(row["album"]) == normalized_album:
-                    fallback_album_names.append(row["album"])
-
-            if fallback_album_names:
-                # Get scrobbles for these albums (without MBID filter)
-                fallback_placeholders = ','.join(['?' for _ in fallback_album_names])
-                fallback_query = f"""
-                    SELECT track, artist, album, COUNT(*) AS plays
-                    FROM scrobble
-                    WHERE album_artist = ?
-                      AND album IN ({fallback_placeholders})
-                """
-                fallback_params = [album_artist] + fallback_album_names
-
-                if start and end:
-                    fallback_query += """ AND date(uts, 'unixepoch', 'localtime') >= ?
-                                           AND date(uts, 'unixepoch', 'localtime') <= ?"""
-                    fallback_params.extend([start, end])
-
-                fallback_query += " GROUP BY track, artist, album"
-
-                fallback_scrobbles = conn.execute(fallback_query, fallback_params).fetchall()
-
-                # Build fallback scrobble dict
-                fallback_dict = {}
-                for scrobble in fallback_scrobbles:
-                    normalized = _normalize_track_name_for_matching(scrobble["track"])
-                    key = (normalized, scrobble["album"])
-                    if key not in fallback_dict:
-                        fallback_dict[key] = []
-                    fallback_dict[key].append(scrobble)
-
-                # Update results for tracks with 0 plays using fallback data
-                for result in initial_results:
-                    if result["plays"] == 0:
-                        track_info = next(
-                            (t for t in tracks_with_zero_plays if t["track_number"] == result["track_number"]),
-                            None
-                        )
-                        if track_info:
-                            plays = 0
-                            for album_name_variant in fallback_album_names:
-                                key = (track_info["normalized_track"], album_name_variant)
-                                if key in fallback_dict:
-                                    album_plays = sum(s["plays"] for s in fallback_dict[key] if s["artist"] == track_info["track_artist"])
-                                    plays += album_plays
-                            result["plays"] = plays
-
+    results = conn.execute(sql, params).fetchall()
     conn.close()
 
-    results = initial_results
-
-    # Sort by play count if requested
     if sort_by == "plays":
-        results.sort(key=lambda x: (-x["plays"], x["track_number"]))
+        results = sorted(results, key=lambda r: (-r["plays"], r["track_number"]))
 
-    # Convert to sqlite3.Row-like objects for compatibility
-    class Row:
-        def __init__(self, data: dict[str, Any]):
-            self._data = data
-        def __getitem__(self, key: str) -> Any:
-            return self._data[key]
-        def keys(self):
-            return self._data.keys()
-        def __iter__(self):
-            return iter(self._data.values())
-
-    return [Row(r) for r in results]
+    return results
 
 
 def get_compilation_artists_by_mbid(album_mbid: str, album_name: str) -> list[dict]:

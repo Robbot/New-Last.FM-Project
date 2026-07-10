@@ -267,19 +267,9 @@ def lookup_track_id(conn: sqlite3.Connection, artist_name: str, track_name: str)
     if not artist_name or not track_name:
         return None
 
-    # Artist id: exact alias spelling, then a unique normalized match.
-    row = conn.execute(
-        "SELECT artist_id FROM artist_alias WHERE alias_name = ?", (artist_name,)
-    ).fetchone()
-    if not row:
-        norm_artist = _normalize_for_matching(artist_name)
-        rows = conn.execute(
-            "SELECT DISTINCT artist_id FROM artist_alias WHERE norm_name = ?", (norm_artist,)
-        ).fetchall()
-        if len(rows) != 1:
-            return None
-        row = rows[0]
-    artist_id = row[0]
+    artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        return None
 
     norm_track = _normalize_track_name_for_matching(track_name)
     t = conn.execute(
@@ -287,3 +277,52 @@ def lookup_track_id(conn: sqlite3.Connection, artist_name: str, track_name: str)
         (artist_id, norm_track),
     ).fetchone()
     return t[0] if t else None
+
+
+def _lookup_artist_id(conn: sqlite3.Connection, artist_name: str) -> int | None:
+    """Read-only: find the canonical artist_id for a name from the alias tables.
+    Exact alias spelling first, then a unique normalized match. Returns None if
+    not found or ambiguous (multiple distinct normalized matches).
+    """
+    if not artist_name:
+        return None
+    row = conn.execute(
+        "SELECT artist_id FROM artist_alias WHERE alias_name = ?", (artist_name,)
+    ).fetchone()
+    if row:
+        return row[0]
+    norm = _normalize_for_matching(artist_name)
+    if not norm:
+        return None
+    rows = conn.execute(
+        "SELECT DISTINCT artist_id FROM artist_alias WHERE norm_name = ?", (norm,)
+    ).fetchall()
+    if len(rows) == 1:
+        return rows[0][0]
+    return None
+
+
+def lookup_album_id(
+    conn: sqlite3.Connection,
+    album_artist_name: str,
+    album_name: str,
+) -> int | None:
+    """Read-only: find the canonical album_id for (album_artist_name, album_name)
+    via the alias tables, without creating anything. For Various Artists the
+    owner resolves to the VA sentinel. Returns None if not found.
+
+    NOTE: VA compilation *album_tracks* rows are keyed by per-track artist, so
+    this returns the sentinel album which those rows do NOT carry — callers that
+    select album_tracks for VA must select by album name instead of album_id.
+    """
+    if not album_artist_name or not album_name:
+        return None
+    owner = _lookup_artist_id(conn, album_artist_name)
+    if owner is None:
+        return None
+    norm = _normalize_for_matching(album_name)
+    row = conn.execute(
+        "SELECT album_id FROM album_alias WHERE artist_id = ? AND norm_title = ?",
+        (owner, norm),
+    ).fetchone()
+    return row[0] if row else None
