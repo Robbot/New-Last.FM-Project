@@ -5,7 +5,7 @@ import logging
 from datetime import timedelta
 
 from .connections import get_db_connection, _normalize_for_matching
-from .entities import Resolver
+from .entities import Resolver, _lookup_artist_id
 
 logger = logging.getLogger(__name__)
 
@@ -13,19 +13,24 @@ logger = logging.getLogger(__name__)
 MB_CACHE_EXPIRY_DAYS = 30
 
 
-def get_artist_overview(artist_name: str):
+def get_artist_overview(artist_name: str, artist_id: int | None = None):
     """Get overview statistics for an artist."""
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        conn.close()
+        return None
     row = conn.execute(
         """
         SELECT
-            COUNT(*)               AS scrobbles,
-            COUNT(DISTINCT album)  AS albums,
-            COUNT(DISTINCT track)  AS tracks
+            COUNT(*)                 AS scrobbles,
+            COUNT(DISTINCT album_id) AS albums,
+            COUNT(DISTINCT track_id) AS tracks
         FROM scrobble
-        WHERE artist = ?
+        WHERE artist_id = ?
         """,
-        (artist_name,),
+        (artist_id,),
     ).fetchone()
     conn.close()
 
@@ -60,20 +65,25 @@ def get_library_stats():
     }
 
 
-def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
+def get_artist_stats(artist_name: str, start: str = "", end: str = "", artist_id: int | None = None):
     """Get statistics for an artist, optionally filtered by date range."""
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        conn.close()
+        return None
 
     sql = """
         SELECT
-            COUNT(*) AS scrobbles,
-            COUNT(DISTINCT album) AS albums,
-            COUNT(DISTINCT track) AS tracks
+            COUNT(*)                 AS scrobbles,
+            COUNT(DISTINCT album_id) AS albums,
+            COUNT(DISTINCT track_id) AS tracks
         FROM scrobble
-        WHERE artist = ?
+        WHERE artist_id = ?
     """
 
-    params = [artist_name]
+    params = [artist_id]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -86,35 +96,42 @@ def get_artist_stats(artist_name: str, start: str = "", end: str = ""):
     return row
 
 
-def get_artist_position(artist_name: str, start: str = "", end: str = "") -> int | None:
+def get_artist_position(artist_name: str, start: str = "", end: str = "", artist_id: int | None = None) -> int | None:
     """
     Returns the artist's position (rank) in the list of most played artists.
     Position 1 = most played artist.
     Returns None if artist not found.
     """
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        conn.close()
+        return None
 
+    # Rank by canonical artist_id so variant spellings don't fragment ranks.
     sql = """
-        SELECT artist, COUNT(*) AS scrobbles
+        SELECT artist_id, COUNT(*) AS scrobbles
         FROM scrobble
+        WHERE artist_id IS NOT NULL
     """
 
     params = []
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
-        sql += """ WHERE date(uts, 'unixepoch', 'localtime') >= ?
+        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
                    AND date(uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
 
-    sql += " GROUP BY artist ORDER BY scrobbles DESC"
+    sql += " GROUP BY artist_id ORDER BY scrobbles DESC"
 
     rows = conn.execute(sql, params).fetchall()
     conn.close()
 
     # Find the artist's position
     for position, row in enumerate(rows, start=1):
-        if row["artist"] == artist_name:
+        if row["artist_id"] == artist_id:
             return position
 
     return None
@@ -125,10 +142,16 @@ def get_top_tracks_for_artist(
         start: str = "",
         end: str = "",
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
+        artist_id: int | None = None,
     ):
     """Get top tracks for an artist with pagination."""
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        conn.close()
+        return []
 
     sql = """
         SELECT
@@ -136,9 +159,9 @@ def get_top_tracks_for_artist(
             track,
             COUNT(*) AS plays
         FROM scrobble
-        WHERE artist = ?
+        WHERE artist_id = ?
     """
-    params = [artist_name]
+    params = [artist_id]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -146,8 +169,10 @@ def get_top_tracks_for_artist(
                    AND date(uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
 
+    # GROUP BY track_id unites track-name variants (e.g. "Battery" vs
+    # "Battery - Remastered"); artist/track are representative spellings.
     sql += """
-        GROUP BY artist, track
+        GROUP BY track_id
         ORDER BY plays DESC, track ASC
         LIMIT ? OFFSET ?
     """
@@ -158,16 +183,21 @@ def get_top_tracks_for_artist(
     return rows
 
 
-def get_artist_tracks_count(artist_name: str, start: str = "", end: str = "") -> int:
+def get_artist_tracks_count(artist_name: str, start: str = "", end: str = "", artist_id: int | None = None) -> int:
     """Get the total number of unique tracks for an artist."""
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        conn.close()
+        return 0
 
     sql = """
-        SELECT COUNT(DISTINCT track) AS total
+        SELECT COUNT(DISTINCT track_id) AS total
         FROM scrobble
-        WHERE artist = ?
+        WHERE artist_id = ?
     """
-    params = [artist_name]
+    params = [artist_id]
 
     if start and end:
         sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
@@ -235,9 +265,14 @@ def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", 
     return rows
 
 
-def get_artist_albums(album_artist_name: str, start: str = "", end: str = ""):
+def get_artist_albums(album_artist_name: str, start: str = "", end: str = "", artist_id: int | None = None):
     """Get albums for an artist, optionally filtered by date range."""
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, album_artist_name)
+    if artist_id is None:
+        conn.close()
+        return []
 
     sql = """
         SELECT
@@ -245,9 +280,9 @@ def get_artist_albums(album_artist_name: str, start: str = "", end: str = ""):
             album_artist,
             COUNT(*) AS plays
         FROM scrobble
-        WHERE artist = ?
+        WHERE artist_id = ?
     """
-    params = [album_artist_name]
+    params = [artist_id]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -256,7 +291,7 @@ def get_artist_albums(album_artist_name: str, start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += """
-        GROUP BY album
+        GROUP BY album_id
         ORDER BY plays DESC, album ASC
     """
 
@@ -265,9 +300,14 @@ def get_artist_albums(album_artist_name: str, start: str = "", end: str = ""):
     return rows
 
 
-def get_artist_tracks(artist_name: str):
+def get_artist_tracks(artist_name: str, artist_id: int | None = None):
     """Get all tracks for an artist with play counts."""
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, artist_name)
+    if artist_id is None:
+        conn.close()
+        return []
     rows = conn.execute(
         """
         SELECT
@@ -275,17 +315,17 @@ def get_artist_tracks(artist_name: str):
             album,
             COUNT(*) AS plays
         FROM scrobble
-        WHERE artist = ?
-        GROUP BY track, album
+        WHERE artist_id = ?
+        GROUP BY track_id, album_id
         ORDER BY plays DESC
         """,
-        (artist_name,),
+        (artist_id,),
     ).fetchall()
     conn.close()
     return rows
 
 
-def get_artist_info(artist_name: str) -> dict | None:
+def get_artist_info(artist_name: str, artist_id: int | None = None) -> dict | None:
     """
     Get artist information from the database.
 
@@ -294,14 +334,18 @@ def get_artist_info(artist_name: str) -> dict | None:
     """
     conn = get_db_connection()
     try:
+        if artist_id is None:
+            artist_id = _lookup_artist_id(conn, artist_name)
+        if artist_id is None:
+            return None
         row = conn.execute(
             """
             SELECT image_url, bio, wikipedia_url, last_updated
             FROM artist_info
-            WHERE artist_name = ?
+            WHERE artist_id = ?
             LIMIT 1
             """,
-            (artist_name,),
+            (artist_id,),
         ).fetchone()
 
         if row:
@@ -375,30 +419,34 @@ def ensure_artist_info_cached(artist_name: str) -> dict | None:
     return fetched_info
 
 
-def get_artist_mbid(artist_name: str) -> str | None:
+def get_artist_mbid(artist_name: str, artist_id: int | None = None) -> str | None:
     """
     Get the MusicBrainz ID for an artist from the scrobble table.
     Returns the MBID if found, None otherwise.
     """
     conn = get_db_connection()
     try:
+        if artist_id is None:
+            artist_id = _lookup_artist_id(conn, artist_name)
+        if artist_id is None:
+            return None
         row = conn.execute(
             """
             SELECT artist_mbid
             FROM scrobble
-            WHERE artist = ?
+            WHERE artist_id = ?
               AND artist_mbid IS NOT NULL
               AND artist_mbid != ''
             LIMIT 1
             """,
-            (artist_name,),
+            (artist_id,),
         ).fetchone()
         return row["artist_mbid"] if row else None
     finally:
         conn.close()
 
 
-def get_musicbrainz_releases(artist_mbid: str, artist_name: str) -> tuple[list[dict], str | None]:
+def get_musicbrainz_releases(artist_mbid: str, artist_name: str, artist_id: int | None = None) -> tuple[list[dict], str | None]:
     """
     Get all releases for an artist from the musicbrainz_releases cache.
 
@@ -409,32 +457,18 @@ def get_musicbrainz_releases(artist_mbid: str, artist_name: str) -> tuple[list[d
     """
     conn = get_db_connection()
     try:
-        # Try to find by MBID first
-        if artist_mbid:
-            rows = conn.execute(
-                """
-                SELECT album_title, release_year, album_mbid, release_type, primary_type, secondary_types, last_updated
-                FROM musicbrainz_releases
-                WHERE artist_mbid = ?
-                ORDER BY release_year ASC, album_title ASC
-                """,
-                (artist_mbid,),
-            ).fetchall()
-
-            if rows:
-                releases = [dict(row) for row in rows]
-                last_updated = max((r.get("last_updated") for r in releases), default=None)
-                return releases, last_updated
-
-        # Fallback: try to find by artist name (MBID may have changed)
+        if artist_id is None:
+            artist_id = _lookup_artist_id(conn, artist_name)
+        if artist_id is None:
+            return [], None
         rows = conn.execute(
             """
             SELECT album_title, release_year, album_mbid, release_type, primary_type, secondary_types, last_updated, artist_mbid
             FROM musicbrainz_releases
-            WHERE artist_name = ?
+            WHERE artist_id = ?
             ORDER BY release_year ASC, album_title ASC
             """,
-            (artist_name,),
+            (artist_id,),
         ).fetchall()
 
         releases = [dict(row) for row in rows]
@@ -557,7 +591,8 @@ def get_artist_albums_with_years(
     start: str = "",
     end: str = "",
     sort_by: str = "plays",
-    sort_order: str = "desc"
+    sort_order: str = "desc",
+    artist_id: int | None = None,
 ) -> list[dict]:
     """
     Get albums for an artist with release years from MusicBrainz.
@@ -578,6 +613,11 @@ def get_artist_albums_with_years(
 
     # Get played albums from scrobbles
     conn = get_db_connection()
+    if artist_id is None:
+        artist_id = _lookup_artist_id(conn, album_artist_name)
+    if artist_id is None:
+        conn.close()
+        return []
 
     sql = """
         SELECT
@@ -586,9 +626,9 @@ def get_artist_albums_with_years(
             MAX(album_mbid) AS album_mbid,
             COUNT(*) AS plays
         FROM scrobble
-        WHERE artist = ?
+        WHERE artist_id = ?
     """
-    params = [album_artist_name]
+    params = [artist_id]
 
     if start and end:
         sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?

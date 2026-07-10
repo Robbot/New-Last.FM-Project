@@ -96,17 +96,21 @@ def get_top_albums(start: str = "", end: str = "", search_term: str = ""):
     return rows
 
 
-def get_album_total_plays(album_artist_name: str, album_name: str, start: str = "", end: str = "") -> int:
+def get_album_total_plays(album_artist_name: str, album_name: str, start: str = "", end: str = "", album_id: int | None = None) -> int:
     """Get total plays for an album, optionally filtered by date range."""
     conn = get_db_connection()
+    if album_id is None:
+        album_id = lookup_album_id(conn, album_artist_name, album_name)
+    if album_id is None:
+        conn.close()
+        return 0
 
     sql = """
         SELECT COUNT(*) AS total
         FROM scrobble
-        WHERE album_artist = ?
-          AND album  = ?
+        WHERE album_id = ?
     """
-    params = [album_artist_name, album_name]
+    params = [album_id]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -120,36 +124,43 @@ def get_album_total_plays(album_artist_name: str, album_name: str, start: str = 
     return row["total"] if row else 0
 
 
-def get_album_art(album_artist_name: str, album_name: str):
+def get_album_art(album_artist_name: str, album_name: str, album_id: int | None = None):
     """Get album art information from database."""
     conn = get_db_connection()
+    if album_id is None:
+        album_id = lookup_album_id(conn, album_artist_name, album_name)
+    if album_id is None:
+        conn.close()
+        return None
     rows = conn.execute(
         """
         SELECT album_mbid, artist_mbid, image_xlarge
         FROM album_art
-        WHERE artist = ?
-          AND album  = ?
+        WHERE album_id = ?
         LIMIT 1
         """,
-        (album_artist_name, album_name),
+        (album_id,),
     ).fetchone()
     conn.close()
     return rows
 
 
-def get_album_release_year(album_artist_name: str, album_name: str, table: str = "album_art", col: str = "year_col") -> str | None:
+def get_album_release_year(album_artist_name: str, album_name: str, table: str = "album_art", col: str = "year_col", album_id: int | None = None) -> str | None:
     """Get the release year for an album."""
     conn = get_db_connection()
     try:
+        if album_id is None:
+            album_id = lookup_album_id(conn, album_artist_name, album_name)
+        if album_id is None:
+            return None
         row = conn.execute(
             f"""
             SELECT {col}
             FROM {table}
-            WHERE artist = ?
-              AND album  = ?
+            WHERE album_id = ?
             LIMIT 1
             """,
-            (album_artist_name, album_name),
+            (album_id,),
         ).fetchone()
         if not row:
             return None
@@ -159,19 +170,22 @@ def get_album_release_year(album_artist_name: str, album_name: str, table: str =
         conn.close()
 
 
-def get_album_wikipedia_url(album_artist_name: str, album_name: str) -> str | None:
+def get_album_wikipedia_url(album_artist_name: str, album_name: str, album_id: int | None = None) -> str | None:
     """Get the Wikipedia URL for an album from the database."""
     conn = get_db_connection()
     try:
+        if album_id is None:
+            album_id = lookup_album_id(conn, album_artist_name, album_name)
+        if album_id is None:
+            return None
         row = conn.execute(
             """
             SELECT wikipedia_url
             FROM album_art
-            WHERE artist = ?
-              AND album  = ?
+            WHERE album_id = ?
             LIMIT 1
             """,
-            (album_artist_name, album_name),
+            (album_id,),
         ).fetchone()
         if row and row["wikipedia_url"]:
             return row["wikipedia_url"]
@@ -180,18 +194,21 @@ def get_album_wikipedia_url(album_artist_name: str, album_name: str) -> str | No
         conn.close()
 
 
-def set_album_wikipedia_url(album_artist_name: str, album_name: str, wikipedia_url: str) -> bool:
+def set_album_wikipedia_url(album_artist_name: str, album_name: str, wikipedia_url: str, album_id: int | None = None) -> bool:
     """Set the Wikipedia URL for an album in the database."""
     conn = get_db_connection()
     try:
+        if album_id is None:
+            album_id = lookup_album_id(conn, album_artist_name, album_name)
+        if album_id is None:
+            return False
         conn.execute(
             """
             UPDATE album_art
             SET wikipedia_url = ?
-            WHERE artist = ?
-              AND album  = ?
+            WHERE album_id = ?
             """,
-            (wikipedia_url, album_artist_name, album_name),
+            (wikipedia_url, album_id),
         )
         conn.commit()
         return True
@@ -201,32 +218,34 @@ def set_album_wikipedia_url(album_artist_name: str, album_name: str, wikipedia_u
         conn.close()
 
 
-def album_tracks_exist(album_artist_name: str, album_name: str, album_mbid: str = None) -> bool:
+def album_tracks_exist(album_artist_name: str, album_name: str, album_mbid: str = None, album_id: int | None = None) -> bool:
     """Check if album tracks exist in the database."""
     conn = get_db_connection()
+    is_va = album_artist_name.lower() in ("various artists", "various artist")
 
-    # For compilations with MBID, check by MBID (tracks have individual artists)
-    if album_artist_name.lower() in ("various artists", "various artist") and album_mbid:
+    if is_va and album_mbid:
+        # Compilations with MBID: tracks carry individual artists, so check by mbid.
         row = conn.execute(
-            """
-            SELECT 1
-            FROM album_tracks
-            WHERE album_mbid = ?
-            LIMIT 1
-            """,
+            "SELECT 1 FROM album_tracks WHERE album_mbid = ? LIMIT 1",
             (album_mbid,),
         ).fetchone()
-    else:
-        # For regular albums or compilations without MBID, check by artist and album
+    elif is_va:
+        # Compilation without MBID: album_tracks keyed by per-track artist, so
+        # check by album name.
         row = conn.execute(
-            """
-            SELECT 1
-            FROM album_tracks
-            WHERE artist = ?
-              AND album  = ?
-            LIMIT 1
-            """,
-            (album_artist_name, album_name),
+            "SELECT 1 FROM album_tracks WHERE album = ? LIMIT 1",
+            (album_name,),
+        ).fetchone()
+    else:
+        # Regular albums: check by canonical album_id.
+        if album_id is None:
+            album_id = lookup_album_id(conn, album_artist_name, album_name)
+        if album_id is None:
+            conn.close()
+            return False
+        row = conn.execute(
+            "SELECT 1 FROM album_tracks WHERE album_id = ? LIMIT 1",
+            (album_id,),
         ).fetchone()
 
     conn.close()
@@ -457,7 +476,7 @@ def _guess_ext_from_url(url: str) -> str:
     return ".jpg"
 
 
-def ensure_album_art_cached(album_artist_name: str, album_name: str) -> str | None:
+def ensure_album_art_cached(album_artist_name: str, album_name: str, album_id: int | None = None) -> str | None:
     """
     - Looks up album_art.image_xlarge for (artist_name, album_name)
     - Downloads it once into: <app static>/covers/<key>.<ext>
@@ -465,16 +484,19 @@ def ensure_album_art_cached(album_artist_name: str, album_name: str) -> str | No
     """
     conn = get_db_connection()
 
-    art_row = conn.execute(
-        """
-        SELECT album_mbid, image_xlarge
-        FROM album_art
-        WHERE artist = ?
-          AND album  = ?
-        LIMIT 1
-        """,
-        (album_artist_name, album_name),
-    ).fetchone()
+    if album_id is None:
+        album_id = lookup_album_id(conn, album_artist_name, album_name)
+    art_row = None
+    if album_id is not None:
+        art_row = conn.execute(
+            """
+            SELECT album_mbid, image_xlarge
+            FROM album_art
+            WHERE album_id = ?
+            LIMIT 1
+            """,
+            (album_id,),
+        ).fetchone()
 
     album_mbid = (art_row["album_mbid"] or "").strip() if art_row else ""
     cdn_url = (art_row["image_xlarge"] or "").strip() if art_row else ""
@@ -823,33 +845,47 @@ def get_top_compilations(start: str = "", end: str = "", search_term: str = ""):
     return rows
 
 
-def get_compilation_artists(album_name: str) -> list[dict]:
+def get_compilation_artists(album_name: str, album_id: int | None = None) -> list[dict]:
     """Get all distinct artists for a compilation album."""
     conn = get_db_connection()
+    if album_id is None:
+        album_id = lookup_album_id(conn, "Various Artists", album_name)
+    if album_id is None:
+        conn.close()
+        return []
     rows = conn.execute(
         """
         SELECT DISTINCT artist
         FROM scrobble
-        WHERE album_artist = 'Various Artists'
-          AND album = ?
+        WHERE album_id = ?
         ORDER BY artist
         """,
-        (album_name,)
+        (album_id,),
     ).fetchall()
     conn.close()
     return rows
 
 
-def get_album_total_plays_by_mbid(album_mbid: str, album_name: str, start: str = "", end: str = "") -> int:
+def get_album_total_plays_by_mbid(album_mbid: str, album_name: str, start: str = "", end: str = "", album_id: int | None = None) -> int:
     """Get total plays for an album by MBID, optionally filtered by date range."""
     conn = get_db_connection()
+    if album_id is None:
+        row = conn.execute(
+            "SELECT album_id FROM scrobble WHERE album_mbid = ? AND album_id IS NOT NULL "
+            "GROUP BY album_id ORDER BY COUNT(*) DESC LIMIT 1",
+            (album_mbid,),
+        ).fetchone()
+        album_id = row[0] if row else None
+    if album_id is None:
+        conn.close()
+        return 0
 
     sql = """
         SELECT COUNT(*) AS total
         FROM scrobble
-        WHERE album_mbid = ?
+        WHERE album_id = ?
     """
-    params = [album_mbid]
+    params = [album_id]
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
@@ -940,17 +976,27 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
     return results
 
 
-def get_compilation_artists_by_mbid(album_mbid: str, album_name: str) -> list[dict]:
+def get_compilation_artists_by_mbid(album_mbid: str, album_name: str, album_id: int | None = None) -> list[dict]:
     """Get all distinct artists for a compilation album by MBID."""
     conn = get_db_connection()
+    if album_id is None:
+        row = conn.execute(
+            "SELECT album_id FROM scrobble WHERE album_mbid = ? AND album_id IS NOT NULL "
+            "GROUP BY album_id ORDER BY COUNT(*) DESC LIMIT 1",
+            (album_mbid,),
+        ).fetchone()
+        album_id = row[0] if row else None
+    if album_id is None:
+        conn.close()
+        return []
     rows = conn.execute(
         """
         SELECT DISTINCT artist
         FROM scrobble
-        WHERE album_mbid = ?
+        WHERE album_id = ?
         ORDER BY artist
         """,
-        (album_mbid,)
+        (album_id,),
     ).fetchall()
     conn.close()
     return rows
