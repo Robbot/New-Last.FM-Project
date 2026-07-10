@@ -443,6 +443,9 @@ def get_conn() -> sqlite3.Connection:
     # Enforce FK constraints at runtime (entity *_id columns are nullable,
     # so this is safe with existing data). See migrate_entity_tables.py.
     conn.execute("PRAGMA foreign_keys = ON")
+    # Wait for a write lock instead of failing "database is locked" when the
+    # web app writes concurrently with this sync (WAL allows only one writer).
+    conn.execute("PRAGMA busy_timeout = 15000")
     return conn
 
 
@@ -1118,7 +1121,8 @@ def sync_lastfm() -> None:
                             'track_mbid': track_mbid,
                             'album_tracks': track_validation.get('album_tracks', [])
                         },
-                        severity='warning'
+                        severity='warning',
+                        conn=conn  # share the sync's transaction (avoids "database is locked")
                     )
                     logger.warning(f'Track mismatch: {artist_name} - {album_name} - "{track_name}"')
                 elif track_validation['issue_type'] == 'normalized_match':
@@ -1220,7 +1224,8 @@ def sync_lastfm() -> None:
                         'skipped': skipped_rows,
                         'timestamp': int(time.time())
                     },
-                    severity='warning'
+                    severity='warning',
+                    conn=conn  # share the sync's transaction (avoids "database is locked")
                 )
                 logger.warning(f'{skipped_rows} scrobbles skipped (likely duplicates or data conflicts)')
 

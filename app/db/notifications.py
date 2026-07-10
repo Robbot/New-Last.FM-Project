@@ -16,7 +16,8 @@ def create_notification(
     title: str,
     message: str,
     details: Optional[Dict[str, Any]] = None,
-    severity: str = "info"
+    severity: str = "info",
+    conn: Optional[sqlite3.Connection] = None,
 ) -> int:
     """
     Create a new notification.
@@ -27,22 +28,31 @@ def create_notification(
         message: Notification message
         details: Optional dictionary with additional context (will be JSON serialized)
         severity: Severity level ('info', 'warning', 'error', 'critical')
+        conn: Optional existing connection. Pass this when called from within a
+            transaction that already holds a write lock (e.g. mid-sync-loop) so
+            this write joins that transaction instead of opening a contending
+            connection ("database is locked"). When provided, the insert is
+            committed immediately.
 
     Returns:
         The ID of the created notification
     """
     details_json = json.dumps(details) if details else None
     created_at = int(time.time())
+    sql = """
+        INSERT INTO notifications (type, title, message, details, created_at, severity)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """
+    params = (notification_type, title, message, details_json, created_at, severity)
+
+    if conn is not None:
+        cur = conn.execute(sql, params)
+        conn.commit()
+        return cur.lastrowid
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO notifications (type, title, message, details, created_at, severity)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (notification_type, title, message, details_json, created_at, severity)
-        )
+        cur.execute(sql, params)
         conn.commit()
         return cur.lastrowid
 

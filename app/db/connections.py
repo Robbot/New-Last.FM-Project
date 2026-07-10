@@ -33,6 +33,11 @@ def get_db_connection() -> sqlite3.Connection:
         # no legacy table declares a FOREIGN KEY, and the entity *_id columns
         # are nullable (NULL never violates an FK). See migrate_entity_tables.py.
         conn.execute("PRAGMA foreign_keys = ON")
+        # Wait (up to 15s) for a write lock instead of instantly failing with
+        # "database is locked" when the web app and the sync cron write
+        # concurrently. The DB is in WAL mode (readers never block), but SQLite
+        # still allows only one writer at a time.
+        conn.execute("PRAGMA busy_timeout = 15000")
         return conn
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {e}")
