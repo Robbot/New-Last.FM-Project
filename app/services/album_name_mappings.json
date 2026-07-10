@@ -359,9 +359,15 @@
       "from": "Chodz zobaczyc",
       "to": "Chodź Zobaczyć",
       "reason": "Polish diacritic spelling fix (ś, ć)"
+    },
+    {
+      "artist": "Deep Purple",
+      "from": "Made in Japan (Steven Wilson 2025 Remix)",
+      "to": "Made in Japan",
+      "reason": "Consolidate Steven Wilson 2025 remix mistags into parent album"
     }
   ],
-  "last_updated": "2026-07-05",
+  "last_updated": "2026-07-10",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
   "track_mappings": [
     {
