@@ -25,6 +25,15 @@ from .connections import (
     DB_PATH,
 )
 
+# Import and re-export entity resolver (Phase 1 relational rework)
+from .entities import (
+    Resolver,
+    get_resolver,
+    resolve_artist_id,
+    resolve_album_id,
+    resolve_track_id,
+)
+
 # Import and re-export scrobbles
 from .scrobbles import (
     get_latest_scrobbles,
@@ -94,6 +103,12 @@ __all__ = [
     "_normalize_track_name_for_matching",
     "BASE_DIR",
     "DB_PATH",
+    # Entity resolver
+    "Resolver",
+    "get_resolver",
+    "resolve_artist_id",
+    "resolve_album_id",
+    "resolve_track_id",
     # Scrobbles
     "get_latest_scrobbles",
     "average_scrobbles_per_day",

@@ -29,6 +29,10 @@ def get_db_connection() -> sqlite3.Connection:
     try:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
+        # Enforce FK constraints at runtime. Safe with the existing schema:
+        # no legacy table declares a FOREIGN KEY, and the entity *_id columns
+        # are nullable (NULL never violates an FK). See migrate_entity_tables.py.
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
     except sqlite3.Error as e:
         logger.error(f"Database connection error: {e}")

@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from app import create_app
+from app.services.migrate_entity_tables import ensure_entity_schema
 
 
 @pytest.fixture
@@ -38,6 +39,7 @@ def app():
                 track TEXT,
                 track_mbid TEXT,
                 uts INTEGER,
+                source TEXT DEFAULT 'lastfm',
                 UNIQUE(uts, artist, album, track)
             )
         """)
@@ -61,12 +63,15 @@ def app():
                 artist TEXT,
                 album TEXT,
                 track_number INTEGER,
-                track TEXT,
                 track_mbid TEXT,
+                track TEXT,
                 duration INTEGER,
                 PRIMARY KEY (artist, album, track_number)
             )
         """)
+        # Canonical entity tables + nullable *_id FK columns (Phase 0).
+        # Single source of truth shared with the live migration and ensure_schema.
+        ensure_entity_schema(conn)
         conn.commit()
 
     yield app
