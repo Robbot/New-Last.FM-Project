@@ -6,6 +6,10 @@ This service ensures that when moving scrobbles to a different album:
 1. The album_mbid is consistent across scrobble, album_art, and album_tracks tables
 2. If the target album exists in album_art, its MBID is used
 3. album_tracks.album_mbid is updated if needed
+4. The canonical album_id (relational rework) is resolved for the target album
+   and written to scrobble.album_id / album_tracks.album_id, so album_id-keyed
+   reads (album library grouping, album play counts) reflect the move. The
+   target album entity is created on demand if it isn't present yet.
 
 Usage:
     python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album"
@@ -17,6 +21,7 @@ import logging
 import sqlite3
 from pathlib import Path
 from app.logging_config import get_logger
+from app.db.entities import Resolver
 
 logger = get_logger(__name__)
 
@@ -61,7 +66,7 @@ def move_scrobble_to_album(
     # Find the scrobble(s) to move
     scrobbles = conn.execute(
         """
-        SELECT id, artist, album, track, album_mbid
+        SELECT id, artist, album, track, album_mbid, artist_mbid, album_artist, album_id
         FROM scrobble
         WHERE artist = ? AND track = ?
         """,
@@ -111,42 +116,59 @@ def move_scrobble_to_album(
             final_mbid = existing_mbid["album_mbid"]
             mbid_source = "existing scrobbles"
 
+    # Relational rework: resolve the canonical album_id for the target album so
+    # reads that key on scrobble.album_id (album library grouping, album play
+    # counts) reflect the move. The Resolver creates the album entity + alias
+    # if the target album isn't present yet. In dry-run mode those creations are
+    # uncommitted and rolled back when the connection closes.
+    resolver = Resolver(conn)
+    artist_id = resolver.resolve_artist_id(artist_name, scrobbles[0]["artist_mbid"])
+    new_album_id = resolver.resolve_album_id(
+        artist_id,
+        new_album_name,
+        final_mbid,
+        album_artist_text=scrobbles[0]["album_artist"],
+    )
+
     results = []
     for scrobble in scrobbles:
         old_album = scrobble["album"]
         old_mbid = scrobble["album_mbid"]
+        old_album_id = scrobble["album_id"]
 
         if dry_run:
             logger.info(f"[DRY RUN] Would move scrobble {scrobble['id']}: {artist_name} - {track_name}")
-            logger.info(f"  Old album: {old_album} (MBID: {old_mbid})")
-            logger.info(f"  New album: {new_album_name} (MBID: {final_mbid} from {mbid_source})")
+            logger.info(f"  Old album: {old_album} (MBID: {old_mbid}, album_id: {old_album_id})")
+            logger.info(f"  New album: {new_album_name} (MBID: {final_mbid} from {mbid_source}, album_id: {new_album_id})")
             results.append({
                 "scrobble_id": scrobble["id"],
                 "old_album": old_album,
                 "new_album": new_album_name,
                 "mbid": final_mbid,
-                "mbid_source": mbid_source
+                "mbid_source": mbid_source,
+                "old_album_id": old_album_id,
+                "new_album_id": new_album_id
             })
         else:
-            # Update the scrobble
+            # Update the scrobble (album text, album_mbid, and canonical album_id)
             conn.execute(
                 """
                 UPDATE scrobble
-                SET album = ?, album_mbid = ?
+                SET album = ?, album_mbid = ?, album_id = ?
                 WHERE id = ?
                 """,
-                (new_album_name, final_mbid, scrobble["id"])
+                (new_album_name, final_mbid, new_album_id, scrobble["id"])
             )
 
-            # Update album_tracks album_mbid if the tracklist exists
+            # Update album_tracks album_mbid/album_id if the tracklist exists
             if final_mbid:
                 conn.execute(
                     """
                     UPDATE album_tracks
-                    SET album_mbid = ?
+                    SET album_mbid = ?, album_id = ?
                     WHERE artist = ? AND album = ? AND track = ?
                     """,
-                    (final_mbid, artist_name, new_album_name, track_name)
+                    (final_mbid, new_album_id, artist_name, new_album_name, track_name)
                 )
 
             logger.info(f"Moved scrobble {scrobble['id']}: {old_album} -> {new_album_name}")
@@ -155,7 +177,9 @@ def move_scrobble_to_album(
                 "old_album": old_album,
                 "new_album": new_album_name,
                 "mbid": final_mbid,
-                "mbid_source": mbid_source
+                "mbid_source": mbid_source,
+                "old_album_id": old_album_id,
+                "new_album_id": new_album_id
             })
 
     if not dry_run:
@@ -167,7 +191,8 @@ def move_scrobble_to_album(
         "moved": len(results),
         "scrobbles": results,
         "album_mbid": final_mbid,
-        "mbid_source": mbid_source
+        "mbid_source": mbid_source,
+        "album_id": new_album_id
     }
 
 
@@ -202,6 +227,8 @@ def main():
 
     if result.get("album_mbid"):
         print(f"Album MBID: {result['album_mbid']} (from {result['mbid_source']})")
+    if result.get("album_id"):
+        print(f"Album ID: {result['album_id']}")
 
     for scrobble in result.get("scrobbles", []):
         print(f"  {scrobble['old_album']} -> {scrobble['new_album']}")
