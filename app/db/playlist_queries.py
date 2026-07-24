@@ -190,6 +190,10 @@ def get_track_gaps(limit: int = 50) -> list:
 
     This is useful for rediscovery playlists.
 
+    Grouped by canonical ``track_id`` (with the track text as fallback) so that
+    case/accent variants of the same track merge into one row; otherwise the
+    older variant never inherits the newer play date and stays pinned to the top.
+
     Args:
         limit: Maximum number of tracks to return
 
@@ -201,16 +205,17 @@ def get_track_gaps(limit: int = 50) -> list:
     rows = conn.execute(
         """
         SELECT
-            artist,
-            album,
-            track,
-            MAX(uts) as last_play_uts,
+            s.artist,
+            s.album,
+            COALESCE(ct.title, s.track) AS track,
+            MAX(s.uts) as last_play_uts,
             COUNT(*) as play_count,
-            CAST((strftime('%s', 'now') - MAX(uts)) / 86400 AS INTEGER) as days_since
-        FROM scrobble
-        WHERE track IS NOT NULL AND track != ''
-        GROUP BY artist, album, track
-        ORDER BY MAX(uts) ASC
+            CAST((strftime('%s', 'now') - MAX(s.uts)) / 86400 AS INTEGER) as days_since
+        FROM scrobble s
+        LEFT JOIN track ct ON ct.track_id = s.track_id
+        WHERE s.track IS NOT NULL AND s.track != ''
+        GROUP BY COALESCE(s.track_id, s.track), s.artist, s.album
+        ORDER BY MAX(s.uts) ASC
         LIMIT ?
     """,
         (limit,),

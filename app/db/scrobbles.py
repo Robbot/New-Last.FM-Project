@@ -71,35 +71,48 @@ def average_scrobbles_per_day():
 
 
 def get_track_gaps(start: str = "", end: str = ""):
-    """Tracks sorted by time since last play (longest gap first)."""
+    """Tracks sorted by time since last play (longest gap first).
+
+    Grouped by canonical ``track_id`` (falling back to the normalized track text
+    for scrobbles that have no ``track_id`` yet) so that case/accent variants of
+    the same track collapse into a single row. Without this, a track scrobbled
+    once as "EMI (orchestral)" and again as "Emi (Orchestral)" appears as two
+    separate gap rows and the older one never inherits the newer play date.
+    """
     conn = get_db_connection()
 
     # Normalize escaped characters in track names for proper grouping
     # Handles \!, \?, \[, \] etc. so "Muka!" and "Muka\!" are treated as same track
     # CHAR(92) is backslash - we remove all backslashes to normalize escaped characters
-    normalized_track = "TRIM(REPLACE(REPLACE(REPLACE(REPLACE(track, CHAR(92), ''), CHAR(92), ''), CHAR(92), ''), CHAR(92), ''))"
+    normalized_track = "TRIM(REPLACE(REPLACE(REPLACE(REPLACE(s.track, CHAR(92), ''), CHAR(92), ''), CHAR(92), ''), CHAR(92), ''))"
+
+    # When track_id is present, group by it so name variants merge; otherwise
+    # fall back to the normalized track text. The display title comes from the
+    # canonical track entity when available.
+    group_key = f"COALESCE(s.track_id, {normalized_track})"
 
     sql = f"""
         SELECT
-            {normalized_track} AS track,
-            artist,
-            album,
-            album_artist,
-            MAX(CAST(uts AS INTEGER)) AS last_play_uts,
+            COALESCE(ct.title, {normalized_track}) AS track,
+            s.artist,
+            s.album,
+            s.album_artist,
+            MAX(CAST(s.uts AS INTEGER)) AS last_play_uts,
             COUNT(*) AS plays
-        FROM scrobble
-        WHERE track IS NOT NULL AND track != ''
+        FROM scrobble s
+        LEFT JOIN track ct ON ct.track_id = s.track_id
+        WHERE s.track IS NOT NULL AND s.track != ''
     """
     params = []
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
-        sql += """ AND date(uts, 'unixepoch', 'localtime') >= ?
-                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        sql += """ AND date(s.uts, 'unixepoch', 'localtime') >= ?
+                   AND date(s.uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
 
     sql += f"""
-        GROUP BY {normalized_track}, artist, album, album_artist
+        GROUP BY {group_key}, s.artist, s.album, s.album_artist
         ORDER BY last_play_uts ASC
     """
 
