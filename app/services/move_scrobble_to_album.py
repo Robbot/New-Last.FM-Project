@@ -10,6 +10,11 @@ This service ensures that when moving scrobbles to a different album:
    and written to scrobble.album_id / album_tracks.album_id, so album_id-keyed
    reads (album library grouping, album play counts) reflect the move. The
    target album entity is created on demand if it isn't present yet.
+5. album_artist is rewritten to the target album's prevailing value (falling
+   back to the artist name) so a 'Various Artists' tag carried over from a
+   compilation source doesn't split the track in views that GROUP BY
+   album_artist (e.g. track-gaps, where it would pin a phantom row to the old
+   play date).
 
 Usage:
     python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album"
@@ -130,16 +135,36 @@ def move_scrobble_to_album(
         album_artist_text=scrobbles[0]["album_artist"],
     )
 
+    # Resolve the album_artist to set on the target album so the moved scrobble
+    # groups consistently with the album's existing scrobbles. Views like
+    # track-gaps GROUP BY album_artist, so a leftover 'Various Artists' carried
+    # over from a compilation source would split the track into a phantom row
+    # pinned to the old play date. Prefer the target album's prevailing
+    # album_artist; fall back to the artist name when the album is new.
+    aa_row = conn.execute(
+        """
+        SELECT album_artist
+        FROM scrobble
+        WHERE artist = ? AND album = ? AND album_artist IS NOT NULL AND album_artist != ''
+        GROUP BY album_artist
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+        """,
+        (artist_name, new_album_name)
+    ).fetchone()
+    final_album_artist = aa_row["album_artist"] if aa_row else artist_name
+
     results = []
     for scrobble in scrobbles:
         old_album = scrobble["album"]
         old_mbid = scrobble["album_mbid"]
         old_album_id = scrobble["album_id"]
+        old_album_artist = scrobble["album_artist"]
 
         if dry_run:
             logger.info(f"[DRY RUN] Would move scrobble {scrobble['id']}: {artist_name} - {track_name}")
-            logger.info(f"  Old album: {old_album} (MBID: {old_mbid}, album_id: {old_album_id})")
-            logger.info(f"  New album: {new_album_name} (MBID: {final_mbid} from {mbid_source}, album_id: {new_album_id})")
+            logger.info(f"  Old album: {old_album} (MBID: {old_mbid}, album_id: {old_album_id}, album_artist: {old_album_artist})")
+            logger.info(f"  New album: {new_album_name} (MBID: {final_mbid} from {mbid_source}, album_id: {new_album_id}, album_artist: {final_album_artist})")
             results.append({
                 "scrobble_id": scrobble["id"],
                 "old_album": old_album,
@@ -147,17 +172,21 @@ def move_scrobble_to_album(
                 "mbid": final_mbid,
                 "mbid_source": mbid_source,
                 "old_album_id": old_album_id,
-                "new_album_id": new_album_id
+                "new_album_id": new_album_id,
+                "old_album_artist": old_album_artist,
+                "new_album_artist": final_album_artist
             })
         else:
-            # Update the scrobble (album text, album_mbid, and canonical album_id)
+            # Update the scrobble (album text, album_mbid, canonical album_id,
+            # and album_artist — all four together, or the move is partly
+            # invisible: a leftover album_artist splits the track in track-gaps)
             conn.execute(
                 """
                 UPDATE scrobble
-                SET album = ?, album_mbid = ?, album_id = ?
+                SET album = ?, album_mbid = ?, album_id = ?, album_artist = ?
                 WHERE id = ?
                 """,
-                (new_album_name, final_mbid, new_album_id, scrobble["id"])
+                (new_album_name, final_mbid, new_album_id, final_album_artist, scrobble["id"])
             )
 
             # Update album_tracks album_mbid/album_id if the tracklist exists
@@ -179,7 +208,9 @@ def move_scrobble_to_album(
                 "mbid": final_mbid,
                 "mbid_source": mbid_source,
                 "old_album_id": old_album_id,
-                "new_album_id": new_album_id
+                "new_album_id": new_album_id,
+                "old_album_artist": old_album_artist,
+                "new_album_artist": final_album_artist
             })
 
     if not dry_run:
