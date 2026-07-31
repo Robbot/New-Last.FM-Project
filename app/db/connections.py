@@ -188,8 +188,10 @@ def _normalize_track_name_for_matching(text: str) -> str:
     # Lowercase for case-insensitive matching
     text = text.lower()
 
-    # First, apply regex-based suffix removal (for patterns with years)
-    # These must be done before literal suffix matching since they're more specific
+    # Regex-based suffix removal. Year patterns first (more specific), then
+    # generic version/mix/edit/live/feat qualifiers that should match across
+    # artists. Run before literal suffix matching. All anchored at end ($) and
+    # gated on a " - " separator or a trailing parenthetical to stay narrow.
     regex_patterns = [
         (r' - \d{4} remastered', ''),  # " - 2024 remastered"
         (r' \(\d{4} remastered\)', ''),  # " (2024 remastered)"
@@ -197,6 +199,18 @@ def _normalize_track_name_for_matching(text: str) -> str:
         (r' \(\d{4} rem\)', ''),  # " (2024 rem)"
         (r' - \d{4} ', ''),  # " - 2024 " (catch-all for year suffixes)
         (r' \(\d{4}\)', ''),  # " (2024)" (year in parentheses)
+        # Trailing " - <qualifier> Mix/Edit/Remix/Version", e.g. " - Troubadour Mix"
+        (r' - .+ (mix|edit|remix|version)$', ''),
+        # Bare " - version" / " - version one|two" / " - lp version"
+        (r' - version( \w+)?$', ''),
+        # Live recordings: " - Live in/at ...", bare " - Live", "(live ...)"
+        (r' - live\b.*$', ''),
+        (r' \(live[^)]*\)$', ''),
+        # Featuring / soundtrack-origin parentheticals at end: "(feat. X)", "(From ...)"
+        (r' \(feat\.? [^)]*\)$', ''),
+        (r' \(from [^)]*\)$', ''),
+        # Trailing parenthetical ending in a mix/edit/version word, e.g. "(Radio Edit)"
+        (r' \(.* (mix|edit|remix|version)\)$', ''),
     ]
     for pattern, replacement in regex_patterns:
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
