@@ -229,6 +229,13 @@ def _normalize_track_name_for_matching(text: str) -> str:
         if text.lower().endswith(suffix):
             text = text[:-len(suffix)]
 
+    # Strip punctuation that only separates clauses (commas, periods, etc.)
+    # so "Ja stoję, ja tańczę, ja walczę" matches "Ja Stoję Ja Tańczę Ja Walczę".
+    # Run AFTER suffix removal so patterns like " - Single Version" / " (Edit)",
+    # which depend on the hyphen and parens, still match. Same punctuation set as
+    # _normalize_for_matching(); hyphens are intentionally left (handled above).
+    text = re.sub(r'[\'".,:;!?(){}\[\]<>]+', '', text)
+
     # Normalize whitespace (handle 2+ spaces after replacing slashes)
     while "  " in text:
         text = text.replace("  ", " ")

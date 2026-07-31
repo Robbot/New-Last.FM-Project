@@ -1067,7 +1067,19 @@
       "album": "Cool Kids Of Death (International Version)",
       "from": "The Salvation Army",
       "to": "The salvation army"
+    },
+    {
+      "artist": "Stevie Nicks",
+      "album": "Bella Donna",
+      "from": "Stop Draggin' My Heart Around (with Tom Petty and the Heartbreakers)",
+      "to": "Stop Draggin' My Heart Around"
+    },
+    {
+      "artist": "Siekiera",
+      "album": "Nowa Aleksandria",
+      "from": "Ja stoję, ja tańczę, ja walczę",
+      "to": "Ja Stoję Ja Tańczę Ja Walczę"
     }
   ],
-  "last_updated": "2026-07-26"
+  "last_updated": "2026-07-31"
 }
