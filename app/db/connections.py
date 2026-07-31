@@ -162,6 +162,12 @@ def _normalize_track_name_for_matching(text: str) -> str:
     for unicode_char, straight_char in quote_mapping.items():
         text = text.replace(unicode_char, straight_char)
 
+    # Remove accents (é → e, ó → o, ę → e, etc.) so an accented scrobble matches
+    # an unaccented album_track and vice versa. Same NFKD approach as
+    # _normalize_for_matching(); done before lowercase + suffix matching.
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join([c for c in text if not unicodedata.combining(c)])
+
     # Normalize Unicode dashes to regular hyphen (U+002D)
     #   – (U+2013 EN DASH) - commonly used in track names from Last.fm
     #   — (U+2014 EM DASH)
