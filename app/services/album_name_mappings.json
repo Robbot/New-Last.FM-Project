@@ -395,9 +395,21 @@
       "from": "Cool Kids of Death (International Version)",
       "to": "Cool Kids Of Death (International Version)",
       "reason": "Force canonical capital 'Of'; clean_title lowercases 'Of'->'of', this keeps the MusicBrainz form stable across syncs"
+    },
+    {
+      "artist": "The Birthday Party",
+      "from": "Mutiny - the Bad Seeds E.R",
+      "to": "Mutiny / The Bad Seed EP",
+      "reason": "Garbled album tag collecting Mutiny/The Bad Seed EP tracks; routes to the combined compilation (release-group 1fb4a566-940d-3981-9a48-5ffa2220e8da)"
+    },
+    {
+      "artist": "The Birthday Party",
+      "from": "Mutiny / the Bad Seed",
+      "to": "Mutiny / The Bad Seed EP",
+      "reason": "Garbled album tag collecting Mutiny/The Bad Seed EP tracks; routes to the combined compilation (release-group 1fb4a566-940d-3981-9a48-5ffa2220e8da)"
     }
   ],
-  "last_updated": "2026-07-26",
+  "last_updated": "2026-08-06",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
   "track_mappings": [
     {

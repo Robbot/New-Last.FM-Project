@@ -1133,7 +1133,25 @@
       "album": "Staring at the Sea - the Singles",
       "from": "Charlotte Sometimes - Single 10/81",
       "to": "Charlotte Sometimes"
+    },
+    {
+      "artist": "The Birthday Party",
+      "album": "Mutiny / The Bad Seed EP",
+      "from": "Jennifers Veil",
+      "to": "Jennifer's Veil"
+    },
+    {
+      "artist": "The Birthday Party",
+      "album": "Mutiny / The Bad Seed EP",
+      "from": "Sonnys Burning",
+      "to": "Sonny's Burning"
+    },
+    {
+      "artist": "The Birthday Party",
+      "album": "Mutiny / The Bad Seed EP",
+      "from": "Wildworld",
+      "to": "Wild World"
     }
   ],
-  "last_updated": "2026-07-31"
+  "last_updated": "2026-08-06"
 }
