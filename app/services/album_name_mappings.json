@@ -413,6 +413,12 @@
       "from": "The Complete Atlantic Studio Albums 1977",
       "to": "The Complete Atlantic Studio Albums 1977 - 1991",
       "reason": "Spotify/Last.fm truncates the box-set title to '...1977' AND clean_remastered_suffix bare-year pattern strips ' - 1991' from the canonical tag; restore full year range (cf. Best 1991 -> Best 1991 - 2004)"
+    },
+    {
+      "artist": "Foreigner",
+      "from": "The Very Best ... and Beyond",
+      "to": "The Very Best...and Beyond",
+      "reason": "Correct ellipsis spacing - Spotify/Last.fm variant adds spaces around '...'; canonical has none (cf. STP Tiny Music ellipsis fix, reversed)"
     }
   ],
   "last_updated": "2026-08-08",
