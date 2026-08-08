@@ -407,9 +407,15 @@
       "from": "Mutiny / the Bad Seed",
       "to": "Mutiny / The Bad Seed EP",
       "reason": "Garbled album tag collecting Mutiny/The Bad Seed EP tracks; routes to the combined compilation (release-group 1fb4a566-940d-3981-9a48-5ffa2220e8da)"
+    },
+    {
+      "artist": "Foreigner",
+      "from": "The Complete Atlantic Studio Albums 1977",
+      "to": "The Complete Atlantic Studio Albums 1977 - 1991",
+      "reason": "Spotify/Last.fm truncates the box-set title to '...1977' AND clean_remastered_suffix bare-year pattern strips ' - 1991' from the canonical tag; restore full year range (cf. Best 1991 -> Best 1991 - 2004)"
     }
   ],
-  "last_updated": "2026-08-06",
+  "last_updated": "2026-08-08",
   "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
   "track_mappings": [
     {
