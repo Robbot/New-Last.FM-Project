@@ -49,9 +49,10 @@ def get_library_stats():
     conn = get_db_connection()
     row = conn.execute(
         """
-        SELECT COUNT(DISTINCT artist) AS total_artists,
+        SELECT COUNT(DISTINCT artist_id) AS total_artists,
                COUNT(*) AS total_scrobbles
         FROM scrobble
+        WHERE artist_id IS NOT NULL
         """
     ).fetchone()
     conn.close()
@@ -225,8 +226,9 @@ def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", 
         sort_order = "desc"
 
     sql = """
-        SELECT artist, COUNT(*) AS plays, COUNT(DISTINCT track) AS tracks
+        SELECT artist, COUNT(*) AS plays, COUNT(DISTINCT track_id) AS tracks
         FROM scrobble
+        WHERE artist_id IS NOT NULL
     """
     params = []
     where_conditions = []
@@ -238,18 +240,20 @@ def get_artists_details(start: str = "", end: str = "", sort_by: str = "plays", 
         params.extend([start, end])
         print(f"DB get_artists_details - Using date filter")
 
-    # Search filter - case-insensitive partial matching on artist name
+    # Search filter - case-insensitive partial matching on artist name. Matches
+    # any scrobble text for the artist, then groups by canonical artist_id so
+    # the whole artist (all spellings) is shown with full counts.
     if search_term:
-        where_conditions.append("LOWER(artist) LIKE ?")
+        where_conditions.append("artist_id IN (SELECT artist_id FROM scrobble WHERE LOWER(artist) LIKE ?)")
         params.append(f"%{search_term.lower()}%")
         print(f"DB get_artists_details - Using search filter: {search_term}")
 
     if where_conditions:
-        sql += " WHERE " + " AND ".join(where_conditions)
+        sql += " AND " + " AND ".join(where_conditions)
     else:
         print(f"DB get_artists_details - NO filters applied")
 
-    sql += " GROUP BY artist"
+    sql += " GROUP BY artist_id"
 
     # Apply sorting
     if sort_by == "artist":

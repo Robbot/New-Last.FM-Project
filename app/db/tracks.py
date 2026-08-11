@@ -15,10 +15,11 @@ def get_track_stats():
     row = conn.execute(
         """
         SELECT
-            COUNT(DISTINCT track) AS total_tracks,
+            COUNT(DISTINCT track_id) AS total_tracks,
             COUNT(*) AS total_scrobbles
         FROM scrobble
         WHERE track IS NOT NULL AND track != ''
+          AND track_id IS NOT NULL
         """
     ).fetchone()
     conn.close()

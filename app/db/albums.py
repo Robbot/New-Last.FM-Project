@@ -27,10 +27,11 @@ def get_album_stats():
     row = conn.execute(
         """
         SELECT
-            COUNT(DISTINCT album) AS total_albums,
-            COUNT(*)              AS total_scrobbles
+            COUNT(DISTINCT album_id) AS total_albums,
+            COUNT(*)                 AS total_scrobbles
         FROM scrobble
         WHERE album IS NOT NULL AND album != ''
+          AND album_id IS NOT NULL
         """
     ).fetchone()
     conn.close()
@@ -511,22 +512,13 @@ def ensure_album_art_cached(album_artist_name: str, album_name: str, album_id: i
     covers_abs_dir = Path(current_app.static_folder) / covers_rel_dir
     covers_abs_dir.mkdir(parents=True, exist_ok=True)
 
-    # If this is a placeholder, remove any cached file and return None
-    if is_placeholder:
-        for ext in (".jpg", ".jpeg", ".png", ".webp"):
-            abs_path = covers_abs_dir / f"{cache_key}{ext}"
-            if abs_path.exists():
-                try:
-                    abs_path.unlink()
-                    logger.debug(f"Removed placeholder cache file: {abs_path}")
-                except OSError:
-                    pass
-        return None
-
-    # Check if any local file exists with this cache key (regardless of extension)
-    # This handles the case where a user uploaded a cover with a different extension
-    # than what's stored in the database (e.g., uploaded .jpg but DB has .png URL)
-    # It also handles the case where a cover was uploaded but no album_art row exists
+    # Serve any existing local file for this cache key BEFORE the placeholder
+    # logic below. This is critical: a user-uploaded cover is written to disk but
+    # does not update album_art.image_xlarge, which may still hold Last.fm's
+    # placeholder URL. If the placeholder cleanup ran first, it would unlink the
+    # user's upload on every page load (the cover would vanish within a second of
+    # uploading). Returning here also handles uploads whose extension differs from
+    # the DB URL, and uploads made when no album_art row exists yet.
     logger.debug(f"ensure_album_art_cached: cache_key={cache_key}, static_folder={current_app.static_folder}")
     for ext in (".jpg", ".jpeg", ".png", ".webp"):
         abs_path = covers_abs_dir / f"{cache_key}{ext}"
@@ -534,6 +526,12 @@ def ensure_album_art_cached(album_artist_name: str, album_name: str, album_id: i
         if abs_path.exists() and abs_path.stat().st_size > 0:
             logger.debug(f"  Found local file: {cache_key}{ext}")
             return url_for("static", filename=f"covers/{cache_key}{ext}")
+
+    # No local cover exists. If the album_art URL is Last.fm's placeholder, there
+    # is nothing real to show or download — return None rather than caching the
+    # placeholder image.
+    if is_placeholder:
+        return None
 
     # No local file found, proceed to download from CDN if available
     if not cdn_url:
