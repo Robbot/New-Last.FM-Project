@@ -85,6 +85,19 @@ python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album" --mbi
 # Dry run first (no changes)
 python -m app.services.move_scrobble_to_album "Artist" "Track" "New Album" --dry-run
 
+# Purge zero-scrobble orphan albums (album_art + entity + alias that nothing
+# plays). FK-safe, backs up first, dry-run by default. Excludes the 3 known
+# typo-variants handled by fix_typo_album_orphans.py.
+python -m app.services.purge_zero_scrobble_albums --dry-run
+python -m app.services.purge_zero_scrobble_albums            # apply for real
+python -m app.services.purge_zero_scrobble_albums --no-backup  # reuse a prior backup
+
+# Merge typo-variant album orphans onto their correctly-spelled live entity
+# (Genesis 'Trepass'->'Trespass', Joy 'Divsion', Steve Howe 'Beginings').
+# Run BEFORE purge_zero_scrobble_albums.py and take the shared backup.
+python -m app.services.fix_typo_album_orphans --dry-run
+python -m app.services.fix_typo_album_orphans
+
 # Backfill album_mbids in album_tracks table
 python -m app.services.backfill_album_tracks_mbid
 

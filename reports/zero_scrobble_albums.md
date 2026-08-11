@@ -1,5 +1,16 @@
 # Zero-Scrobble Albums — cleanup candidates
 
+> ✅ **RESOLVED (2026-08-11).** All 137 true-zero orphans purged: 134 via
+> `purge_zero_scrobble_albums.py` and 3 typo-variants merged via
+> `fix_typo_album_orphans.py` (Genesis 'Trepass' repointed onto 'Trespass';
+> Joy 'Divsion' and Steve Howe 'Beginings' deleted onto their live entities).
+> Removed 137 `album` + 134 `album_alias` + 138 `album_art` + 993 `album_tracks`
+> rows, 0 cover files (orphans held remote URLs only). Post-fix the regeneration
+> query returns **0** true-zeros; `integrity_check` ok; 0 dangling `album_id` refs
+> across `album_alias`/`album_art`/`album_tracks`/`scrobble`. Backup:
+> `files/backups/lastfmstats_20260811_105843.sqlite`. The report below is the
+> historical pre-fix record.
+
 Generated: 2026-07-18
 Database : files/lastfmstats.sqlite
 Snapshot : 196,985 scrobbles, 4,465 album_art rows, scrobble.album_id 100% populated
