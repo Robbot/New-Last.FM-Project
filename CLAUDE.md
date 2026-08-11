@@ -98,6 +98,13 @@ python -m app.services.purge_zero_scrobble_albums --no-backup  # reuse a prior b
 python -m app.services.fix_typo_album_orphans --dry-run
 python -m app.services.fix_typo_album_orphans
 
+# Collapse duplicate canonical album entities left by the album_art backfill
+# (art/alias/tracks stranded on a dead entity while scrobbles live under another).
+# Repoints album_art + album_alias + album_tracks off the dead entity onto the
+# live one, then deletes the empty dead entity. Collision-prechecked, backs up.
+python -m app.services.repoint_album_art_entities --dry-run
+python -m app.services.repoint_album_art_entities
+
 # Backfill album_mbids in album_tracks table
 python -m app.services.backfill_album_tracks_mbid
 

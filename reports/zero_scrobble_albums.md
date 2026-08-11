@@ -185,7 +185,18 @@ app/static/covers/).
   Massive Attack - Karmacoma / Sly, Pearl Jam - Waiting for Stevie, Tones and I - Dance
   Monkey (Stripped Back), The Killers - Caution / My Own Soul's Warning, etc.
 
-## Mismatch finding (duplicate canonical entities) — DO NOT DELETE
+## Mismatch finding (duplicate canonical entities) — ✅ RESOLVED (2026-08-11)
+
+> All **351** duplicate-entity mismatches (358 at report time, minus 7 folded by
+> intervening cleanups) collapsed by `repoint_album_art_entities.py`. For each
+> dead entity it repointed `album_art` (351) + `album_alias` (350) +
+> `album_tracks` (393) onto the live (scrobble-seeded) entity, then deleted the
+> empty dead entity. Heavy fan-in onto 33 shared live entities, all
+> compilations/soundtracks (e.g. "Rolling Stone 500 Greatest Songs" live 3404
+> received 72 contributing artists' art; "50 Greatest Pieces of Classical Music"
+> live 425 received 34). Post-fix: mismatch query 0, 0 dangling `album_id` refs,
+> `integrity_check` ok, all 33 live targets carry art. Backup:
+> `files/backups/lastfmstats_20260811_110753.sqlite`. Original note retained below.
 
 358 album_art rows have album_id pointing at a canonical `album` entity that holds
 0 scrobbles, while the real scrobbles for the same (artist, album) live under a DIFFERENT
