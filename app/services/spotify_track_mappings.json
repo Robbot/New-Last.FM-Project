@@ -355,6 +355,12 @@
       "to": "Every You Every Me (single mix)"
     },
     {
+      "artist": "Placebo",
+      "album": "Black Market Music",
+      "from": "Placebo, Black-eyed",
+      "to": "Black-Eyed"
+    },
+    {
       "artist": "Day One",
       "album": "Cruel Intentions",
       "from": "Bedroom Dancing",
@@ -1159,5 +1165,5 @@
       "to": "Dancing on a Highwire"
     }
   ],
-  "last_updated": "2026-08-10"
+  "last_updated": "2026-08-12"
 }
