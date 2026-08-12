@@ -1,39 +1,47 @@
 #!/usr/bin/env python3
 """
 Fold accent/punctuation-variant duplicate track entities onto their canonical
-entity — the general, auto-discovering version of fix_track_entity_case_dups.py.
-Re-runnable (idempotent).
+entity — the general, auto-discovering resolver for the whole class (both safe
+groups and real-split groups). Re-runnable (idempotent).
 
-Root cause (same as the case-dup script): the album_tracks / MB backfill minted a
-second track entity per track using a more aggressive normalizer (strips diacritics
-+ punctuation) than the scrobble Resolver (preserves them). So one logical track
-ends up as several entities whose track_alias rows carry different norm_titles:
+Root cause: the album_tracks / MB backfill minted a second track entity per track
+using a more aggressive normalizer (strips diacritics + punctuation) than the
+scrobble Resolver (preserves them). So one logical track ends up as several
+entities whose track_alias rows carry different norm_titles:
   scrobble-seeded : "te quiero puta!" , "ausländer" , "livin' on the edge"
   backfill-minted : "te quiero puta"  , "auslander" , "livin on the edge"
 
-This script discovers every (artist_id, core) group with >1 entity, where core =
-NFD-strip-accents + strip-punctuation + lowercase + collapse-ws. For each group it
-picks a canonical entity and folds the rest. Folding repoints each orphan's
-scrobbles + album_tracks rows + aliases onto the canonical, then deletes the empty
-orphan. The canonical ends up resolving under BOTH normalization schemes (its own
-preserved aliases + the orphans' stripped aliases), which prevents recurrence.
+This script discovers every (artist_id, core) group with >1 entity (core = NFD-
+strip-accents + strip-punctuation + lowercase + collapse-ws), picks a canonical
+entity per group, and folds the rest. Folding repoints each orphan's scrobbles +
+album_tracks rows + aliases onto the canonical, then deletes the empty orphan.
+The canonical ends up resolving under BOTH normalization schemes, which prevents
+recurrence (no spotify mapping needed; these are not source-tag variants).
 
-SCOPE — folds only SAFE groups (at most one entity carries scrobbles):
-  - single scrobble-winner : fold the 0-scrobble variants onto the winner.
-  - all-zero               : library dedup; canonical by tracklist richness.
-Because every orphan has 0 scrobbles in a safe group, the scrobble UPDATE is a
-no-op and there is NO UNIQUE(uts, artist, album, track) collision risk. Groups
-where >1 entity has scrobbles (real splits that fragment play counts) are DEFERRED
-for manual review — not touched here.
+TWO group shapes, both folded:
+  - safe (<=1 entity has scrobbles): orphans carry 0 scrobbles, so the scrobble
+    rewrite is a no-op — pure tracklist/alias repoint + entity delete.
+  - real-split (>1 entity has scrobbles): orphans DO carry scrobbles. Moving them
+    onto the canonical can collide on UNIQUE(uts, artist, album, track) when the
+    same play was double-counted under two spellings (same uts + album, different
+    track text — you can't play a track twice in one second). Those duplicate
+    scrobbles are DEDUP-DELETED (precedent: fix_strokes_going_shopping_single.py);
+    genuinely distinct orphan scrobbles are moved.
 
-EXCLUDES empty-core groups: titles that are entirely non-Latin (Cyrillic,
-katakana, emoji) collapse core to "" and would be falsely grouped as one track.
+DEDUP RULE (group-level, handles multi-orphan groups): among all non-canonical
+scrobbles in the group, a scrobble SURVIVES (gets moved to canonical) iff
+  (a) no canonical scrobble shares its (uts, album), AND
+  (b) it is the lowest-id non-canonical scrobble at its (uts, album).
+All other non-canonical scrobbles are deleted. After the move the canonical holds
+at most one scrobble per (uts, album), so no UNIQUE violation is possible.
 
-Alias-norm safety: an orphan alias whose (artist_id, norm_title) already exists on
-the canonical would violate track_alias PK on repoint. Those rows are DELETED
-(canonical already covers that norm_title); the remaining orphan aliases are
-repointed. album_tracks PK is (artist, album, track) text, so its track_id repoint
-never collides.
+EXCLUDES empty-core groups: titles entirely non-Latin (Cyrillic, katakana, emoji)
+collapse core to "" and would be falsely grouped as one track.
+
+ALIAS SAFETY: an orphan alias whose (artist_id, norm_title) already exists on the
+canonical would violate track_alias PK on repoint. Those rows are DELETED (the
+canonical already covers that norm_title); the rest are repointed. album_tracks PK
+is (artist, album, track) text, so its track_id repoint never collides.
 
 Usage:
     python -m app.services.fix_track_entity_variant_dups --dry-run
@@ -105,51 +113,86 @@ def pick_canonical(conn, track_ids):
     return best[1]
 
 
-def plan_group(conn, track_ids):
-    """Classify a group. Returns (canonical_id, [orphan_ids], status).
-    status: 'safe' (<=1 entity has scrobbles), 'defer' (>1 has scrobbles)."""
-    canon = pick_canonical(conn, track_ids)
-    orphans = [t for t in track_ids if t != canon]
-    with_scr = sum(1 for t in orphans
-                   if _count(conn, "SELECT COUNT(*) FROM scrobble WHERE track_id=?", (t,)))
-    # 'safe' requires every orphan to have 0 scrobbles
-    status = "safe" if with_scr == 0 else "defer"
-    return canon, orphans, status
+def _placeholders(n):
+    return ",".join("?" * n)
 
 
-def fold_orphan(conn, canon_id, orphan_id):
-    """Repoint one orphan's refs onto the canonical, delete the orphan. Returns
-    (scrobbles_moved, album_tracks_repointed, aliases_repointed, aliases_dropped)."""
+def fold_group(conn, canon_id, orphan_ids):
+    """Fold all orphans of one group onto the canonical. Returns a dict of counts:
+    dedup_deleted, scrobbles_moved, album_tracks_repointed, aliases_repointed,
+    aliases_dropped, entities_deleted, entities_kept."""
     canon_title = conn.execute(
         "SELECT title FROM track WHERE track_id=?", (canon_id,)
     ).fetchone()["title"]
+    orphans = tuple(orphan_ids)
+    ph = _placeholders(len(orphans))
+
+    # --- scrobbles: dedup-delete the non-survivors, then move the survivors -----
+    # A non-canonical scrobble SURVIVES iff (a) no canonical scrobble shares its
+    # (uts, album) and (b) it is the lowest-id non-canonical scrobble at (uts, album).
+    dedup_deleted = conn.execute(
+        f"""
+        DELETE FROM scrobble WHERE id IN (
+          SELECT s.id FROM scrobble s
+          WHERE s.track_id IN ({ph})
+            AND NOT (
+              NOT EXISTS (SELECT 1 FROM scrobble d
+                          WHERE d.track_id=? AND d.uts=s.uts AND d.album=s.album)
+              AND s.id = (SELECT MIN(d.id) FROM scrobble d
+                          WHERE d.track_id IN ({ph}) AND d.uts=s.uts AND d.album=s.album)
+            )
+        )
+        """,
+        orphans + (canon_id,) + orphans,
+    ).rowcount
     moved_scr = conn.execute(
-        "UPDATE scrobble SET track=?, track_id=? WHERE track_id=?",
-        (canon_title, canon_id, orphan_id),
+        f"UPDATE scrobble SET track=?, track_id=? WHERE track_id IN ({ph})",
+        (canon_title, canon_id) + orphans,
     ).rowcount
+
+    # --- album_tracks: repoint (text PK, no collision) -----------------------
     moved_at = conn.execute(
-        "UPDATE album_tracks SET track_id=? WHERE track_id=?",
-        (canon_id, orphan_id),
+        f"UPDATE album_tracks SET track_id=? WHERE track_id IN ({ph})",
+        (canon_id,) + orphans,
     ).rowcount
-    # drop orphan aliases whose norm_title already exists on the canonical (would
-    # collide with PK), then repoint the rest
-    dropped = conn.execute(
-        """DELETE FROM track_alias WHERE track_id=? AND norm_title IN
-           (SELECT norm_title FROM track_alias WHERE track_id=?)""",
-        (orphan_id, canon_id),
-    ).rowcount
-    moved_alias = conn.execute(
-        "UPDATE track_alias SET track_id=? WHERE track_id=?",
-        (canon_id, orphan_id),
-    ).rowcount
-    # only delete the entity once it has no remaining references
-    remaining = (_count(conn, "SELECT COUNT(*) FROM scrobble WHERE track_id=?", (orphan_id,))
-                 + _count(conn, "SELECT COUNT(*) FROM album_tracks WHERE track_id=?", (orphan_id,))
-                 + _count(conn, "SELECT COUNT(*) FROM track_alias WHERE track_id=?", (orphan_id,)))
-    deleted = 0
-    if remaining == 0:
-        deleted = conn.execute("DELETE FROM track WHERE track_id=?", (orphan_id,)).rowcount
-    return moved_scr, moved_at, moved_alias, dropped, deleted, remaining
+
+    # --- aliases: drop colliding norm_titles, repoint the rest ---------------
+    aliases_dropped = 0
+    aliases_repointed = 0
+    for orphan in orphans:
+        aliases_dropped += conn.execute(
+            """DELETE FROM track_alias WHERE track_id=? AND norm_title IN
+               (SELECT norm_title FROM track_alias WHERE track_id=?)""",
+            (orphan, canon_id),
+        ).rowcount
+        aliases_repointed += conn.execute(
+            "UPDATE track_alias SET track_id=? WHERE track_id=?",
+            (canon_id, orphan),
+        ).rowcount
+
+    # --- delete empty orphan entities ----------------------------------------
+    entities_deleted = 0
+    entities_kept = 0
+    for orphan in orphans:
+        remaining = (_count(conn, "SELECT COUNT(*) FROM scrobble WHERE track_id=?", (orphan,))
+                     + _count(conn, "SELECT COUNT(*) FROM album_tracks WHERE track_id=?", (orphan,))
+                     + _count(conn, "SELECT COUNT(*) FROM track_alias WHERE track_id=?", (orphan,)))
+        if remaining == 0:
+            entities_deleted += conn.execute(
+                "DELETE FROM track WHERE track_id=?", (orphan,)
+            ).rowcount
+        else:
+            entities_kept += 1
+
+    return {
+        "dedup_deleted": dedup_deleted,
+        "scrobbles_moved": moved_scr,
+        "album_tracks_repointed": moved_at,
+        "aliases_repointed": aliases_repointed,
+        "aliases_dropped": aliases_dropped,
+        "entities_deleted": entities_deleted,
+        "entities_kept": entities_kept,
+    }
 
 
 def run(dry_run: bool) -> int:
@@ -170,67 +213,69 @@ def _run(conn, dry_run: bool) -> int:
           f"({sum(len(v) for v in groups.values())} entities); "
           f"{empty_excluded} empty-core (non-Latin) group(s) excluded")
 
-    safe_plan, defer_groups = [], 0
-    defer_orphans = 0
+    # classify for reporting (safe vs real-split), but fold BOTH
+    plan = []
+    n_safe = n_split = 0
     for (aid, core), tids in groups.items():
-        canon, orphans, status = plan_group(conn, tids)
-        if status == "safe":
-            safe_plan.append((aid, core, canon, orphans))
+        canon = pick_canonical(conn, tids)
+        orphans = [t for t in tids if t != canon]
+        with_scr = sum(1 for t in orphans
+                       if _count(conn, "SELECT COUNT(*) FROM scrobble WHERE track_id=?", (t,)))
+        if with_scr == 0:
+            n_safe += 1
         else:
-            defer_groups += 1
-            defer_orphans += len(orphans)
+            n_split += 1
+        plan.append((aid, core, canon, orphans, with_scr))
 
-    safe_orphans = sum(len(o) for _, _, _, o in safe_plan)
-    print(f"[plan] SAFE to fold: {len(safe_plan)} groups / {safe_orphans} orphans")
-    print(f"[plan] DEFER (real split, >1 side has scrobbles): "
-          f"{defer_groups} groups / {defer_orphans} orphans")
+    orphans_total = sum(len(o) for _, _, _, o, _ in plan)
+    print(f"[plan] {len(plan)} groups / {orphans_total} orphans to fold  "
+          f"(safe {n_safe}, real-split {n_split})")
 
-    if not safe_plan:
-        print("\nNothing to do — no safe groups (idempotent no-op).")
+    if not plan:
+        print("\nNothing to do — no variant-dup groups (idempotent no-op).")
         return 0
 
-    # sample preview
-    print(f"\n[preview] first 15 safe folds:")
-    for aid, core, canon, orphans in safe_plan[:15]:
+    # sample preview (prefer real-split examples — the interesting ones)
+    print(f"\n[preview] first 15 folds (real-split flagged with *):")
+    shown = 0
+    for aid, core, canon, orphans, with_scr in plan:
+        if shown >= 15:
+            break
         ar = conn.execute("SELECT name FROM artist WHERE artist_id=?", (aid,)).fetchone()["name"]
         ct = conn.execute("SELECT title FROM track WHERE track_id=?", (canon,)).fetchone()["title"]
-        print(f"   {ar[:18]:18} can {canon} {ct[:34]!r:36} <- orphans {orphans}")
+        flag = " *" if with_scr else ""
+        print(f"   {ar[:18]:18} can {canon} {ct[:34]!r:36} <- orphans {orphans}{flag}")
+        shown += 1
 
-    # --- apply every safe fold in one transaction --------------------------
-    tot_scr = tot_at = tot_alias = tot_drop = tot_del = 0
-    not_deleted = 0
-    for aid, core, canon, orphans in safe_plan:
-        for orphan in orphans:
-            m_scr, m_at, m_alias, m_drop, deleted, remaining = fold_orphan(conn, canon, orphan)
-            tot_scr += m_scr
-            tot_at += m_at
-            tot_alias += m_alias
-            tot_drop += m_drop
-            tot_del += deleted
-            if remaining:
-                not_deleted += 1
+    # --- apply every fold in one transaction --------------------------------
+    tot = {k: 0 for k in ("dedup_deleted", "scrobbles_moved", "album_tracks_repointed",
+                          "aliases_repointed", "aliases_dropped", "entities_deleted",
+                          "entities_kept")}
+    for aid, core, canon, orphans, _w in plan:
+        c = fold_group(conn, canon, orphans)
+        for k in tot:
+            tot[k] += c[k]
 
     print("\n" + "=" * 72)
-    print(f"TOTALS  scrobbles moved: {tot_scr} | tracklist rows repointed: {tot_at} | "
-          f"aliases repointed: {tot_alias} | dup-alias rows dropped: {tot_drop} | "
-          f"entities deleted: {tot_del}")
-    if not_deleted:
-        print(f"        !! {not_deleted} orphan(s) kept (still had references)")
+    print(f"TOTALS  scrobbles dedup-deleted: {tot['dedup_deleted']} | "
+          f"scrobbles moved: {tot['scrobbles_moved']} | "
+          f"tracklist rows repointed: {tot['album_tracks_repointed']}")
+    print(f"        aliases repointed: {tot['aliases_repointed']} | "
+          f"dup-alias rows dropped: {tot['aliases_dropped']} | "
+          f"entities deleted: {tot['entities_deleted']}")
+    if tot["entities_kept"]:
+        print(f"        !! {tot['entities_kept']} orphan(s) kept (still had references)")
 
     # --- post-state ---------------------------------------------------------
     remaining_groups, _ = discover_groups(conn)
-    rem_safe = 0
-    for (aid, core), tids in remaining_groups.items():
-        if plan_group(conn, tids)[2] == "safe":
-            rem_safe += 1
     print("\n--- post-state ---")
-    print(f"  safe variant-dup groups remaining: {rem_safe} (expect 0)")
-    print(f"  deferred real-split groups remaining: {len(remaining_groups) - rem_safe}")
+    print(f"  variant-dup groups remaining: {len(remaining_groups)} (expect 0)")
     print(f"  integrity: {conn.execute('PRAGMA integrity_check').fetchone()[0]}")
     print(f"  dangling track_id refs (scrobble): "
           f"{_count(conn, 'SELECT COUNT(*) FROM scrobble WHERE track_id NOT IN (SELECT track_id FROM track)')}")
     print(f"  dangling track_id refs (album_tracks): "
           f"{_count(conn, 'SELECT COUNT(*) FROM album_tracks WHERE track_id IS NOT NULL AND track_id NOT IN (SELECT track_id FROM track)')}")
+    print(f"  total scrobbles: {_count(conn, 'SELECT COUNT(*) FROM scrobble')}")
 
     if dry_run:
         print("\n[DRY RUN] No changes committed. Rolling back.")
@@ -243,8 +288,8 @@ def _run(conn, dry_run: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Fold accent/punctuation-variant duplicate track entities (safe groups) "
-                    "onto their canonical entity"
+        description="Fold accent/punctuation-variant duplicate track entities "
+                    "(safe + real-split groups) onto their canonical entity"
     )
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing")
     args = parser.parse_args()
