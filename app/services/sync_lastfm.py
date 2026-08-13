@@ -969,6 +969,10 @@ def sync_lastfm() -> None:
     api_key, username = get_api_key()
     logger.info(f"Starting Last.fm sync for user: {username}")
 
+    # Lazy import: app.services.ingest imports cleaning helpers from this module
+    # at top level, so it must be imported here (call time) to avoid a cycle.
+    from app.services.ingest import RawScrobble, ingest_scrobble
+
     conn = get_conn()
     ensure_schema(conn)
     # One resolver per sync connection; its cache warms as distinct entities
@@ -1012,202 +1016,95 @@ def sync_lastfm() -> None:
                 logger.debug(f"No tracks returned for page {page} of chunk {chunks_processed}")
                 break
 
-            scrobble_batch: list[tuple] = []
             album_batch: list[dict] = []
             current_ts = int(time.time())
 
+            # Parse + filter (skip "now playing" / undated items).
+            parsed = []
             for t in tracks:
-                # Skip "now playing" items (not yet scrobbled)
                 if "@attr" in t and t["@attr"].get("nowplaying") == "true":
                     continue
-
-                date_info = t.get("date")
-                if not date_info:
+                if not t.get("date"):
                     continue
+                parsed.append(t)
 
-                uts = int(date_info["uts"])  # Last.fm gives seconds
-
-                # Sanity: if somehow ms sneaks in, normalize to seconds
-                if uts > 2_000_000_000:
-                    uts //= 1000
-
-                artist_name = t["artist"]["#text"]
-                artist_mbid = t["artist"].get("mbid") or None
-
-                # Apply artist name mappings (for known incorrect artist names)
-                artist_name = clean_artist_name(artist_name)
-
-                if isinstance(t.get("album"), dict):
-                    album_name = clean_title(t["album"]["#text"])
-                    album_mbid = t["album"].get("mbid") or None
-                else:
-                    album_name = clean_title(t.get("album", ""))
-                    album_mbid = None
-
-                # Apply album name mappings (for known incorrect album names)
-                album_name = clean_album_name(artist_name, album_name)
-
-                if album_mbid == "":
-                    album_mbid = None
-
-                # Clean track name with Spotify-specific mappings
-                track_name = clean_title(t["name"], artist_name, album_name)
-                track_mbid = t.get("mbid") or None
-
-                # ---------- Album Validation ----------
-                # Check if album name is suspicious (might be a track name)
-                # and try to find the correct album
-                from .validate_albums import (
-                    is_album_name_suspicious,
-                    validate_and_correct_album,
-                    log_data_quality_issue
-                )
-
-                corrected_album = None
-                if album_name and is_album_name_suspicious(album_name, track_name, artist_name):
-                    is_valid, correct_album, confidence = validate_and_correct_album(
-                        artist_name,
-                        album_name,
-                        track_name,
-                        artist_mbid,
-                        auto_correct=True  # Auto-correct during sync
-                    )
-
-                    if not is_valid and correct_album:
-                        corrected_album = correct_album
-                        album_name = correct_album
-
-                        # Log the correction for tracking
-                        log_data_quality_issue(
-                            artist_name,
-                            f"(was: {album_name})",
-                            track_name,
-                            correct_album,
-                            confidence,
-                            auto_corrected=True
-                        )
-
-                        logger.info(f"Auto-corrected album for {artist_name} - {track_name}: '{correct_album}' (confidence: {confidence}%)")
-
-                # Determine album_artist: check if album is a compilation
-                # by looking at existing scrobbles in the database
-                # Uses fallback detection for albums without MBIDs
-                if _is_album_compilation_with_fallback(conn, album_name, album_mbid, artist_name):
-                    # Safety check: if all existing scrobbles for this album are
-                    # by the same artist, it's a single-artist collection, not a compilation
-                    if _is_single_artist_album(conn, album_name, album_mbid, artist_name):
-                        album_artist = artist_name
-                    else:
-                        album_artist = "Various Artists"
-                else:
-                    album_artist = artist_name
-
-                # ---------- Track Validation ----------
-                # Check if track name matches existing album_tracks data
-                track_validation = validate_scrobble_track(
-                    conn, artist_name, album_name, track_name, track_mbid
-                )
-
-                if not track_validation['is_valid']:
-                    # Create warning notification
-                    create_notification(
-                        notification_type='track_mismatch',
-                        title=f'Track mismatch: {artist_name} - {track_name}',
-                        message=f'Scrobble track "{track_name}" does not match any track in album_tracks for {artist_name} - {album_name}',
-                        details={
-                            'artist': artist_name,
-                            'album': album_name,
-                            'scrobble_track': track_name,
-                            'track_mbid': track_mbid,
-                            'album_tracks': track_validation.get('album_tracks', [])
-                        },
-                        severity='warning',
-                        conn=conn  # share the sync's transaction (avoids "database is locked")
-                    )
-                    logger.warning(f'Track mismatch: {artist_name} - {album_name} - "{track_name}"')
-                elif track_validation['issue_type'] == 'normalized_match':
-                    # Track names differ but normalize the same - log for review
-                    logger.info(f'Track name variation: "{track_name}" → "{track_validation["matched_track"]}" for {artist_name} - {album_name}')
-
-                # Resolve canonical entity ids (Phase 2 write-time resolution).
-                # Done after cleaning + album_artist detection so the ids match
-                # the cleaned values that get stored on the scrobble row.
-                artist_id = resolver.resolve_artist_id(artist_name, artist_mbid)
-                album_id = resolver.resolve_album_id(artist_id, album_name, album_mbid, album_artist)
-                track_id = resolver.resolve_track_id(artist_id, track_name, track_mbid)
-
-                scrobble_batch.append(
-                    (artist_name, artist_mbid, album_name,
-                     album_mbid, track_name, track_mbid, uts,
-                     album_artist,  # Set based on compilation detection
-                     'lastfm',      # source = 'lastfm' for Last.fm API scrobbles
-                     artist_id, album_id, track_id)
-                )
-
-                # Collect album_art info for ALL albums (with or without MBID)
-                if album_name:  # Only skip if album name is missing/empty
-                    images = t.get("image", []) or []
-                    img_small = img_medium = img_large = img_xlarge = None
-
-                    for img in images:
-                        url = img.get("#text") or None
-                        size = img.get("size")
-                        if not url:
-                            continue
-                        if size == "small":
-                            img_small = url
-                        elif size == "medium":
-                            img_medium = url
-                        elif size == "large":
-                            img_large = url
-                        elif size in ("extralarge", "mega"):
-                            img_xlarge = url
-
-                    # Only add to batch if we have at least one image URL
-                    if img_small or img_medium or img_large or img_xlarge:
-                        album_batch.append({
-                            "artist": artist_name,
-                            "album": album_name,
-                            "album_mbid": album_mbid,
-                            "artist_mbid": artist_mbid,
-                            "artist_id": artist_id,
-                            "album_id": album_id,
-                            "image_small": img_small,
-                            "image_medium": img_medium,
-                            "image_large": img_large,
-                            "image_xlarge": img_xlarge,
-                            "last_updated": current_ts,
-                        })
-
-            if not scrobble_batch:
+            if not parsed:
                 logger.debug(f"No scrobbles on page {page} of chunk {chunks_processed}")
                 break
 
             pages_with_data += 1
 
-            # 🔢 Sort scrobbles chronologically (oldest → newest) before insert
-            scrobble_batch.sort(key=lambda row: row[6])  # row[6] = uts
+            # Insert oldest-first (chronological), one transaction per page.
+            parsed.sort(key=lambda t: int(t["date"]["uts"]))
 
-            cur = conn.cursor()
-            cur.executemany(
-                """
-                INSERT OR IGNORE INTO scrobble
-                    (artist, artist_mbid, album, album_mbid,
-                     track, track_mbid, uts, album_artist, source,
-                     artist_id, album_id, track_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """,
-                scrobble_batch,
-            )
+            page_processed = 0
+            page_inserted = 0
+            for t in parsed:
+                uts = int(t["date"]["uts"])  # Last.fm gives seconds
+                if uts > 2_000_000_000:      # guard against ms sneaking in
+                    uts //= 1000
+
+                artist_name_raw = t["artist"]["#text"]
+                artist_mbid = t["artist"].get("mbid") or None
+
+                if isinstance(t.get("album"), dict):
+                    album_name_raw = t["album"]["#text"]
+                    album_mbid = t["album"].get("mbid") or None
+                else:
+                    album_name_raw = t.get("album", "")
+                    album_mbid = None
+
+                track_name_raw = t["name"]
+                track_mbid = t.get("mbid") or None
+
+                # Album art images (pull path only) -> dict for ingest.
+                images = None
+                for img in (t.get("image", []) or []):
+                    url = img.get("#text") or None
+                    if not url:
+                        continue
+                    size = img.get("size")
+                    if images is None:
+                        images = {}
+                    if size == "small":
+                        images["small"] = url
+                    elif size == "medium":
+                        images["medium"] = url
+                    elif size == "large":
+                        images["large"] = url
+                    elif size in ("extralarge", "mega"):
+                        images["xlarge"] = url
+
+                result = ingest_scrobble(
+                    conn, resolver,
+                    RawScrobble(
+                        artist_name=artist_name_raw,
+                        track_name=track_name_raw,
+                        uts=uts,
+                        artist_mbid=artist_mbid,
+                        album_name=album_name_raw or None,
+                        album_mbid=album_mbid,
+                        track_mbid=track_mbid,
+                        source="lastfm",
+                        images=images,
+                    ),
+                )
+                page_processed += 1
+                if result.inserted:
+                    page_inserted += 1
+                if result.album_art_record:
+                    result.album_art_record["last_updated"] = current_ts
+                    album_batch.append(result.album_art_record)
+
             conn.commit()
 
-            new_rows = conn.total_changes - total_new_scrobbles
-            skipped_rows = len(scrobble_batch) - new_rows
-            total_new_scrobbles = conn.total_changes
+            new_rows = page_inserted
+            skipped_rows = page_processed - new_rows
+            total_new_scrobbles += new_rows
             chunk_new_scrobbles += new_rows
             logger.info(
                 f"Chunk {chunks_processed}, page {page}: inserted {new_rows} new scrobbles "
-                f"(batch size {len(scrobble_batch)})"
+                f"(batch size {page_processed})"
             )
 
             # Log skipped inserts as notification
@@ -1215,11 +1112,11 @@ def sync_lastfm() -> None:
                 create_notification(
                     notification_type='sync_skip',
                     title=f'{skipped_rows} scrobble(s) skipped during sync',
-                    message=f'Chunk {chunks_processed}, page {page}: {skipped_rows} of {len(scrobble_batch)} scrobbles were not inserted. This usually means they already exist in the database with different data (possible data inconsistency).',
+                    message=f'Chunk {chunks_processed}, page {page}: {skipped_rows} of {page_processed} scrobbles were not inserted. This usually means they already exist in the database with different data (possible data inconsistency).',
                     details={
                         'chunk': chunks_processed,
                         'page': page,
-                        'batch_size': len(scrobble_batch),
+                        'batch_size': page_processed,
                         'inserted': new_rows,
                         'skipped': skipped_rows,
                         'timestamp': int(time.time())
