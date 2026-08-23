@@ -1,6 +1,9 @@
 import logging
+import os
+import secrets
 from pathlib import Path
 from flask import Flask, redirect, url_for, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .services.config import get_api_key
 from .logging_config import setup_logging, setup_request_logging, cleanup_old_logs
 from datetime import datetime, timezone
@@ -14,6 +17,28 @@ def datetime_format_filter(timestamp):
 
 def create_app():
     app = Flask(__name__)
+
+    # Sessions are required for admin CSRF protection. In production, set a
+    # stable SECRET_KEY so tokens survive process restarts and multiple workers.
+    secret_key = os.environ.get("SECRET_KEY")
+    if not secret_key:
+        secret_key = secrets.token_hex(32)
+        app.logger.warning(
+            "SECRET_KEY is not configured; using an ephemeral key for this process"
+        )
+    app.config["SECRET_KEY"] = secret_key
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+    app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+        "SESSION_COOKIE_SECURE", "0"
+    ).lower() in {"1", "true", "yes", "on"}
+
+    # Production is served through one local reverse proxy. ProxyFix trusts
+    # only the configured number of right-most forwarding entries instead of
+    # allowing route code to consume an arbitrary client-supplied header.
+    trusted_proxy_hops = int(os.environ.get("TRUSTED_PROXY_HOPS", "1"))
+    if trusted_proxy_hops > 0:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxy_hops)
 
     # Disable template caching and auto-reload for development
     app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -93,4 +118,3 @@ def create_app():
 
     app.logger.info("Application initialization complete")
     return app
-

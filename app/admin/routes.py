@@ -1,8 +1,9 @@
 import os
 import glob
 import sqlite3
+import secrets
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, session
 from functools import wraps
 from . import admin_bp
 from app.logging_config import get_logger
@@ -46,11 +47,6 @@ def require_localhost(f):
     def decorated_function(*args, **kwargs):
         remote_addr = request.remote_addr
 
-        # Check X-Forwarded-For header for proxy setups
-        if request.headers.get('X-Forwarded-For'):
-            forwarded_ips = request.headers.get('X-Forwarded-For').split(',')
-            remote_addr = forwarded_ips[0].strip()
-
         if not is_localhost_allowed(remote_addr):
             logger.warning(f"Admin access denied from {remote_addr}")
 
@@ -65,6 +61,40 @@ def require_localhost(f):
 
         return f(*args, **kwargs)
     return decorated_function
+
+
+def get_admin_csrf_token():
+    """Return the session-bound token used by admin mutation requests."""
+    token = session.get("admin_csrf_token")
+    if token is None:
+        token = secrets.token_urlsafe(32)
+        session["admin_csrf_token"] = token
+    return token
+
+
+def require_admin_csrf(f):
+    """Reject admin POST requests without a valid session-bound CSRF token."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        supplied = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token")
+        expected = session.get("admin_csrf_token")
+
+        if not supplied or not expected or not secrets.compare_digest(supplied, expected):
+            logger.warning(
+                "Rejected admin request with invalid CSRF token: endpoint=%s remote=%s",
+                request.endpoint,
+                request.remote_addr,
+            )
+            return jsonify({"error": "Invalid or missing CSRF token"}), 403
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@admin_bp.app_context_processor
+def inject_admin_csrf_token():
+    """Expose a lazy CSRF token helper to admin templates."""
+    return {"admin_csrf_token": get_admin_csrf_token}
 
 
 def cleanup_old_logs(logs_dir, retention_days=DEFAULT_LOG_RETENTION_DAYS):
@@ -289,6 +319,7 @@ def admin_database():
 
 @admin_bp.route("/admin/database/execute", methods=['POST'])
 @require_localhost
+@require_admin_csrf
 def admin_database_execute():
     """Execute a custom SQL query (read-only for safety)."""
     db_path = current_app.config.get('DATABASE_PATH', 'files/lastfmstats.sqlite')
@@ -327,6 +358,7 @@ def admin_database_execute():
 
 @admin_bp.route("/admin/database/update", methods=['POST'])
 @require_localhost
+@require_admin_csrf
 def admin_database_update():
     """Update a database record."""
     db_path = current_app.config.get('DATABASE_PATH', 'files/lastfmstats.sqlite')
@@ -380,6 +412,7 @@ def admin_database_update():
 
 @admin_bp.route("/admin/sync", methods=['POST'])
 @require_localhost
+@require_admin_csrf
 def admin_sync():
     """Trigger a Last.fm sync."""
     import subprocess
@@ -406,6 +439,7 @@ def admin_sync():
 
 @admin_bp.route("/admin/logs/cleanup", methods=['POST'])
 @require_localhost
+@require_admin_csrf
 def admin_logs_cleanup():
     """Clean up old log files."""
     retention_days = request.json.get('days', DEFAULT_LOG_RETENTION_DAYS) if request.is_json else DEFAULT_LOG_RETENTION_DAYS
@@ -636,6 +670,7 @@ def admin_notifications():
 
 @admin_bp.route("/admin/notifications/<int:notification_id>/dismiss", methods=['POST'])
 @require_localhost
+@require_admin_csrf
 def admin_dismiss_notification(notification_id):
     """Dismiss a single notification."""
     success = dismiss_notification(notification_id)
@@ -654,6 +689,7 @@ def admin_dismiss_notification(notification_id):
 
 @admin_bp.route("/admin/notifications/dismiss-all", methods=['POST'])
 @require_localhost
+@require_admin_csrf
 def admin_dismiss_all_notifications():
     """Dismiss all active notifications."""
     count = dismiss_all_notifications()

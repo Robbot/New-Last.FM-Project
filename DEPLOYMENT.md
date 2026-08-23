@@ -53,6 +53,16 @@ Configure these in: **Settings → Secrets and variables → Actions**
 | `SSH_PRIVATE_KEY` | Private SSH key (contents of ~/.ssh/id_rsa) | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
 | `PORT` | SSH port (optional, defaults to 22) | `22` |
 
+The application service must also provide a stable, randomly generated
+`SECRET_KEY` environment variable. It signs the admin session used for CSRF
+protection. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
+
+Set `SESSION_COOKIE_SECURE=1` when the application is served exclusively over
+HTTPS. `TRUSTED_PROXY_HOPS` defaults to `1` for the production topology. Set it
+to the exact number of reverse proxies in front of Gunicorn, or `0` when the
+application is exposed directly. Each trusted proxy must replace, rather than
+append to, forwarding headers supplied by clients.
+
 ### Generating SSH Keys
 
 If you don't have SSH keys set up:
