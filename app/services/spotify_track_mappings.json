@@ -1,6 +1,24 @@
 {
   "mappings": [
     {
+      "artist": "Róże Europy",
+      "album": "Gold - Róże Europy",
+      "from": "Rockendrollowcy",
+      "to": "Rock'n'rollowcy"
+    },
+    {
+      "artist": "Queen",
+      "album": "Flash Gordon",
+      "from": "Flash's Theme Aka Flash",
+      "to": "Flash's Theme"
+    },
+    {
+      "artist": "Queen",
+      "album": "Flash Gordon",
+      "from": "Flash's Theme Reprise",
+      "to": "Flash's Theme Reprise (Victory Celebrations)"
+    },
+    {
       "artist": "System of a Down",
       "album": "Dracula 2000 - Music from the Dimension Motion Picture",
       "from": "System of Down - Metro",
@@ -931,6 +949,18 @@
       "to": "On the Run"
     },
     {
+      "artist": "Pink Floyd",
+      "album": "A Momentary Lapse of Reason",
+      "from": "A New Machine, Pt. 1",
+      "to": "A New Machine Part 1"
+    },
+    {
+      "artist": "Pink Floyd",
+      "album": "A Momentary Lapse of Reason",
+      "from": "A New Machine, Pt. 2",
+      "to": "A New Machine Part 2"
+    },
+    {
       "artist": "Suicidal Tendencies",
       "album": "Freedumb",
       "from": "Half way up my Head",
@@ -1126,7 +1156,55 @@
       "artist": "Nirvana",
       "album": "Incesticide",
       "from": "Been a Son - BBC Mark Goodier Session",
-      "to": "Been a Son"
+      "to": "Been a Son (BBC Mark Goodier session)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Been a Son",
+      "to": "Been a Son (BBC Mark Goodier session)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Turnaround - BBC John Peel Session 1990",
+      "to": "Turnaround (BBC John Peel session 1990)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Turnaround",
+      "to": "Turnaround (BBC John Peel session 1990)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Molly's Lips - BBC John Peel Session 1990",
+      "to": "Molly's Lips (BBC John Peel session 1990)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Molly's lips",
+      "to": "Molly's Lips (BBC John Peel session 1990)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Son of a Gun - BBC John Peel Session 1990",
+      "to": "Son of a Gun (BBC John Peel session 1990)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "(New Wave) Polly - BBC Mark Goodier Session",
+      "to": "(New Wave) Polly (BBC Mark Goodier session)"
+    },
+    {
+      "artist": "Nirvana",
+      "album": "Incesticide",
+      "from": "Polly (new wave)",
+      "to": "(New Wave) Polly (BBC Mark Goodier session)"
     },
     {
       "artist": "Slade",
@@ -1175,7 +1253,154 @@
       "album": "Ammonia Avenue",
       "from": "Dancing on a High Wire",
       "to": "Dancing on a Highwire"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "Never Mind the Bollocks, Here's the Sex Pistols",
+      "from": "Buddies",
+      "to": "Bodies"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "Never Mind the Bollocks, Here's the Sex Pistols",
+      "from": "Did You No Wrong",
+      "to": "God Save the Queen"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "The Great Rock 'n' Roll Swindle",
+      "from": "(I'm Not Your) Steppin' Stone",
+      "to": "Black Arabs"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "The Great Rock 'n' Roll Swindle",
+      "from": "No One Is Innocent (The Biggest Blow)",
+      "to": "No One Is Innocent"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "The Great Rock 'n' Roll Swindle",
+      "from": "Great Rock 'n' Roll Swindle",
+      "to": "The Great Rock 'n' Roll Swindle"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "Never Mind the Bollocks, Here's the Sex Pistols",
+      "from": "Do You No Wrong",
+      "to": "Did You No Wrong"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "Never Mind the Bollocks, Here's the Sex Pistols",
+      "from": "No Fun",
+      "to": "God Save the Queen"
+    },
+    {
+      "artist": "Sex Pistols",
+      "album": "Never Mind the Bollocks, Here's the Sex Pistols",
+      "from": "Satellite",
+      "to": "Problems"
+    },
+    {
+      "artist": "Metallica",
+      "album": "S&M",
+      "from": "Outlaw Torn",
+      "to": "The Outlaw Torn"
+    },
+    {
+      "artist": "Guns N' Roses",
+      "album": "Rock Ballads",
+      "from": "Don't Cry",
+      "to": "Don't Cry (Original)"
+    },
+    {
+      "artist": "Rob Dougan",
+      "album": "The Matrix Reloaded - the Album",
+      "from": "Furious Angels",
+      "to": "Furious Angels (Instrumental)"
+    },
+    {
+      "artist": "Rob Dougan",
+      "album": "The Matrix Reloaded - the Album",
+      "from": "Furious Angels (instrumental)",
+      "to": "Furious Angels (Instrumental)"
+    },
+    {
+      "artist": "Maanam",
+      "album": "The Best of Kora & Maanam Volume 1",
+      "from": "Boskie Buenos (Buenos Aires)",
+      "to": "Boskie Buenos"
+    },
+    {
+      "artist": "Donna Summer",
+      "album": "Summer - the Original Hits",
+      "from": "I Feel Love - Edit",
+      "to": "I Feel Love"
+    },
+    {
+      "artist": "Donna Summer",
+      "album": "Summer - the Original Hits",
+      "from": "Love to Love You Baby - Single Edit",
+      "to": "Love to Love You Baby"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Hej Chlopcze (Acoustic)",
+      "to": "Hej chłopcze"
+    },
+    {
+      "artist": "Donna Summer",
+      "album": "Summer - the Original Hits",
+      "from": "Hot Stuff - Ralphi Rosario and Erick Ibiza 2018 Rework",
+      "to": "Hot Stuff"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "A Czemu W Miejscu Masz Stac (Live in Trojka)",
+      "to": "Kulą w płot"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Kokaina Z Coca-Cola",
+      "to": "Skandal"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Kokaina Z Coca-Cola.",
+      "to": "Skandal"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Krajobraz",
+      "to": "Spaliny"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Chlopiec Z Plasteliny (Lenny Valentino Cover)",
+      "to": "Chłopiec z plasteliny",
+      "to_artist": "Lenny Valentino",
+      "to_artist_mbid": "69945378-2fd8-41c1-8dfb-ab0dd3370d90",
+      "to_album": "Uwaga! Jedzie tramwaj",
+      "to_album_mbid": "64a1df4a-80aa-4974-8dd2-52e7f9034b5a",
+      "to_track_mbid": "1228c893-3233-4c61-9fc8-e182e6f5d916"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "I Wanna Be Your Dog",
+      "to": "I Wanna Be Your Dog",
+      "to_artist": "The Stooges",
+      "to_artist_mbid": "794c6bf2-3241-416f-9b8f-24e2d84a1c4b",
+      "to_album": "The Stooges",
+      "to_album_mbid": "06ee5494-dad7-413f-8540-7f16e744a071"
     }
   ],
-  "last_updated": "2026-08-12"
+  "last_updated": "2026-08-22"
 }

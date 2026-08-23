@@ -1,6 +1,42 @@
 {
   "rules": [
     {
+      "artist": "Suicidal Tendencies",
+      "conflict_albums": [
+        "FNG"
+      ],
+      "routes": [
+        {
+          "album": "Suicidal Tendencies",
+          "album_mbid": "0242435d-f8a1-47b9-abd0-d193a5a8bd33",
+          "tracks": [
+            "Subliminal",
+            "I Want More"
+          ]
+        },
+        {
+          "album": "Join the Army",
+          "album_mbid": "28a231b6-28d2-3667-a3b1-669bab26cedb",
+          "tracks": [
+            "Join the Army",
+            "A Little Each Day",
+            "Possessed to Skate"
+          ]
+        },
+        {
+          "album": "How Will I Laugh Tomorrow When I Can't Even Smile Today",
+          "album_mbid": "45330cd4-f4d4-30b4-930b-382d24fec2c9",
+          "tracks": [
+            "Pledge Your Allegiance",
+            "Suicyco Mania",
+            "Surf and Slam",
+            "The Feeling's Back"
+          ]
+        }
+      ],
+      "reason": "Distribute tracks from the FNG compilation to their original studio albums"
+    },
+    {
       "artist": "Killing Joke",
       "conflict_albums": [
         "Killing Joke",
@@ -44,6 +80,195 @@
         }
       ],
       "reason": "1980 debut and 2003 self-titled share the name 'Killing Joke'; disambiguate by track"
+    },
+    {
+      "artist": "Metallica",
+      "conflict_albums": [
+        "Rock Ballads"
+      ],
+      "routes": [
+        {
+          "album": "Metallica",
+          "album_mbid": "05678d96-23f6-4dae-b994-53c3ff4dede0",
+          "tracks": [
+            "Nothing Else Matters"
+          ]
+        }
+      ],
+      "reason": "Keep a compilation-tagged Nothing Else Matters scrobble under Metallica's official 1991 album"
+    },
+    {
+      "artist": "Eric Clapton",
+      "conflict_albums": ["Rock Ballads"],
+      "routes": [{
+        "album": "Unplugged",
+        "album_mbid": "096cac4b-09e0-4182-ba2b-3cdfa0e0bda4",
+        "tracks": ["Layla"]
+      }],
+      "reason": "Route compilation-tagged Layla to Eric Clapton's official Unplugged album"
+    },
+    {
+      "artist": "Guns N' Roses",
+      "conflict_albums": ["Rock Ballads"],
+      "routes": [{
+        "album": "Use Your Illusion I",
+        "album_mbid": "02cc332c-5719-4c6d-969c-d8a23ba0b3df",
+        "tracks": ["Don't Cry", "Don't Cry (Original)"]
+      }],
+      "reason": "Route compilation-tagged Don't Cry to its official studio album"
+    },
+    {
+      "artist": "Queen",
+      "conflict_albums": ["Rock Ballads"],
+      "routes": [{
+        "album": "A Kind of Magic",
+        "album_mbid": "0abdce0b-1e88-4439-bd91-e64487d6a65a",
+        "tracks": ["Who Wants to Live Forever"]
+      }],
+      "reason": "Route compilation-tagged Who Wants to Live Forever to its official studio album"
+    },
+    {
+      "artist": "Red Hot Chili Peppers",
+      "conflict_albums": ["Rock Ballads"],
+      "routes": [{
+        "album": "Blood Sugar Sex Magik",
+        "album_mbid": "0cb0f83f-b8d2-4cd7-a5fb-32a4bc21d053",
+        "tracks": ["Under the Bridge"]
+      }],
+      "reason": "Route compilation-tagged Under the Bridge to its official studio album"
+    },
+    {
+      "artist": "Thin Lizzy",
+      "conflict_albums": ["Rock Ballads"],
+      "routes": [{
+        "album": "Black Rose: A Rock Legend",
+        "album_mbid": "e801b1e7-e09d-4360-854e-55b683c0cbd5",
+        "tracks": ["Sarah"]
+      }],
+      "reason": "Route the 1979 Sarah from the compilation to its official studio album"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "conflict_albums": ["Różne"],
+      "routes": [{
+        "album": "2006",
+        "album_mbid": "b903bbec-7cb3-4083-b6bf-51302ee03618",
+        "tracks": ["Hej chłopcze", "Kulą w płot", "Skandal", "Spaliny"]
+      }],
+      "reason": "Route corrected Różne-tagged tracks to their canonical titles on 2006"
+    },
+    {
+      "artist": "Donna Summer",
+      "conflict_albums": [
+        "The Rolling Stone Magazines 500 Greatest Songs of All Time"
+      ],
+      "routes": [{
+        "album": "Summer - the Original Hits",
+        "album_mbid": "28db2fab-dfbf-4c2e-aec1-c9873b25dd88",
+        "tracks": ["Hot Stuff"]
+      }],
+      "reason": "Keep all Donna Summer Hot Stuff scrobbles on Summer - the Original Hits"
+    },
+    {
+      "artist": "Róże Europy",
+      "conflict_albums": [
+        "Polskie single '87",
+        "Marihuana",
+        "Zyj Szybko, Kochaj Mocno, Umieraj Mlodo",
+        "Żyj szybko, kochaj mocno, umieraj młodo"
+      ],
+      "routes": [{
+        "album": "Stańcie przed lustrami",
+        "album_mbid": "934668c5-fb7f-3c3e-9701-9465da5e960e",
+        "tracks": ["Stańcie przed lustrami"]
+      }],
+      "reason": "Keep all Stańcie przed lustrami scrobbles on the original album of the same name"
+    },
+    {
+      "artist": "Róże Europy",
+      "conflict_albums": ["Gold"],
+      "routes": [{
+        "album": "Kolor",
+        "album_mbid": "3ec8dd7e-fe13-4e61-8234-6d166a2e7f9d",
+        "tracks": ["Kolor"]
+      }],
+      "reason": "Route the compilation-tagged Kolor scrobble to the album Kolor"
+    },
+    {
+      "artist": "Róże Europy",
+      "conflict_albums": ["Gold - Róże Europy"],
+      "routes": [{
+        "album": "Stańcie przed lustrami",
+        "album_mbid": "934668c5-fb7f-3c3e-9701-9465da5e960e",
+        "tracks": ["Za coca-colę i miłość", "Stańcie przed lustrami"]
+      }, {
+        "album": "Radio Młodych Bandytów",
+        "album_mbid": "e4e0b70b-eece-47e5-bce5-96a941c5f6eb",
+        "tracks": ["Rock'n'rollowcy"]
+      }, {
+        "album": "Bananowe Drzewa",
+        "album_mbid": "3030367f-da79-4eb0-80cd-1d121be0a94b",
+        "tracks": ["O Tobie O Mnie"]
+      }],
+      "reason": "Route compilation-tagged Róże Europy tracks to their original studio albums"
+    },
+    {
+      "artist": "Róże Europy",
+      "conflict_albums": [
+        "Zyj Szybko, Kochaj Mocno, Umieraj Mlodo",
+        "Żyj szybko, kochaj mocno, umieraj młodo"
+      ],
+      "routes": [{
+        "album": "Stańcie przed lustrami",
+        "album_mbid": "934668c5-fb7f-3c3e-9701-9465da5e960e",
+        "tracks": ["List Do Gertrudy Burgund", "Mamy Dla Was Kamienie"]
+      }, {
+        "album": "Radio Młodych Bandytów",
+        "album_mbid": "e4e0b70b-eece-47e5-bce5-96a941c5f6eb",
+        "tracks": ["Radio Młodych Bandytów", "Rock'n'rollowcy"]
+      }, {
+        "album": "Bananowe Drzewa",
+        "album_mbid": "3030367f-da79-4eb0-80cd-1d121be0a94b",
+        "tracks": ["Bananowe Drzewa", "O Tobie O Mnie", "Przyjedziesz Metrem"]
+      }, {
+        "album": "Poganie! Kochaj i Obrażaj",
+        "album_mbid": "84b38907-372b-4c4b-9947-3f4ec6f12caa",
+        "tracks": ["Jedwab", "Marihuana"]
+      }, {
+        "album": "Krew Marylin Monroe",
+        "album_mbid": "a82496d6-4518-4b24-9524-018c3d936122",
+        "tracks": ["Surfingujace Buty"]
+      }, {
+        "album": "Teraz",
+        "tracks": ["Teraz"]
+      }],
+      "reason": "Distribute the 2005 greatest-hits compilation to each track's original release"
+    },
+    {
+      "artist": "Róże Europy",
+      "conflict_albums": ["Marihuana"],
+      "routes": [{
+        "album": "Stańcie przed lustrami",
+        "album_mbid": "934668c5-fb7f-3c3e-9701-9465da5e960e",
+        "tracks": ["Jego uszy są diabelskie", "Mamy Dla Was Kamienie"]
+      }, {
+        "album": "Krew Marylin Monroe",
+        "album_mbid": "a82496d6-4518-4b24-9524-018c3d936122",
+        "tracks": [
+          "Jak czarny anioł (106 dni i nocy)",
+          "Krew Marylin Monroe",
+          "Ławka oczekujących do strzelnicy"
+        ]
+      }, {
+        "album": "Radio Młodych Bandytów",
+        "album_mbid": "e4e0b70b-eece-47e5-bce5-96a941c5f6eb",
+        "tracks": ["Anarchia jest...", "Radio", "Rockenrolowcy"]
+      }, {
+        "album": "Poganie! Kochaj i Obrażaj",
+        "album_mbid": "84b38907-372b-4c4b-9947-3f4ec6f12caa",
+        "tracks": ["Jedwab", "Kontestatorzy", "Marihuana", "Wesołych Świąt"]
+      }],
+      "reason": "Route songs from the 1993 live album to their original studio albums; retain live-exclusive tracks"
     }
   ]
 }

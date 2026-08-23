@@ -203,7 +203,7 @@ def run(dry_run: bool) -> int:
         conn.close()
 
 
-def _run(conn, dry_run: bool) -> int:
+def _run(conn, dry_run: bool, *, manage_transaction: bool = True) -> int:
     print("=" * 72)
     print(f"Track-entity variant-dup fold  ({'DRY RUN' if dry_run else 'APPLY'})")
     print("=" * 72)
@@ -277,10 +277,10 @@ def _run(conn, dry_run: bool) -> int:
           f"{_count(conn, 'SELECT COUNT(*) FROM album_tracks WHERE track_id IS NOT NULL AND track_id NOT IN (SELECT track_id FROM track)')}")
     print(f"  total scrobbles: {_count(conn, 'SELECT COUNT(*) FROM scrobble')}")
 
-    if dry_run:
+    if dry_run and manage_transaction:
         print("\n[DRY RUN] No changes committed. Rolling back.")
         conn.rollback()
-    else:
+    elif manage_transaction:
         conn.commit()
         print("\n[APPLY] Changes committed.")
     return 0

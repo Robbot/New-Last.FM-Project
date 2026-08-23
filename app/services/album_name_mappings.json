@@ -1,6 +1,66 @@
 {
     "mappings": [
         {
+            "artist": "Róże Europy",
+            "from": "Radio Mlodych Bandytow",
+            "to": "Radio Młodych Bandytów",
+            "reason": "Restore Polish diacritics and merge the title variant into the canonical album"
+        },
+        {
+            "artist": "Siouxsie and the Banshees",
+            "from": "Once Upon a Time",
+            "to": "Once Upon a Time: The Singles",
+            "reason": "Canonical title of MusicBrainz release 05750202-f3b2-3484-ab87-9564344324d9"
+        },
+        {
+            "artist": "Siouxsie and the Banshees",
+            "from": "Once Upon a Time - the Singles",
+            "to": "Once Upon a Time: The Singles",
+            "reason": "Normalize the Last.fm title variant to MusicBrainz release 05750202-f3b2-3484-ab87-9564344324d9"
+        },
+        {
+            "artist": "Roxette",
+            "from": "Look Sharp",
+            "to": "Look Sharp!",
+            "reason": "Canonical MusicBrainz album title includes the exclamation mark"
+        },
+        {
+            "artist": "Suicide",
+            "from": "Suicide - Alan Vega and Martin Rev",
+            "to": "Suicide (The Second Album)",
+            "reason": "Canonical title of MusicBrainz release cd22904d-0471-38aa-83fa-4c2878d180ff"
+        },
+        {
+            "artist": "Suicide",
+            "from": "Suicide: Alan Vega and Martin Rev",
+            "to": "Suicide (The Second Album)",
+            "reason": "Canonical title of MusicBrainz release cd22904d-0471-38aa-83fa-4c2878d180ff"
+        },
+        {
+            "artist": "Suicide",
+            "from": "The Second Album",
+            "to": "Suicide (The Second Album)",
+            "reason": "Canonical title of MusicBrainz release cd22904d-0471-38aa-83fa-4c2878d180ff"
+        },
+        {
+            "artist": "Queen",
+            "from": "Flash Gordon (Original Soundtrack)",
+            "to": "Flash Gordon",
+            "reason": "Normalize soundtrack title to the canonical Queen album and MBID"
+        },
+        {
+            "artist": "Depeche Mode",
+            "from": "The Singles'86-'98",
+            "to": "The Singles 86>98",
+            "reason": "Correct punctuation to the official compilation title"
+        },
+        {
+            "artist": "Depeche Mode",
+            "from": "The Singles'81-'85",
+            "to": "The Singles 81-85",
+            "reason": "Correct punctuation to the official compilation title"
+        },
+        {
             "artist": "R.E.M.",
             "from": "Reconstruction of the Fables",
             "to": "Fables of the Reconstruction",
@@ -53,6 +113,12 @@
             "from": "Hello, I Must Be Going",
             "to": "Hello, I Must Be Going!",
             "reason": "Restore missing exclamation mark in album title"
+        },
+        {
+            "artist": "Phil Collins",
+            "from": "But Seriously",
+            "to": "...But Seriously",
+            "reason": "Restore the leading ellipsis in the official album title"
         },
         {
             "artist": "Robbie Williams",
@@ -437,9 +503,33 @@
             "from": "Lava: Asche",
             "to": "Lava",
             "reason": "Fold the 'Lava: Asche' remix-edition album tag into the canonical 'Lava' album (MBID 7e7f86bf-c87b-44e6-817f-40fda06a339c); the two share tracklists and were split only by the source tag"
+        },
+        {
+            "artist": "Metallica",
+            "from": "...and Justice for All",
+            "to": "…And Justice for All",
+            "reason": "Canonicalize ASCII ellipsis and title case; MBID da53e497-8c61-4d4a-a29b-a5b53d86ccb7"
+        },
+        {
+            "artist": "Metallica",
+            "from": "...And Justice for All",
+            "to": "…And Justice for All",
+            "reason": "Canonicalize ASCII ellipsis; MBID da53e497-8c61-4d4a-a29b-a5b53d86ccb7"
+        },
+        {
+            "artist": "Metallica",
+            "from": "…and Justice for All",
+            "to": "…And Justice for All",
+            "reason": "Canonicalize title case; MBID da53e497-8c61-4d4a-a29b-a5b53d86ccb7"
+        },
+        {
+            "artist": "Andy Gibb",
+            "from": "Greatest Hits",
+            "to": "Andy Gibb",
+            "reason": "Canonical MusicBrainz release title for MBID 9d6731b7-b0c9-4e2c-b220-d25cc2422f50"
         }
     ],
-    "last_updated": "2026-08-11",
+    "last_updated": "2026-08-22",
     "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
     "track_mappings": [
         {

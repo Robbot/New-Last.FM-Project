@@ -14,8 +14,13 @@
       "from": "Static",
       "to": "Static-X",
       "reason": "'Otsego Undead' (Dracula 2000 OST) mis-tagged to artist 'Static'; belongs to Static-X"
+    },
+    {
+      "from": "The Car Is On Fire",
+      "to": "The Car Is on Fire",
+      "reason": "Normalize capitalization to the band's canonical name"
     }
   ],
-  "last_updated": "2026-04-28",
+  "last_updated": "2026-08-23",
   "notes": "Artist name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect artist names that won't be caught by the automatic cleaning patterns."
 }

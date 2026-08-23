@@ -174,8 +174,8 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
                 # skips that row rather than aborting the whole batch.
                 cur = conn.execute(
                     "UPDATE OR IGNORE scrobble "
-                    "SET album = ?, album_mbid = ?, album_id = ? WHERE id = ?",
-                    (new_album, new_mbid, target_aid, row["id"]),
+                    "SET album = ?, album_mbid = ?, album_id = ?, album_artist = ? WHERE id = ?",
+                    (new_album, new_mbid, target_aid, artist, row["id"]),
                 )
                 moved += cur.rowcount
 

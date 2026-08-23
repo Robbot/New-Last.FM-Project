@@ -34,6 +34,7 @@ from app.db.notifications import create_notification
 from app.services.sync_lastfm import (
     _is_album_compilation_with_fallback,
     _is_single_artist_album,
+    apply_scrobble_metadata_mapping,
     clean_album_name,
     clean_artist_name,
     clean_title,
@@ -41,6 +42,16 @@ from app.services.sync_lastfm import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class AlbumlessScrobbleError(ValueError):
+    """Raised when a scrobble has no album and must not be persisted."""
+
+    def __init__(self, raw: "RawScrobble") -> None:
+        self.raw = raw
+        super().__init__(
+            f"Albumless scrobble: {raw.artist_name} - {raw.track_name} ({raw.uts})"
+        )
 
 
 @dataclass
@@ -63,7 +74,8 @@ class RawScrobble:
 class IngestResult:
     """Outcome of ingesting one scrobble."""
 
-    inserted: bool  # cur.rowcount == 1 (False = dedup-ignored by idx_scrobble_unique)
+    inserted: bool  # True only when a new listen is created
+    reconciled: bool  # existing listen had metadata updated
     artist_id: int
     album_id: int | None
     track_id: int
@@ -94,9 +106,9 @@ def ingest_scrobble(
 ) -> IngestResult:
     """Transform + validate + resolve + INSERT one scrobble.
 
-    Returns an :class:`IngestResult`; ``inserted`` is True iff a new row was
-    written (a duplicate ``(uts, artist, album, track)`` is silently ignored by
-    ``idx_scrobble_unique`` and returns ``inserted=False``). Does not commit
+    Returns an :class:`IngestResult`; ``inserted`` is True iff a new listen was
+    written. A matching ``(uts, artist, track)`` updates correctable metadata
+    and returns ``reconciled=True`` when anything changed. Does not commit
     unless ``commit=True`` — callers batch many scrobbles in one transaction.
     """
     # --- timestamp sanity (Last.fm gives seconds; guard against ms) ----------
@@ -104,23 +116,38 @@ def ingest_scrobble(
     if uts > 2_000_000_000:
         uts //= 1000
 
+    # Exact source corrections can optionally override the artist and album as
+    # well as the title (for example, a cover mistagged under its performer).
+    (
+        mapped_artist, mapped_album, mapped_track,
+        mapped_artist_mbid, mapped_album_mbid, mapped_track_mbid,
+    ) = apply_scrobble_metadata_mapping(
+        raw.artist_name, raw.album_name, raw.track_name,
+        raw.artist_mbid, raw.album_mbid, raw.track_mbid,
+    )
+
     # --- artist --------------------------------------------------------------
-    artist_name = clean_artist_name(raw.artist_name)
-    artist_mbid = _norm_optional(raw.artist_mbid)
+    artist_name = clean_artist_name(mapped_artist)
+    artist_mbid = _norm_optional(mapped_artist_mbid)
 
     # --- album: clean_title (separators/remaster) then name mappings ---------
-    album_name = clean_title(raw.album_name) if raw.album_name else raw.album_name
+    album_name = clean_title(mapped_album) if mapped_album else mapped_album
     album_name = clean_album_name(artist_name, album_name) if album_name else album_name
-    album_mbid = _norm_optional(raw.album_mbid)
+    album_mbid = _norm_optional(mapped_album_mbid)
+    if not album_name:
+        raise AlbumlessScrobbleError(raw)
 
     # --- track: clean_title WITH artist+album context (applies spotify maps) -
-    track_name = clean_title(raw.track_name, artist_name, album_name)
-    track_mbid = _norm_optional(raw.track_mbid)
+    track_name = clean_title(mapped_track, artist_name, album_name)
+    track_mbid = _norm_optional(mapped_track_mbid)
 
     # --- album autocorrect (NETWORK — pull sync only) ------------------------
     # Suspicious album names (often a track name mistagged as the album) are
     # corrected via a Last.fm + MusicBrainz lookup. Disabled on the push path.
-    if run_album_autocorrect and album_name:
+    # A source-supplied album MBID is stronger evidence than the heuristic.
+    # In particular, legitimate title tracks often have album == track; using
+    # historical majority in that case can perpetuate a transient wrong album.
+    if run_album_autocorrect and album_name and not album_mbid:
         from app.services.validate_albums import (
             is_album_name_suspicious,
             log_data_quality_issue,
@@ -198,14 +225,30 @@ def ingest_scrobble(
     album_id = resolver.resolve_album_id(artist_id, album_name, album_mbid, album_artist)
     track_id = resolver.resolve_track_id(artist_id, track_name, track_mbid)
 
-    # --- INSERT (dedup via idx_scrobble_unique(uts, artist, album, track)) ---
+    # --- UPSERT: album is correctable metadata, not listen identity ----------
+    existing = conn.execute(
+        """SELECT artist_mbid, album, album_mbid, track_mbid, album_artist,
+                  source, artist_id, album_id, track_id
+           FROM scrobble WHERE uts = ? AND artist = ? AND track = ?""",
+        (uts, artist_name, track_name),
+    ).fetchone()
     cur = conn.execute(
         """
-        INSERT OR IGNORE INTO scrobble
+        INSERT INTO scrobble
             (artist, artist_mbid, album, album_mbid,
              track, track_mbid, uts, album_artist, source,
              artist_id, album_id, track_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(uts, artist, track) DO UPDATE SET
+            artist_mbid = COALESCE(excluded.artist_mbid, scrobble.artist_mbid),
+            album = excluded.album,
+            album_mbid = excluded.album_mbid,
+            track_mbid = COALESCE(excluded.track_mbid, scrobble.track_mbid),
+            album_artist = excluded.album_artist,
+            source = excluded.source,
+            artist_id = excluded.artist_id,
+            album_id = excluded.album_id,
+            track_id = excluded.track_id
         """,
         (
             artist_name, artist_mbid, album_name, album_mbid,
@@ -213,7 +256,21 @@ def ingest_scrobble(
             artist_id, album_id, track_id,
         ),
     )
-    inserted = cur.rowcount == 1
+    inserted = existing is None
+    new_metadata = (
+        artist_mbid or (existing[0] if existing else None),
+        album_name,
+        album_mbid,
+        track_mbid or (existing[3] if existing else None),
+        album_artist,
+        raw.source, artist_id, album_id, track_id,
+    )
+    reconciled = existing is not None and tuple(existing) != new_metadata
+    if reconciled:
+        logger.info(
+            "Reconciled scrobble metadata at %s for %s - %s: album %r -> %r",
+            uts, artist_name, track_name, existing[1], album_name,
+        )
 
     # --- album_art record (pull path only, when the source carried images) ---
     album_art_record = None
@@ -236,6 +293,7 @@ def ingest_scrobble(
 
     return IngestResult(
         inserted=inserted,
+        reconciled=reconciled,
         artist_id=artist_id,
         album_id=album_id,
         track_id=track_id,

@@ -589,6 +589,38 @@ def ensure_musicbrainz_releases_cached(artist_mbid: str, artist_name: str) -> li
     return fetched_releases
 
 
+def _refresh_unmatched_played_albums(
+    artist_mbid: str,
+    artist_name: str,
+    played_albums: dict[str, dict],
+    mb_lookup: dict[str, dict],
+) -> None:
+    """Classify played albums absent from the artist-wide MusicBrainz cache."""
+    from app.services.fetch_musicbrainz_releases import fetch_release_group_from_musicbrainz
+
+    for album_name, album_data in played_albums.items():
+        normalized_name = _normalize_for_matching(album_name)
+        if normalized_name in mb_lookup:
+            continue
+
+        release_mbid = album_data.get("album_mbid")
+        if not release_mbid:
+            continue
+
+        release = fetch_release_group_from_musicbrainz(release_mbid)
+        if not release:
+            continue
+
+        # MusicBrainz can return a canonical title whose punctuation/edition text
+        # differs from the scrobbled title. Cache it under the local title so this
+        # exact library row is repaired on this and subsequent page loads.
+        release = dict(release)
+        release["title"] = album_name
+        release["album_title"] = album_name
+        if set_musicbrainz_releases(artist_mbid, artist_name, [release]):
+            mb_lookup[normalized_name] = release
+
+
 def get_artist_albums_with_years(
     album_artist_name: str,
     artist_mbid: str | None = None,
@@ -672,6 +704,13 @@ def get_artist_albums_with_years(
         for r in mb_releases
     }
 
+    # Artist-wide MusicBrainz caches can be incomplete. Repair only played,
+    # unmatched albums for which the library already has a release MBID.
+    if artist_mbid:
+        _refresh_unmatched_played_albums(
+            artist_mbid, album_artist_name, played_albums, mb_lookup
+        )
+
     # Pre-normalize played album names for efficient lookup
     played_normalized = {
         _normalize_for_matching(album): album
@@ -687,7 +726,19 @@ def get_artist_albums_with_years(
         release = mb_lookup.get(normalized_name)
         year = release["release_year"] if release else None
         release_type = release.get("release_type", "") if release else ""
-        is_pure_album = release.get("is_pure_album", False) if release else False
+        if release:
+            secondary_types = release.get("secondary_types", [])
+            if isinstance(secondary_types, str):
+                try:
+                    secondary_types = json.loads(secondary_types)
+                except json.JSONDecodeError:
+                    secondary_types = []
+            is_pure_album = (
+                release.get("primary_type") in ("Album", "EP") and
+                not secondary_types
+            )
+        else:
+            is_pure_album = None
 
         albums_with_years.append({
             "album": album_name,

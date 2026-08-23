@@ -159,6 +159,55 @@ def fetch_artist_releases_from_musicbrainz(artist_mbid: str) -> List[Dict[str, a
         return []
 
 
+def fetch_release_group_from_musicbrainz(release_mbid: str) -> Optional[Dict[str, any]]:
+    """Fetch the release-group classification for one MusicBrainz release.
+
+    Scrobbles and ``album_art`` store release IDs, while the releases cache stores
+    release-group IDs.  Looking the release up first bridges those two identifier
+    types and lets an album missing from an artist-wide cache repair itself.
+    """
+    if not release_mbid:
+        return None
+
+    url = f"{MB_BASE_URL}/ws/2/release/{release_mbid}"
+    try:
+        response = requests.get(
+            url,
+            params={"inc": "release-groups", "fmt": "json"},
+            headers={"User-Agent": MB_USER_AGENT, "Accept": "application/json"},
+            timeout=MB_TIMEOUT,
+        )
+        response.raise_for_status()
+        release_group = response.json().get("release-group") or {}
+
+        primary_type = release_group.get("primary-type", "")
+        title = release_group.get("title", "").strip()
+        group_mbid = release_group.get("id", "")
+        if primary_type not in ("Album", "EP") or not title or not group_mbid:
+            return None
+
+        secondary_types = release_group.get("secondary-types", [])
+        release_type = primary_type
+        if secondary_types:
+            release_type = f"{primary_type} + {' + '.join(secondary_types)}"
+
+        year = _extract_year(release_group.get("first-release-date", ""))
+        return {
+            "title": title,
+            "album_title": title,
+            "year": year,
+            "release_year": year,
+            "mbid": group_mbid,
+            "album_mbid": group_mbid,
+            "release_type": release_type,
+            "primary_type": primary_type,
+            "secondary_types": secondary_types,
+        }
+    except (requests.RequestException, ValueError) as exc:
+        logger.warning("Could not classify MusicBrainz release %s: %s", release_mbid, exc)
+        return None
+
+
 def _normalize_title(title: str) -> str:
     """
     Normalize title for comparison.

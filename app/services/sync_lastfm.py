@@ -5,7 +5,7 @@ Sync Last.fm scrobbles into SQLite.
 - Uses API key + username from config.ini via config.get_api_key()
 - Stores uts as INTEGER Unix timestamp in SECONDS (UTC)
 - Inserts scrobbles in chronological order (oldest -> newest)
-- Avoids duplicates via UNIQUE index on (uts, artist, album, track)
+- Reconciles duplicates by listen identity: (uts, artist, track)
 - Populates album_art with cover URLs per album_mbid
 """
 
@@ -17,7 +17,11 @@ import logging
 import json
 from pathlib import Path
 from .config import get_api_key  # your helper: returns (api_key, username)
-from app.db.notifications import create_notification, ensure_notifications_table
+from app.db.notifications import (
+    create_notification,
+    create_notification_once,
+    ensure_notifications_table,
+)
 from app.services.track_album_routing import apply_track_album_routing
 from app.services.migrate_entity_tables import ensure_entity_schema
 from app.db.entities import Resolver
@@ -31,6 +35,12 @@ BASE_URL = "https://ws.audioscrobbler.com/2.0/"
 # Using smaller chunks with both from/to ensures no scrobbles are missed
 # 7 days = 7 * 24 * 60 * 60 = 604800 seconds
 TIME_CHUNK_SECONDS = 604800  # 7 days
+
+# Last.fm can briefly expose the album of the currently-playing copy on the
+# just-completed scrobble.  Let fresh metadata settle, then re-read a rolling
+# window so a later corrected response updates the existing listen.
+SCROBBLE_SETTLE_SECONDS = 5 * 60
+RECONCILE_LOOKBACK_SECONDS = 24 * 60 * 60
 
 # Setup logging
 from app.logging_config import setup_logging
@@ -159,6 +169,39 @@ def clean_spotify_track_name(artist: str, album: str, track: str) -> str:
             return standard_name
 
     return track
+
+
+def apply_scrobble_metadata_mapping(
+    artist: str,
+    album: str | None,
+    track: str,
+    artist_mbid: str | None = None,
+    album_mbid: str | None = None,
+    track_mbid: str | None = None,
+) -> tuple[str, str | None, str, str | None, str | None, str | None]:
+    """Apply an exact track mapping, including optional artist/album overrides.
+
+    Most entries only rename a track.  The optional ``to_artist`` and
+    ``to_album`` fields support source metadata that attributes a cover to the
+    performer rather than to the canonical recording artist/release.
+    """
+    for mapping in _load_spotify_mappings():
+        if (
+            mapping.get("artist") == artist
+            and mapping.get("album") == album
+            and mapping.get("from") == track
+        ):
+            artist = mapping.get("to_artist", artist)
+            album = mapping.get("to_album", album)
+            track = mapping.get("to", track)
+            if "to_artist_mbid" in mapping:
+                artist_mbid = mapping.get("to_artist_mbid") or None
+            if "to_album_mbid" in mapping:
+                album_mbid = mapping.get("to_album_mbid") or None
+            if "to_track_mbid" in mapping:
+                track_mbid = mapping.get("to_track_mbid") or None
+            break
+    return artist, album, track, artist_mbid, album_mbid, track_mbid
 
 
 # ---------- Album name mappings ----------
@@ -414,6 +457,14 @@ _COMPILATION_PATTERNS = [
     r'\bThe Best\b.*Various',
 ]
 
+# Single-artist collections whose generic titles are prone to being confused
+# with Various Artists releases. These must retain their performing artist as
+# album_artist even though the release type itself is a compilation.
+_FORCED_SINGLE_ARTIST_ALBUMS = {
+    ("Boney M.", "Greatest Hits"),
+    ("Eurythmics", "Greatest Hits"),
+}
+
 def _matches_compilation_pattern(album: str) -> bool:
     """
     Check if album name matches known compilation patterns.
@@ -560,6 +611,9 @@ def _is_album_compilation_with_fallback(conn: sqlite3.Connection, album: str, al
     if not album:
         return False
 
+    if (current_artist, album) in _FORCED_SINGLE_ARTIST_ALBUMS:
+        return False
+
     # First, try the accurate MBID-based detection
     if album_mbid is not None:
         return _is_album_compilation(conn, album, album_mbid, current_artist)
@@ -698,11 +752,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         );
     """)
 
-    # Unique scrobble key: one row per (time, artist, album, track)
-    cur.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_scrobble_unique
-        ON scrobble(uts, artist, album, track);
-    """)
+    # Album is mutable metadata, not part of a listen's identity.
+    from app.services.migrations.reindex_scrobble_identity import (
+        ensure_scrobble_identity_index,
+    )
+    ensure_scrobble_identity_index(conn)
 
     # Album artwork / metadata
     cur.execute("""
@@ -860,11 +914,25 @@ def _update_compilation_albums(conn: sqlite3.Connection) -> None:
     )
 
     updated = cursor.rowcount
+    _restore_forced_single_artist_albums(conn)
     conn.commit()
     logger.info(
         f"Updated album_artist to 'Various Artists' for {updated} scrobbles "
         f"across {len(compilation_albums)} compilation albums (4+ artists each)."
     )
+
+
+def _restore_forced_single_artist_albums(conn: sqlite3.Connection) -> int:
+    """Undo generic compilation classification for explicit artist releases."""
+    restored = 0
+    for artist, album in _FORCED_SINGLE_ARTIST_ALBUMS:
+        cursor = conn.execute(
+            """UPDATE scrobble SET album_artist = ?
+               WHERE artist = ? AND album = ? AND album_artist != ?""",
+            (artist, artist, album, artist),
+        )
+        restored += cursor.rowcount
+    return restored
 
 
 def _update_compilation_albums_no_mbid(conn: sqlite3.Connection) -> None:
@@ -956,7 +1024,8 @@ def _update_compilation_albums_no_mbid(conn: sqlite3.Connection) -> None:
         updated_total += updated
         logger.info(f"Artist-count-based: Updated {updated} scrobbles across {len(high_artist_albums)} compilation albums (6+ artists, no MBID).")
 
-    if updated_total > 0:
+    restored = _restore_forced_single_artist_albums(conn)
+    if updated_total > 0 or restored > 0:
         conn.commit()
 
     if updated_total == 0:
@@ -971,7 +1040,7 @@ def sync_lastfm() -> None:
 
     # Lazy import: app.services.ingest imports cleaning helpers from this module
     # at top level, so it must be imported here (call time) to avoid a cycle.
-    from app.services.ingest import RawScrobble, ingest_scrobble
+    from app.services.ingest import AlbumlessScrobbleError, RawScrobble, ingest_scrobble
 
     conn = get_conn()
     ensure_schema(conn)
@@ -982,12 +1051,12 @@ def sync_lastfm() -> None:
     last_uts = get_last_uts(conn)
     logger.info(f"Last known timestamp in database: {last_uts} ({time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(last_uts))} UTC)")
 
-    # Avoid inclusive-from duplicates: Last.fm returns uts >= from
-    from_ts = None if last_uts == 0 else last_uts + 1
+    # Re-read recent rows so corrected Last.fm metadata can be reconciled.
+    from_ts = None if last_uts == 0 else max(0, last_uts - RECONCILE_LOOKBACK_SECONDS)
 
     # Use time chunks to ensure no scrobbles are missed
     # Last.fm API has known issues with 'from' only - using both from+to is more reliable
-    now_ts = int(time.time())
+    now_ts = int(time.time()) - SCROBBLE_SETTLE_SECONDS
     chunk_start = from_ts if from_ts is not None else 0
     total_new_scrobbles = 0
     chunks_processed = 0
@@ -1039,6 +1108,7 @@ def sync_lastfm() -> None:
 
             page_processed = 0
             page_inserted = 0
+            page_reconciled = 0
             for t in parsed:
                 uts = int(t["date"]["uts"])  # Last.fm gives seconds
                 if uts > 2_000_000_000:      # guard against ms sneaking in
@@ -1075,23 +1145,51 @@ def sync_lastfm() -> None:
                     elif size in ("extralarge", "mega"):
                         images["xlarge"] = url
 
-                result = ingest_scrobble(
-                    conn, resolver,
-                    RawScrobble(
-                        artist_name=artist_name_raw,
-                        track_name=track_name_raw,
-                        uts=uts,
-                        artist_mbid=artist_mbid,
-                        album_name=album_name_raw or None,
-                        album_mbid=album_mbid,
-                        track_mbid=track_mbid,
-                        source="lastfm",
-                        images=images,
-                    ),
+                raw_scrobble = RawScrobble(
+                    artist_name=artist_name_raw,
+                    track_name=track_name_raw,
+                    uts=uts,
+                    artist_mbid=artist_mbid,
+                    album_name=album_name_raw or None,
+                    album_mbid=album_mbid,
+                    track_mbid=track_mbid,
+                    source="lastfm",
+                    images=images,
                 )
+                try:
+                    result = ingest_scrobble(conn, resolver, raw_scrobble)
+                except AlbumlessScrobbleError:
+                    incident_title = f"Albumless Last.fm scrobble skipped ({uts})"
+                    create_notification_once(
+                        notification_type="sync_skip",
+                        title=incident_title,
+                        message=(
+                            f'Last.fm returned "{track_name_raw}" by '
+                            f'{artist_name_raw} without an album. The scrobble '
+                            "was not added to the database."
+                        ),
+                        details={
+                            "artist": artist_name_raw,
+                            "track": track_name_raw,
+                            "uts": uts,
+                            "timestamp_utc": time.strftime(
+                                "%Y-%m-%d %H:%M:%S", time.gmtime(uts)
+                            ),
+                            "reason": "missing_album",
+                        },
+                        severity="warning",
+                        conn=conn,
+                    )
+                    logger.warning(
+                        'Skipped albumless scrobble: %s - "%s" (%s)',
+                        artist_name_raw, track_name_raw, uts,
+                    )
+                    continue
                 page_processed += 1
                 if result.inserted:
                     page_inserted += 1
+                if result.reconciled:
+                    page_reconciled += 1
                 if result.album_art_record:
                     result.album_art_record["last_updated"] = current_ts
                     album_batch.append(result.album_art_record)
@@ -1099,38 +1197,22 @@ def sync_lastfm() -> None:
             conn.commit()
 
             new_rows = page_inserted
-            skipped_rows = page_processed - new_rows
+            unchanged_rows = page_processed - new_rows - page_reconciled
             total_new_scrobbles += new_rows
             chunk_new_scrobbles += new_rows
             logger.info(
                 f"Chunk {chunks_processed}, page {page}: inserted {new_rows} new scrobbles "
-                f"(batch size {page_processed})"
+                f"and reconciled {page_reconciled} (batch size {page_processed})"
             )
 
-            # Log skipped inserts as notification
-            if skipped_rows > 0:
-                create_notification(
-                    notification_type='sync_skip',
-                    title=f'{skipped_rows} scrobble(s) skipped during sync',
-                    message=f'Chunk {chunks_processed}, page {page}: {skipped_rows} of {page_processed} scrobbles were not inserted. This usually means they already exist in the database with different data (possible data inconsistency).',
-                    details={
-                        'chunk': chunks_processed,
-                        'page': page,
-                        'batch_size': page_processed,
-                        'inserted': new_rows,
-                        'skipped': skipped_rows,
-                        'timestamp': int(time.time())
-                    },
-                    severity='warning',
-                    conn=conn  # share the sync's transaction (avoids "database is locked")
-                )
-                logger.warning(f'{skipped_rows} scrobbles skipped (likely duplicates or data conflicts)')
+            if unchanged_rows:
+                logger.debug("%d lookback scrobble(s) already current", unchanged_rows)
 
             # Optional: sort album_art batch by (artist, album) then time
             if album_batch:
                 album_batch.sort(key=lambda a: (a["artist"], a["album"], a["last_updated"]))
                 for a in album_batch:
-                    cur.execute(
+                    conn.execute(
                         """
                         INSERT INTO album_art (
                             artist, album, album_mbid, artist_mbid,

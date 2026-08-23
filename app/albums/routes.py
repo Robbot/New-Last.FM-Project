@@ -104,7 +104,14 @@ def artist_album_detail(album_artist_name: str, album_name: str):
 
     # Get tracklist from database (may be empty if MusicBrainz doesn't have it)
     # Use MBID-based function for more accurate results when MBID is available
-    rows = db.get_album_tracks_by_mbid(album_mbid, album_name, start=start or "", end=end or "", sort_by=sort_by) if album_mbid else db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
+    rows = db.get_album_tracks_by_mbid(
+        album_mbid,
+        album_name,
+        start=start or "",
+        end=end or "",
+        sort_by=sort_by,
+        album_id=(art_row["album_id"] if art_row and album_artist_name != "Various Artists" else None),
+    ) if album_mbid else db.get_album_tracks(album_artist_name, album_name, start=start or "", end=end or "", sort_by=sort_by)
 
     # Fetch Wikipedia URL
     wikipedia_url = db.get_album_wikipedia_url(album_artist_name, album_name)

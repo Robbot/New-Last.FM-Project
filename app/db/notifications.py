@@ -50,12 +50,49 @@ def create_notification(
         conn.commit()
         return cur.lastrowid
 
-    with get_db_connection() as conn:
-        cur = conn.cursor()
+    with get_db_connection() as db_conn:
+        cur = db_conn.cursor()
         cur.execute(sql, params)
-        conn.commit()
+        db_conn.commit()
         return cur.lastrowid
 
+
+def create_notification_once(
+    notification_type: str,
+    title: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None,
+    severity: str = "info",
+    conn: Optional[sqlite3.Connection] = None,
+) -> Optional[int]:
+    """Create a notification unless the same type/title already exists.
+
+    This is intended for repeatable sync incidents: the rolling Last.fm
+    lookback sees the same malformed scrobble on every run, but the admin
+    should receive one notification for that incident rather than one every
+    fifteen minutes.
+    """
+    if conn is not None:
+        existing = conn.execute(
+            "SELECT id FROM notifications WHERE type = ? AND title = ? LIMIT 1",
+            (notification_type, title),
+        ).fetchone()
+        if existing:
+            return None
+        return create_notification(
+            notification_type, title, message, details, severity, conn
+        )
+
+    with get_db_connection() as check_conn:
+        existing = check_conn.execute(
+            "SELECT id FROM notifications WHERE type = ? AND title = ? LIMIT 1",
+            (notification_type, title),
+        ).fetchone()
+    if existing:
+        return None
+    return create_notification(
+        notification_type, title, message, details, severity
+    )
 
 def get_notifications(
     include_dismissed: bool = False,

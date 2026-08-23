@@ -200,18 +200,39 @@ class Resolver:
         if row:
             track_id = row[0]
         else:
-            mbid = (track_mbid or "").strip()
-            cur = self.conn.execute(
-                "INSERT INTO track (title, mbid, artist_id, album_id) "
-                "VALUES (?, ?, ?, NULL)",
-                (title, mbid or None, artist_id),
-            )
-            track_id = cur.lastrowid
-            self.conn.execute(
-                "INSERT INTO track_alias (artist_id, norm_title, track_id) "
-                "VALUES (?, ?, ?)",
-                (artist_id, norm, track_id),
-            )
+            # Alias keys are persisted normalization output.  If normalization
+            # changes, an older key (for example ``chop suey!``) may no longer
+            # equal today's key (``chop suey``). Reinterpret legacy keys before
+            # creating an entity so a deployment cannot split an existing track.
+            legacy_ids = _lookup_legacy_track_ids(self.conn, artist_id, norm)
+            if len(legacy_ids) == 1:
+                track_id = legacy_ids.pop()
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO track_alias (artist_id, norm_title, track_id) "
+                    "VALUES (?, ?, ?)",
+                    (artist_id, norm, track_id),
+                )
+            elif len(legacy_ids) > 1:
+                # Creating another entity makes an existing ambiguity worse and
+                # causes play counts to fragment. Require the reindex/fold
+                # migration (or manual reconciliation) to choose a canonical.
+                raise sqlite3.IntegrityError(
+                    f"ambiguous normalized track alias for artist_id={artist_id}, "
+                    f"title={title!r}: track_ids={sorted(legacy_ids)}"
+                )
+            else:
+                mbid = (track_mbid or "").strip()
+                cur = self.conn.execute(
+                    "INSERT INTO track (title, mbid, artist_id, album_id) "
+                    "VALUES (?, ?, ?, NULL)",
+                    (title, mbid or None, artist_id),
+                )
+                track_id = cur.lastrowid
+                self.conn.execute(
+                    "INSERT INTO track_alias (artist_id, norm_title, track_id) "
+                    "VALUES (?, ?, ?)",
+                    (artist_id, norm, track_id),
+                )
         self._track_cache[cache_key] = track_id
         return track_id
 
@@ -276,7 +297,29 @@ def lookup_track_id(conn: sqlite3.Connection, artist_name: str, track_name: str)
         "SELECT track_id FROM track_alias WHERE artist_id = ? AND norm_title = ?",
         (artist_id, norm_track),
     ).fetchone()
-    return t[0] if t else None
+    if t:
+        return t[0]
+    legacy_ids = _lookup_legacy_track_ids(conn, artist_id, norm_track)
+    return next(iter(legacy_ids)) if len(legacy_ids) == 1 else None
+
+
+def _lookup_legacy_track_ids(
+    conn: sqlite3.Connection, artist_id: int, current_norm: str
+) -> set[int]:
+    """Interpret persisted alias keys using the current normalizer.
+
+    This is the compatibility bridge for databases whose alias keys were
+    written by an older normalization version. Callers decide whether an
+    ambiguous result should return no match or abort a write.
+    """
+    return {
+        row[0]
+        for row in conn.execute(
+            "SELECT track_id, norm_title FROM track_alias WHERE artist_id = ?",
+            (artist_id,),
+        ).fetchall()
+        if _normalize_track_name_for_matching(row[1]) == current_norm
+    }
 
 
 def _lookup_artist_id(conn: sqlite3.Connection, artist_name: str) -> int | None:

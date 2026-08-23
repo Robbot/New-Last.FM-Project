@@ -135,7 +135,7 @@ def get_album_art(album_artist_name: str, album_name: str, album_id: int | None 
         return None
     rows = conn.execute(
         """
-        SELECT album_mbid, artist_mbid, image_xlarge
+        SELECT album_id, album_mbid, artist_mbid, image_xlarge
         FROM album_art
         WHERE album_id = ?
         LIMIT 1
@@ -897,7 +897,14 @@ def get_album_total_plays_by_mbid(album_mbid: str, album_name: str, start: str =
     return row["total"] if row else 0
 
 
-def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", end: str = "", sort_by: str = "tracklist"):
+def get_album_tracks_by_mbid(
+    album_mbid: str,
+    album_name: str,
+    start: str = "",
+    end: str = "",
+    sort_by: str = "tracklist",
+    album_id: int | None = None,
+):
     """
     Get album tracks by MBID.
     Returns exactly ONE row per track, ordered by album track number (default)
@@ -916,19 +923,25 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
 
     conn = get_db_connection()
 
-    # Resolve the album's canonical album_id from scrobbles carrying this mbid.
-    aid_row = conn.execute(
-        """
-        SELECT album_id FROM scrobble
-        WHERE album_mbid = ? AND album_id IS NOT NULL
-        GROUP BY album_id ORDER BY COUNT(*) DESC LIMIT 1
-        """,
-        (album_mbid,),
-    ).fetchone()
-    if aid_row is None:
-        conn.close()
-        return []
-    album_id = aid_row[0]
+    # A known single-artist album_id is authoritative. MBIDs and generic album
+    # names such as "Greatest Hits" can otherwise pull in unrelated releases.
+    scope_tracklist_by_id = album_id is not None
+    if album_id is None:
+        aid_row = conn.execute(
+            """
+            SELECT album_id FROM scrobble
+            WHERE album_mbid = ? AND album_id IS NOT NULL
+            GROUP BY album_id ORDER BY COUNT(*) DESC LIMIT 1
+            """,
+            (album_mbid,),
+        ).fetchone()
+        if aid_row is None:
+            conn.close()
+            return []
+        album_id = aid_row[0]
+
+    track_scope = "album_id = ?" if scope_tracklist_by_id else "album_mbid = ?"
+    track_scope_value = album_id if scope_tracklist_by_id else album_mbid
 
     date_join = ""
     date_params: list = []
@@ -943,7 +956,7 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
         FROM (
             SELECT track_number, track, artist, track_id
             FROM album_tracks
-            WHERE album_mbid = ?
+            WHERE {track_scope}
               AND rowid IN (
                   SELECT rowid FROM (
                       SELECT rowid, ROW_NUMBER() OVER (
@@ -951,7 +964,7 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
                           ORDER BY CASE WHEN artist != 'Various Artists' THEN 0 ELSE 1 END, rowid
                       ) AS rn
                       FROM album_tracks
-                      WHERE album_mbid = ?
+                      WHERE {track_scope}
                   )
                   WHERE rn = 1
               )
@@ -963,7 +976,7 @@ def get_album_tracks_by_mbid(album_mbid: str, album_name: str, start: str = "", 
         GROUP BY at.track_id, at.track_number, at.track, at.artist
         ORDER BY at.track_number
     """
-    params = [album_mbid, album_mbid, album_id] + date_params
+    params = [track_scope_value, track_scope_value, album_id] + date_params
 
     results = conn.execute(sql, params).fetchall()
     conn.close()

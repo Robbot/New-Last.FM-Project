@@ -82,7 +82,8 @@
   <tbody>
     {% for row in albums_rows %}
       {# Determine row styling based on album type and play status #}
-      {% set is_not_pure_album = row.get('is_pure_album', True) == false %}
+      {# Unknown classifications are neutral; yellow means explicitly non-pure. #}
+      {% set is_not_pure_album = row.get('is_pure_album') == false %}
       {% set is_unplayed = row.get('has_scrobbles', True) == false %}
       {# Determine release type class for badge styling #}
       {% set release_type = row.get('release_type', '') %}
@@ -153,4 +154,3 @@
 </div>
 </div>
 {% endblock %}
-

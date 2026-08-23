@@ -23,7 +23,8 @@ from app.services.config import get_api_key
 from app.services.sync_lastfm import clean_title, clean_album_name, clean_artist_name, ensure_schema
 from app.services.track_album_routing import apply_track_album_routing
 from app.db.entities import Resolver
-from app.db.notifications import create_notification
+from app.db.notifications import create_notification, create_notification_once
+from app.services.ingest import AlbumlessScrobbleError, RawScrobble, ingest_scrobble
 from app.logging_config import setup_logging
 from app.logging_config import get_logger
 
@@ -127,9 +128,10 @@ def check_time_range_against_lastfm(api_key, username, start_ts, end_ts):
     Check a specific time range against Last.fm API to find missing scrobbles.
 
     Returns:
-        - found_in_db: set of (uts, artist, album, track) tuples found in database
-        - found_in_lastfm: set of (uts, artist, album, track) tuples from Last.fm
-        - missing: list of scrobbles in Last.fm but not in database
+        - found_in_db: mapping from listen identity to album
+        - found_in_lastfm: mapping from listen identity to raw API metadata
+        - missing: list of identities absent from the database
+        - changed: API rows that are missing or have changed album metadata
     """
     conn = get_conn()
     cur = conn.cursor()
@@ -141,13 +143,14 @@ def check_time_range_against_lastfm(api_key, username, start_ts, end_ts):
         WHERE uts >= ? AND uts <= ?
     """, (start_ts, end_ts))
 
-    found_in_db = set()
+    found_in_db = {}
     for row in cur.fetchall():
-        found_in_db.add((row["uts"], row["artist"], row["album"], row["track"]))
+        identity = (row["uts"], row["artist"], row["track"])
+        found_in_db[identity] = row["album"]
 
     # Get scrobbles from Last.fm in this range
     page = 1
-    found_in_lastfm = set()
+    found_in_lastfm = {}
 
     while True:
         data = fetch_recent_tracks(api_key, username, start_ts, end_ts, page)
@@ -168,15 +171,29 @@ def check_time_range_against_lastfm(api_key, username, start_ts, end_ts):
 
             uts = int(date_info["uts"])
             artist_name = t["artist"]["#text"]
+            artist_mbid = t["artist"].get("mbid") or None
 
             if isinstance(t.get("album"), dict):
                 album_name = clean_title(t["album"]["#text"])
+                album_mbid = t["album"].get("mbid") or None
             else:
                 album_name = clean_title(t.get("album", ""))
+                album_mbid = None
 
             track_name = clean_title(t["name"])
+            track_mbid = t.get("mbid") or None
 
-            found_in_lastfm.add((uts, artist_name, album_name, track_name))
+            identity = (uts, artist_name, track_name)
+            found_in_lastfm[identity] = RawScrobble(
+                artist_name=artist_name,
+                artist_mbid=artist_mbid,
+                album_name=album_name,
+                album_mbid=album_mbid,
+                track_name=track_name,
+                track_mbid=track_mbid,
+                uts=uts,
+                source="lastfm",
+            )
 
         # Check pagination
         attr = recent.get("@attr", {})
@@ -191,9 +208,13 @@ def check_time_range_against_lastfm(api_key, username, start_ts, end_ts):
     conn.close()
 
     # Find missing scrobbles
-    missing = found_in_lastfm - found_in_db
+    missing = [identity for identity in found_in_lastfm if identity not in found_in_db]
+    changed = [
+        raw for identity, raw in found_in_lastfm.items()
+        if identity not in found_in_db or found_in_db[identity] != raw.album_name
+    ]
 
-    return found_in_db, found_in_lastfm, missing
+    return found_in_db, found_in_lastfm, missing, changed
 
 
 def run_full_gap_check():
@@ -208,6 +229,8 @@ def run_full_gap_check():
     logger.info(f"Starting periodic full gap check for user: {username}")
 
     conn = get_conn()
+    ensure_schema(conn)
+    conn.commit()
 
     # Get the date range
     first_uts, last_uts = get_first_last_uts(conn)
@@ -253,7 +276,7 @@ def run_full_gap_check():
                    f"({gap['gap_seconds'] / 3600:.1f} hours)")
 
         try:
-            _, _, missing = check_time_range_against_lastfm(
+            _, _, missing, changed = check_time_range_against_lastfm(
                 api_key, username, gap_start, gap_end
             )
 
@@ -262,7 +285,11 @@ def run_full_gap_check():
                 logger.warning(f"Found {len(missing)} missing scrobble(s) in this gap")
 
                 # Log detailed information for each missing scrobble
-                for uts, artist, album, track in sorted(missing):
+                for uts, artist, track in sorted(missing):
+                    album = next(
+                        raw.album_name for raw in changed
+                        if (raw.uts, raw.artist_name, raw.track_name) == (uts, artist, track)
+                    )
                     timestamp_str = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(uts))
                     logger.info(f"  MISSING: [{timestamp_str}] {artist} - {track} (album: {album})")
                     # Add to list for notification
@@ -274,46 +301,57 @@ def run_full_gap_check():
                         'track': track
                     })
 
-                # Insert missing scrobbles if auto-insert is enabled
-                if AUTO_INSERT_MISSING:
-                    conn = get_conn()
-                    resolver = Resolver(conn)
-                    inserted = 0
+            # Apply both missing listens and corrected metadata through the
+            # shared identity-aware ingest path.
+            if changed and AUTO_INSERT_MISSING:
+                conn = get_conn()
+                resolver = Resolver(conn)
+                inserted = 0
+                reconciled = 0
 
-                    for uts, artist, album, track in missing:
-                        try:
-                            # Apply the same cleaning as sync_lastfm so gap-filled
-                            # scrobbles are stored identically (artist/album name
-                            # mappings), then resolve canonical ids (Phase 2).
-                            artist = clean_artist_name(artist)
-                            album = clean_album_name(artist, album)
-                            track = clean_title(track)
-                            artist_id = resolver.resolve_artist_id(artist)
-                            album_id = resolver.resolve_album_id(artist_id, album)
-                            track_id = resolver.resolve_track_id(artist_id, track)
-                            cur = conn.cursor()
-                            cur.execute(
-                                """
-                                INSERT OR IGNORE INTO scrobble
-                                (artist, album, track, uts, album_artist,
-                                 artist_id, album_id, track_id)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                                """,
-                                (artist, album, track, uts, artist,
-                                 artist_id, album_id, track_id)
-                            )
-                            if cur.rowcount > 0:
-                                inserted += 1
-                        except sqlite3.Error as e:
-                            logger.error(f"Error inserting scrobble: {e}")
+                for raw in changed:
+                    try:
+                        result = ingest_scrobble(
+                            conn, resolver, raw,
+                            run_album_autocorrect=False,
+                            run_track_validation=False,
+                        )
+                        inserted += int(result.inserted)
+                        reconciled += int(result.reconciled)
+                    except sqlite3.Error as e:
+                        logger.error(f"Error reconciling scrobble: {e}")
+                    except AlbumlessScrobbleError as e:
+                        raw = e.raw
+                        create_notification_once(
+                            notification_type="sync_skip",
+                            title=f"Albumless Last.fm scrobble skipped ({raw.uts})",
+                            message=(
+                                f'Last.fm returned "{raw.track_name}" by '
+                                f'{raw.artist_name} without an album. The scrobble '
+                                "was not added to the database."
+                            ),
+                            details={
+                                "artist": raw.artist_name,
+                                "track": raw.track_name,
+                                "uts": raw.uts,
+                                "timestamp_utc": time.strftime(
+                                    "%Y-%m-%d %H:%M:%S", time.gmtime(raw.uts)
+                                ),
+                                "reason": "missing_album",
+                            },
+                            severity="warning",
+                            conn=conn,
+                        )
+                        logger.warning("Skipped albumless scrobble: %s", e)
 
-                    conn.commit()
-                    conn.close()
-
-                    if inserted > 0:
-                        logger.info(f"Inserted {inserted} missing scrobble(s) into database")
-                else:
-                    logger.info(f"Auto-insert disabled. {len(missing)} scrobble(s) reported but not inserted.")
+                conn.commit()
+                conn.close()
+                logger.info(
+                    "Gap check inserted %d and reconciled %d scrobble(s)",
+                    inserted, reconciled,
+                )
+            elif missing and not AUTO_INSERT_MISSING:
+                logger.info(f"Auto-insert disabled. {len(missing)} scrobble(s) reported but not inserted.")
 
         except Exception as e:
             logger.error(f"Error checking gap: {e}", exc_info=True)
