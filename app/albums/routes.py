@@ -1,4 +1,4 @@
-from flask import abort, render_template, request, current_app, jsonify, url_for
+from flask import abort, render_template, request, current_app, jsonify, redirect, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
 from app.services.fetch_tracklist_musicbrainz import fetch_album_tracklist_by_mbid, fetch_album_tracklist_musicbrainz
 from app.services.fetch_wikipedia import fetch_album_wikipedia_url
@@ -57,6 +57,20 @@ def artist_album_detail(album_artist_name: str, album_name: str):
     # Validate path parameters
     album_artist_name = validate_artist_name(album_artist_name)
     album_name = validate_album_name(album_name)
+
+    # Alias matching is deliberately case-insensitive, but the browser should
+    # expose one stable URL for an album instead of retaining an old spelling.
+    canonical_title = db.get_canonical_album_title(album_artist_name, album_name)
+    if canonical_title and canonical_title != album_name:
+        return redirect(
+            url_for(
+                "albums.artist_album_detail",
+                album_artist_name=album_artist_name,
+                album_name=canonical_title,
+                **request.args,
+            ),
+            code=302,
+        )
 
     # Process date range parameters
     from_arg = (request.args.get("from") or request.args.get("start") or "").strip()

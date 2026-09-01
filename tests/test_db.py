@@ -44,6 +44,70 @@ class TestScrobbleQueries:
             # Scrobbles are from 2023-11-15 (1700000000 is Nov 15, 2023)
             assert len(rows) >= 0
 
+    def test_top_tracks_collapses_case_variants_by_canonical_id(self, app):
+        """Search results combine display-name variants of one track entity."""
+        from app.db.entities import Resolver
+        from app.db.tracks import get_top_tracks
+
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            artist_id = resolver.resolve_artist_id('Robert Gawliński')
+            album_id = resolver.resolve_album_id(
+                artist_id, 'Największe przeboje', album_artist_text='Robert Gawliński'
+            )
+            track_id = resolver.resolve_track_id(artist_id, 'Beze mnie o mnie')
+            conn.executemany(
+                """
+                INSERT INTO scrobble
+                    (artist, album, album_artist, track, uts, artist_id, album_id, track_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    ('Robert Gawliński', 'Największe przeboje', 'Robert Gawliński',
+                     'Beze Mnie O Mnie', 1, artist_id, album_id, track_id),
+                    ('Robert Gawliński', 'Największe przeboje', 'Robert Gawliński',
+                     'Beze mnie o mnie', 2, artist_id, album_id, track_id),
+                ],
+            )
+            conn.commit()
+
+        with app.app_context():
+            rows = get_top_tracks(search_term='Beze mnie o mnie')
+
+        assert len(rows) == 1
+        assert rows[0]['track'] == 'Beze mnie o mnie'
+        assert rows[0]['artist'] == 'Robert Gawliński'
+        assert rows[0]['plays'] == 2
+
+    def test_top_tracks_keeps_same_title_by_different_artists_separate(self, app):
+        """Canonical grouping must not merge different artists' tracks."""
+        from app.db.entities import Resolver
+        from app.db.tracks import get_top_tracks
+
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            for uts, artist in enumerate(('Artist One', 'Artist Two'), start=1):
+                artist_id = resolver.resolve_artist_id(artist)
+                album_id = resolver.resolve_album_id(artist_id, 'Album', album_artist_text=artist)
+                track_id = resolver.resolve_track_id(artist_id, 'Home')
+                conn.execute(
+                    """
+                    INSERT INTO scrobble
+                        (artist, album, album_artist, track, uts, artist_id, album_id, track_id)
+                    VALUES (?, 'Album', ?, 'Home', ?, ?, ?, ?)
+                    """,
+                    (artist, artist, uts, artist_id, album_id, track_id),
+                )
+            conn.commit()
+
+        with app.app_context():
+            rows = get_top_tracks(search_term='Home')
+
+        assert len(rows) == 2
+        assert {row['artist'] for row in rows} == {'Artist One', 'Artist Two'}
+
 
 @pytest.mark.unit
 class TestDatabaseNormalization:

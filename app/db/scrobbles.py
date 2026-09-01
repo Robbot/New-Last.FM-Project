@@ -14,26 +14,27 @@ def get_latest_scrobbles(start: str = "", end: str = ""):
     conn = get_db_connection()
 
     sql = """
-        SELECT artist,
-               album,
-               album_artist,
-               track,
-               strftime('%Y-%m-%d %H:%M:%S', uts, 'unixepoch', 'localtime') AS date
-        FROM scrobble
+        SELECT s.artist,
+               COALESCE(a.title, s.album) AS album,
+               s.album_artist,
+               s.track,
+               strftime('%Y-%m-%d %H:%M:%S', s.uts, 'unixepoch', 'localtime') AS date
+        FROM scrobble s
+        LEFT JOIN album a ON a.album_id = s.album_id
     """
     params = []
 
     # Use SQLite's date function to filter by local date, not UTC
     if start and end:
-        sql += """ WHERE date(uts, 'unixepoch', 'localtime') >= ?
-                   AND date(uts, 'unixepoch', 'localtime') <= ?"""
+        sql += """ WHERE date(s.uts, 'unixepoch', 'localtime') >= ?
+                   AND date(s.uts, 'unixepoch', 'localtime') <= ?"""
         params.extend([start, end])
 
     # Order chronologically when filtering by date, reverse chronologically otherwise
     if start and end:
-        sql += " ORDER BY uts ASC"
+        sql += " ORDER BY s.uts ASC"
     else:
-        sql += " ORDER BY uts DESC"
+        sql += " ORDER BY s.uts DESC"
 
     rows = conn.execute(sql, params).fetchall()
     conn.close()

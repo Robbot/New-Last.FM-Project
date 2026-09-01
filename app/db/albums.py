@@ -125,6 +125,22 @@ def get_album_total_plays(album_artist_name: str, album_name: str, start: str = 
     return row["total"] if row else 0
 
 
+def get_canonical_album_title(album_artist_name: str, album_name: str) -> str | None:
+    """Return the display title for an album resolved from a URL spelling."""
+    conn = get_db_connection()
+    try:
+        album_id = lookup_album_id(conn, album_artist_name, album_name)
+        if album_id is None:
+            return None
+        row = conn.execute(
+            "SELECT title FROM album WHERE album_id = ?",
+            (album_id,),
+        ).fetchone()
+        return row["title"] if row else None
+    finally:
+        conn.close()
+
+
 def get_album_art(album_artist_name: str, album_name: str, album_id: int | None = None):
     """Get album art information from database."""
     conn = get_db_connection()

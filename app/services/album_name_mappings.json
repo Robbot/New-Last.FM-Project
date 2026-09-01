@@ -1,6 +1,18 @@
 {
     "mappings": [
         {
+            "artist": "The Police",
+            "from": "Outlandos D'Amour",
+            "to": "Outlandos d'Amour",
+            "reason": "Preserve the official lowercase preposition in the canonical album title"
+        },
+        {
+            "artist": "The Cranberries",
+            "from": "No Need to Argue (The Complete Sessions 1994-1995)",
+            "to": "No Need to Argue",
+            "reason": "Normalize the expanded-edition title to the canonical album"
+        },
+        {
             "artist": "Róże Europy",
             "from": "Radio Mlodych Bandytow",
             "to": "Radio Młodych Bandytów",
@@ -527,9 +539,27 @@
             "from": "Greatest Hits",
             "to": "Andy Gibb",
             "reason": "Canonical MusicBrainz release title for MBID 9d6731b7-b0c9-4e2c-b220-d25cc2422f50"
+        },
+        {
+            "artist": "Phil Collins",
+            "from": "...Hits",
+            "to": "The Singles",
+            "reason": "Consolidate scrobbles from the older compilation tag into The Singles"
+        },
+        {
+            "artist": "Big Day",
+            "from": "W Swietle I We Mgle",
+            "to": "W świetle i we mgle",
+            "reason": "Restore Polish diacritics and sentence capitalization on the canonical album title"
+        },
+        {
+            "artist": "Jean-Michel Jarre",
+            "from": "Les Chants Magnétiques / Magnetic Fields",
+            "to": "Magnetic Fields",
+            "reason": "Merge the bilingual release title into the canonical English album title"
         }
     ],
-    "last_updated": "2026-08-22",
+    "last_updated": "2026-08-29",
     "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
     "track_mappings": [
         {

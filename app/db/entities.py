@@ -292,6 +292,16 @@ def lookup_track_id(conn: sqlite3.Connection, artist_name: str, track_name: str)
     if artist_id is None:
         return None
 
+    # Prefer an exact canonical title before applying suffix normalization.
+    # Named mixes/versions can legitimately be separate tracks even though the
+    # broad matcher strips those qualifiers to reconcile ordinary tag noise.
+    exact = conn.execute(
+        "SELECT track_id FROM track WHERE artist_id = ? AND title = ?",
+        (artist_id, track_name.strip()),
+    ).fetchall()
+    if len(exact) == 1:
+        return exact[0][0]
+
     norm_track = _normalize_track_name_for_matching(track_name)
     t = conn.execute(
         "SELECT track_id FROM track_alias WHERE artist_id = ? AND norm_title = ?",

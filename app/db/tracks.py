@@ -85,17 +85,23 @@ def get_recent_scrobbles_for_track(artist_name: str, track_name: str):
 def get_top_tracks(start: str = "", end: str = "", search_term: str = ""):
     """Tracks sorted by plays (scrobbles) desc.
 
-    Groups by track AND artist to correctly handle tracks with the same name
-    by different artists. For compilations (Various Artists), shows the
-    original artist instead when available.
+    Groups by canonical track_id so spelling, case, accent, and version aliases
+    are presented as one track. Rows not yet linked to an entity fall back to
+    case-insensitive text grouping. For compilations (Various Artists), shows
+    the original artist instead when available.
     """
     conn = get_db_connection()
 
-    # Use a CTE to first normalize the artist for each scrobble, then group
+    # Filter first, then attach canonical entity names and a stable grouping
+    # key. The text fallback keeps this query useful during/after migrations
+    # where a small number of legacy rows may still have NULL entity ids.
     sql = """
-        WITH normalized_scrobbles AS (
+        WITH filtered_scrobbles AS (
             SELECT
                 track,
+                track_id,
+                artist_id,
+                artist,
                 -- Prefer non-Various Artists as the primary artist
                 COALESCE(
                     CASE WHEN LOWER(artist) != 'various artists' THEN artist END,
@@ -124,15 +130,33 @@ def get_top_tracks(start: str = "", end: str = "", search_term: str = ""):
         params.extend([search_pattern, search_pattern, search_pattern])
 
     sql += """
+        ),
+        normalized_scrobbles AS (
+            SELECT
+                COALESCE(t.title, fs.track) AS track,
+                CASE
+                    WHEN LOWER(fs.artist) != 'various artists'
+                        THEN COALESCE(ar.name, fs.primary_artist)
+                    ELSE fs.primary_artist
+                END AS primary_artist,
+                fs.album_artist,
+                fs.album,
+                CASE
+                    WHEN fs.track_id IS NOT NULL THEN 'id:' || fs.track_id
+                    ELSE 'text:' || LOWER(fs.track) || CHAR(31) || LOWER(fs.primary_artist)
+                END AS track_group_key
+            FROM filtered_scrobbles fs
+            LEFT JOIN track t ON t.track_id = fs.track_id
+            LEFT JOIN artist ar ON ar.artist_id = fs.artist_id
         )
         SELECT
-            track,
-            primary_artist AS artist,
+            MAX(track) AS track,
+            MAX(primary_artist) AS artist,
             MAX(album_artist) AS album_artist,
             MAX(album) AS album,
             COUNT(*) AS plays
         FROM normalized_scrobbles
-        GROUP BY track, primary_artist
+        GROUP BY track_group_key
         ORDER BY plays DESC
     """
 

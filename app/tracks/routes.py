@@ -1,4 +1,4 @@
-from flask import render_template, abort, request
+from flask import render_template, abort, redirect, request, url_for
 from app import db
 import math
 from . import tracks_bp
@@ -44,11 +44,19 @@ def library_tracks():
         search_term=search_term,
     )
 
-@tracks_bp.route("/library/track/<path:artist_name>/<path:track_name>")
-def track_detail(artist_name, track_name):
-    # Validate path parameters
-    artist_name = validate_artist_name(artist_name)
-    track_name = validate_track_name(track_name)
+@tracks_bp.route("/library/track")
+def track_detail():
+    """Show track details using query parameters for unambiguous names.
+
+    Artist and track names may contain slashes (for example ``AC/DC``).  Two
+    adjacent ``path`` converters cannot distinguish a slash that belongs to
+    the artist from the separator before the track, so these values must not
+    be encoded as path segments.
+    """
+    artist_name = validate_artist_name(request.args.get("artist_name"))
+    track_name = validate_track_name(request.args.get("track_name"))
+    if not artist_name or not track_name:
+        abort(404)
 
     stats = db.get_track_stats_detail(artist_name, track_name)
     if stats is None:
@@ -67,3 +75,31 @@ def track_detail(artist_name, track_name):
         recent=recent,
         track_mbid=track_mbid,
     )
+
+
+@tracks_bp.route("/library/track/<path:artist_name>/<path:track_name>")
+def track_detail_legacy(artist_name, track_name):
+    """Redirect old path-based track URLs to the unambiguous query URL.
+
+    Werkzeug assigns the first segment to ``artist_name``.  If that split does
+    not identify a scrobbled track, try every later slash as the boundary; this
+    recovers old links such as ``/library/track/AC/DC/Thunderstruck``.
+    """
+    candidates = [(artist_name, track_name)]
+    combined = f"{artist_name}/{track_name}"
+    candidates.extend(
+        (combined[:index], combined[index + 1:])
+        for index, char in enumerate(combined)
+        if char == "/"
+    )
+
+    for candidate_artist, candidate_track in candidates:
+        stats = db.get_track_stats_detail(candidate_artist, candidate_track)
+        if stats and stats["plays"] > 0:
+            return redirect(url_for(
+                "tracks.track_detail",
+                artist_name=candidate_artist,
+                track_name=candidate_track,
+            ))
+
+    abort(404)

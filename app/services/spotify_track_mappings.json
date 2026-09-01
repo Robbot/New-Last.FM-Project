@@ -1,10 +1,200 @@
 {
   "mappings": [
     {
+      "artist": "Pidżama Porno",
+      "album": "Marchef w butonierce",
+      "from": "------",
+      "to": "Noc Jak Noc"
+    },
+    {
+      "artist": "Pidżama Porno",
+      "album": "Marchef w butonierce",
+      "from": "Nocjaknoc",
+      "to": "Noc Jak Noc"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Mala Lady Pank",
+      "to": "Mała Lady Punk",
+      "to_album": "Minus 10 w Rio"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Raport Z N",
+      "to": "Raport z N.",
+      "to_album": "Raport z N."
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Rysunkowa postać",
+      "to": "Rysunkowa postać",
+      "to_album": "Raport z N."
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Sly",
+      "to": "Sly",
+      "to_album": "Drop Everything",
+      "to_album_mbid": "24fcf764-0f23-450e-b9aa-e27011bdbd1f"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "Drop Everything",
+      "from": "Be Good",
+      "to": "De Good"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "Drop Everything",
+      "from": "Someone's 'Round the Corner",
+      "to": "Someone's Round The Corner"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "Drop Everything",
+      "from": "Disturbance of the order (instrumental)",
+      "to": "Disturbance Of The Order"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Fabryka Malp",
+      "to": "Fabryka małp",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Pokrecilo Mi Sie W Glowie",
+      "to": "Pokręciło mi się w głowie",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Zaklocenie Porzadku",
+      "to": "Zakłócenie porządku",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Du Du",
+      "to": "Du du",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Kryzysowa Narzeczona",
+      "to": "Kryzysowa narzeczona",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Minus 10 W Rio",
+      "to": "Minus 10 w Rio",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Mniej niż zero",
+      "to": "Mniej niż zero",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Moje Kilimandżaro",
+      "to": "Moje Kilimandżaro",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Vademecum Skauta",
+      "to": "Vademecum skauta",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Wciąż bardziej obcy",
+      "to": "Wciąż bardziej obcy",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Lady Pank",
+      "album": "1981-85 Best Of",
+      "from": "Zamki Na Piasku",
+      "to": "Zamki na piasku",
+      "to_album": "Lady Pank"
+    },
+    {
+      "artist": "Yes",
+      "album": "Fragile",
+      "from": "Cans And Brahms (Extracts From Brahms' 4th Symphony In E Minor, Third Movement)",
+      "to": "Cans And Brahms"
+    },
+    {
+      "artist": "Yes",
+      "album": "Fragile",
+      "from": "Cans and Brahms",
+      "to": "Cans And Brahms"
+    },
+    {
+      "artist": "Aerosmith",
+      "album": "Aerosmith's Gold",
+      "from": "Aint Enough",
+      "to": "Ain't Enough"
+    },
+    {
+      "artist": "Aerosmith",
+      "album": "Aerosmith's Gold",
+      "from": "Permanant Vacation",
+      "to": "Permanent Vacation"
+    },
+    {
+      "artist": "Aerosmith",
+      "album": "Rockin' the Joint",
+      "from": "Rattlesnake Shake",
+      "to": "Dream On"
+    },
+    {
+      "artist": "R.E.M.",
+      "album": "Eponymous",
+      "from": "Finest Worksong (Mutual Drum Horn Mix)",
+      "to": "Finest Worksong"
+    },
+    {
       "artist": "Róże Europy",
       "album": "Gold - Róże Europy",
       "from": "Rockendrollowcy",
       "to": "Rock'n'rollowcy"
+    },
+    {
+      "artist": "Róże Europy",
+      "album": "Radio Młodych Bandytów",
+      "from": "Szaman Zdradziecki",
+      "to": "Szampan Zdradziecki"
+    },
+    {
+      "artist": "The Mission",
+      "album": "Masque",
+      "from": "Shades of Green - Pt. II",
+      "to": "Shades Of Green (Part II)"
+    },
+    {
+      "artist": "The Mission",
+      "album": "Masque",
+      "from": "Shades of Green, Pt. 2",
+      "to": "Shades Of Green (Part II)"
     },
     {
       "artist": "Queen",
@@ -1400,7 +1590,133 @@
       "to_artist_mbid": "794c6bf2-3241-416f-9b8f-24e2d84a1c4b",
       "to_album": "The Stooges",
       "to_album_mbid": "06ee5494-dad7-413f-8540-7f16e744a071"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Violet Train",
+      "to": "Violet train"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Jeszcze Czas",
+      "to": "Jeszcze czas"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Mój Znak",
+      "to": "Mój znak"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "W Świetle i We Mgle",
+      "to": "W świetle i we mgle"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Mam Ich Wszystkich",
+      "to": "Mam ich wszystkich"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Jestem Jak Wiatr",
+      "to": "Jestem jak wiatr"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Love Is the Stream of Time",
+      "to": "Love is the stream of time"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Obłęd Brylantów",
+      "to": "Obłęd brylantów"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Obled Brylantow",
+      "to": "Obłęd brylantów"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Ostry Smak Ziemi",
+      "to": "Ostry smak ziemi"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Widzieć Tak",
+      "to": "Widzieć tak"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Głos Nieobecnych",
+      "to": "Głos nieobecnych"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "Glos Nieobecnych",
+      "to": "Głos nieobecnych"
+    },
+    {
+      "artist": "Big Day",
+      "album": "W świetle i we mgle",
+      "from": "It's Not Mystery",
+      "to": "It's not mystery"
+    },
+    {
+      "artist": "Wilki",
+      "album": "Przedmieścia",
+      "from": "Cien W Dolinie Mgiel",
+      "to": "Cień W Dolinie Mgieł"
+    },
+    {
+      "artist": "Wilki",
+      "album": "Watra",
+      "from": "Przepraszam Cie",
+      "to": "Przepraszam Cię, życie takie jest"
+    },
+    {
+      "artist": "The Bill",
+      "album": "The Biut",
+      "from": "Bunt Szarego",
+      "to": "Buntszarego"
+    },
+    {
+      "artist": "The Bill",
+      "album": "The Biut",
+      "from": "Palac",
+      "to": "Pałac"
+    },
+    {
+      "artist": "The Bill",
+      "album": "The Biut",
+      "from": "My Nie Jestesmy Z Wami",
+      "to": "My Nie Jesteśmy Z Wami"
+    },
+    {
+      "artist": "The Bill",
+      "album": "The Biut",
+      "from": "Piosenka O Wisle",
+      "to": "Piosenka O Wiśle"
+    },
+    {
+      "artist": "The Bill",
+      "album": "The Biut",
+      "from": "Szara Szarosc",
+      "to": "Szara szarość"
     }
   ],
-  "last_updated": "2026-08-22"
+  "last_updated": "2026-08-30"
 }

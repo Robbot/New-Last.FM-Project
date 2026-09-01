@@ -46,6 +46,30 @@ def test_read_lookup_understands_legacy_punctuation_alias(app):
 
 
 @pytest.mark.unit
+def test_read_lookup_prefers_exact_named_mix_over_normalized_base_track(app):
+    with sqlite3.connect(app.config["DATABASE_PATH"]) as conn:
+        artist_id = _artist(conn, "R.E.M.")
+        base_id = conn.execute(
+            "INSERT INTO track(title, artist_id) VALUES('Finest Worksong', ?)",
+            (artist_id,),
+        ).lastrowid
+        mix_title = "Finest Worksong (Mutual Drum Horn Mix)"
+        mix_id = conn.execute(
+            "INSERT INTO track(title, artist_id) VALUES(?, ?)", (mix_title, artist_id)
+        ).lastrowid
+        conn.execute(
+            "INSERT INTO track_alias VALUES(?, 'finest worksong', ?)",
+            (artist_id, base_id),
+        )
+        conn.execute(
+            "INSERT INTO track_alias VALUES(?, 'finest worksong (mutual drum horn mix)', ?)",
+            (artist_id, mix_id),
+        )
+
+        assert lookup_track_id(conn, "R.E.M.", mix_title) == mix_id
+
+
+@pytest.mark.unit
 def test_resolver_refuses_ambiguous_legacy_aliases(app):
     with sqlite3.connect(app.config["DATABASE_PATH"]) as conn:
         artist_id = _artist(conn)
