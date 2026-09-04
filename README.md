@@ -17,6 +17,12 @@ A Flask-based web application for enhanced Last.fm scrobble statistics. Sync you
 
 The application is running at: https://scrobble.rojek.ie
 
+## Documentation
+
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Project improvement roadmap](docs/PROJECT_IMPROVEMENT_ROADMAP.md)
+- [Current and completed work](TODO.md)
+
 ## Requirements
 
 - Python 3.8+
@@ -106,6 +112,7 @@ python -m app.services.backfill_album_years
 New-Last.FM-Project/
 ├── app/
 │   ├── __init__.py           # Flask app factory
+│   ├── db/                    # Database query modules
 │   ├── logging_config.py     # Centralized logging configuration
 │   ├── scrobbles/            # Recent scrobbles blueprint
 │   ├── artists/              # Artist library and detail pages
@@ -125,8 +132,10 @@ New-Last.FM-Project/
 │   ├── static/               # Static files
 │   │   └── covers/           # Cached album artwork
 │   └── templates/            # Jinja2 templates
-├── db.py                     # Database query layer
-├── wsgi.py                   # Application entry point
+├── docs/                     # Deployment and design documentation
+├── reports/                  # Data-quality investigation reports
+├── scripts/                  # Operational launchers
+├── tests/                    # Automated test suite
 ├── requirements.txt          # Python dependencies
 ├── .env.example              # Environment variables template
 ├── files/                    # Runtime data directory
