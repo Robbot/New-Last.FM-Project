@@ -11,7 +11,7 @@
                     <h1>Notifications</h1>
                     <p class="text-muted">System alerts and sync issues requiring attention</p>
                 </div>
-                {% if notifications %}
+                {% if notifications or track_mismatches %}
                 <button class="btn btn-warning" onclick="dismissAll()">
                     <i class="bi bi-check-all me-1"></i>Dismiss All
                 </button>
@@ -49,6 +49,122 @@
                     </form>
                 </div>
             </div>
+
+            {% if track_mismatches %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning-subtle">
+                    <h2 class="h5 mb-1">Track mismatch resolver</h2>
+                    <p class="mb-0 small">
+                        Preview an action first, inspect the database changes, then apply it.
+                        Applying records the album-scoped decision and dismisses every matching notification.
+                    </p>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-secondary py-2 small" role="note">
+                        <strong>Map</strong> renames existing scrobbles to a canonical album track.
+                        <strong>Add</strong> treats the source title as a missing tracklist entry.
+                        <strong>Keep distinct</strong> accepts the source title without changing it.
+                    </div>
+
+                    <div class="accordion" id="mismatch-resolver">
+                        {% for mismatch in track_mismatches %}
+                        <div class="accordion-item">
+                            <h3 class="accordion-header" id="mismatch-heading-{{ mismatch.notification_id }}">
+                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#mismatch-{{ mismatch.notification_id }}"
+                                        aria-expanded="{{ 'true' if loop.first else 'false' }}"
+                                        aria-controls="mismatch-{{ mismatch.notification_id }}">
+                                    <span>
+                                        <strong>{{ mismatch.artist }}</strong> — {{ mismatch.source_track }}
+                                        <span class="text-muted ms-1">on {{ mismatch.album }}</span>
+                                        {% if mismatch.repeated_notifications > 1 %}
+                                        <span class="badge bg-secondary ms-2">{{ mismatch.repeated_notifications }} alerts</span>
+                                        {% endif %}
+                                    </span>
+                                </button>
+                            </h3>
+                            <div id="mismatch-{{ mismatch.notification_id }}"
+                                 class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                                 aria-labelledby="mismatch-heading-{{ mismatch.notification_id }}"
+                                 data-bs-parent="#mismatch-resolver">
+                                <div class="accordion-body">
+                                    <div class="row g-4">
+                                        <div class="col-lg-4">
+                                            <h4 class="h6">Map to canonical track</h4>
+                                            <label class="form-label small" for="canonical-{{ mismatch.notification_id }}">Album track</label>
+                                            <select class="form-select form-select-sm" id="canonical-{{ mismatch.notification_id }}"
+                                                    onchange="invalidateResolution({{ mismatch.notification_id }}, 'map')">
+                                                <option value="">Select a track…</option>
+                                                {% for candidate in mismatch.album_tracks %}
+                                                <option value="{{ candidate.track }}">
+                                                    {% if candidate.track_number %}{{ candidate.track_number }}. {% endif %}{{ candidate.track }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            {% if not mismatch.album_tracks %}
+                                            <div class="form-text text-warning">No album-track candidates were captured.</div>
+                                            {% endif %}
+                                            <div class="mt-2 d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-primary" type="button"
+                                                        onclick="resolveMismatch({{ mismatch.notification_id }}, 'map', false)">Preview map</button>
+                                                <button class="btn btn-sm btn-primary" type="button"
+                                                        id="apply-map-{{ mismatch.notification_id }}" disabled
+                                                        onclick="resolveMismatch({{ mismatch.notification_id }}, 'map', true)">Apply map</button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-4 border-lg-start">
+                                            <h4 class="h6">Add to album tracklist</h4>
+                                            <label class="form-label small" for="track-number-{{ mismatch.notification_id }}">Track number</label>
+                                            <input class="form-control form-control-sm" type="number" min="1" step="1"
+                                                   id="track-number-{{ mismatch.notification_id }}"
+                                                   oninput="invalidateResolution({{ mismatch.notification_id }}, 'add')">
+                                            <div class="form-check mt-2">
+                                                <input class="form-check-input" type="checkbox"
+                                                       id="shift-existing-{{ mismatch.notification_id }}"
+                                                       onchange="invalidateResolution({{ mismatch.notification_id }}, 'add')">
+                                                <label class="form-check-label small" for="shift-existing-{{ mismatch.notification_id }}">
+                                                    Shift this and later tracks up by one
+                                                </label>
+                                            </div>
+                                            <div class="mt-2 d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-primary" type="button"
+                                                        onclick="resolveMismatch({{ mismatch.notification_id }}, 'add', false)">Preview add</button>
+                                                <button class="btn btn-sm btn-primary" type="button"
+                                                        id="apply-add-{{ mismatch.notification_id }}" disabled
+                                                        onclick="resolveMismatch({{ mismatch.notification_id }}, 'add', true)">Apply add</button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-4 border-lg-start">
+                                            <h4 class="h6">Keep distinct</h4>
+                                            <p class="small text-muted">
+                                                Remember this title as intentional for this artist and album. Existing scrobbles remain unchanged.
+                                            </p>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                                        onclick="resolveMismatch({{ mismatch.notification_id }}, 'keep', false)">Preview keep</button>
+                                                <button class="btn btn-sm btn-secondary" type="button"
+                                                        id="apply-keep-{{ mismatch.notification_id }}" disabled
+                                                        onclick="resolveMismatch({{ mismatch.notification_id }}, 'keep', true)">Apply keep</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert mt-3 mb-0 d-none" role="status"
+                                         id="resolution-result-{{ mismatch.notification_id }}">
+                                        <div class="fw-semibold resolution-heading"></div>
+                                        <div class="small resolution-summary"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Notifications List -->
             {% if notifications %}
@@ -118,7 +234,7 @@
                 </div>
             </div>
 
-            {% else %}
+            {% elif not track_mismatches %}
             <div class="card">
                 <div class="card-body text-center py-5">
                     <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
@@ -141,6 +257,87 @@
 </div>
 
 <script>
+const resolutionUrlTemplate = "{{ url_for('admin.admin_resolve_track_mismatch', notification_id=0) }}";
+
+function mismatchPayload(notificationId, action, apply) {
+    const payload = {action: action, apply: apply};
+    if (action === 'map') {
+        payload.canonical_track = document.getElementById(`canonical-${notificationId}`).value;
+        if (!payload.canonical_track) {
+            throw new Error('Select a canonical album track first.');
+        }
+    } else if (action === 'add') {
+        const trackNumber = document.getElementById(`track-number-${notificationId}`).value;
+        if (!trackNumber || Number(trackNumber) < 1) {
+            throw new Error('Enter a positive track number first.');
+        }
+        payload.track_number = Number(trackNumber);
+        payload.shift_existing = document.getElementById(`shift-existing-${notificationId}`).checked;
+    }
+    return payload;
+}
+
+function invalidateResolution(notificationId, action) {
+    const applyButton = document.getElementById(`apply-${action}-${notificationId}`);
+    if (applyButton) {
+        applyButton.disabled = true;
+    }
+}
+
+function showResolutionResult(notificationId, ok, heading, summary) {
+    const resultBox = document.getElementById(`resolution-result-${notificationId}`);
+    resultBox.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+    resultBox.classList.add(ok ? 'alert-info' : 'alert-danger');
+    resultBox.querySelector('.resolution-heading').textContent = heading;
+    resultBox.querySelector('.resolution-summary').textContent = summary;
+}
+
+function resultSummary(result) {
+    const changes = [];
+    if (result.scrobbles_updated) changes.push(`${result.scrobbles_updated} scrobble(s) renamed`);
+    if (result.album_tracks_added) changes.push(`${result.album_tracks_added} tracklist entry added`);
+    if (result.album_tracks_shifted) changes.push(`${result.album_tracks_shifted} tracklist entry/entries shifted`);
+    changes.push(`${result.notifications_dismissed} matching notification(s) dismissed`);
+    return changes.join('; ') + '.';
+}
+
+async function resolveMismatch(notificationId, action, apply) {
+    let payload;
+    try {
+        payload = mismatchPayload(notificationId, action, apply);
+    } catch (error) {
+        showResolutionResult(notificationId, false, 'Cannot continue', error.message);
+        return;
+    }
+
+    if (apply && !confirm(`Apply this ${action} resolution? This changes the database.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(resolutionUrlTemplate.replace('/0/', `/${notificationId}/`), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Unknown resolver error');
+        }
+
+        if (apply) {
+            showResolutionResult(notificationId, true, 'Resolution applied', resultSummary(data.result));
+            setTimeout(() => location.reload(), 900);
+        } else {
+            showResolutionResult(notificationId, true, 'Preview only — no database changes made', resultSummary(data.result));
+            document.getElementById(`apply-${action}-${notificationId}`).disabled = false;
+        }
+    } catch (error) {
+        invalidateResolution(notificationId, action);
+        showResolutionResult(notificationId, false, 'Resolution failed', error.message);
+    }
+}
+
 function dismissNotification(notificationId, button) {
     if (!confirm('Dismiss this notification?')) {
         return;

@@ -1,5 +1,22 @@
 # Track mismatch resolution
 
+## Admin panel
+
+Open `/admin/notifications` from localhost or the private network. Active track
+mismatches are grouped by artist, album, and incoming track title. Expand a
+group and choose one of the following actions:
+
+- **Map** selects an existing album track and renames matching scrobbles.
+- **Add** inserts the incoming title at a chosen track number, optionally
+  shifting later track numbers.
+- **Keep distinct** records the title as intentional without renaming it or
+  adding it to the album tracklist.
+
+Every action must be previewed before its Apply button is enabled. A preview is
+rolled back and reports the number of affected scrobbles, tracklist rows, and
+notifications. Apply requires a second confirmation and commits the same
+schema-aware operation used by the command-line resolver.
+
 The sync validates each incoming scrobble title against the stored tracklist
 for the same artist and album. A mismatch notification is a request for review,
 not proof that the scrobble title is wrong: the stored tracklist may instead be

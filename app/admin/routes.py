@@ -2,12 +2,21 @@ import os
 import glob
 import sqlite3
 import secrets
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, current_app, redirect, url_for, session
 from functools import wraps
 from . import admin_bp
 from app.logging_config import get_logger
 from app.db.notifications import get_notifications, dismiss_notification, dismiss_all_notifications, get_unread_count
+from app.db.connections import get_db_connection
+from app.services.migrate_entity_tables import ensure_entity_schema
+from app.services.resolve_track_mismatch import (
+    add_to_tracklist,
+    keep_mismatch,
+    list_mismatches,
+    map_mismatch,
+)
 
 logger = get_logger(__name__)
 
@@ -51,7 +60,7 @@ def require_localhost(f):
             logger.warning(f"Admin access denied from {remote_addr}")
 
             # Return JSON for API requests, HTML for browser requests
-            if request.path.startswith('/admin/database/execute') or request.path == '/admin/sync' or request.path == '/admin/logs/cleanup' or request.path == '/admin/database/update':
+            if request.path.startswith('/admin/database/execute') or request.path.startswith('/admin/notifications/') or request.path == '/admin/sync' or request.path == '/admin/logs/cleanup' or request.path == '/admin/database/update':
                 return jsonify({
                     "error": "Access denied",
                     "message": "Admin panel is only accessible from localhost or local network (192.168.x.x or 10.x.x.x)"
@@ -657,15 +666,112 @@ def admin_notifications():
         severity_filter=severity_filter
     )
 
+    track_mismatches = []
+    if not include_dismissed:
+        with get_db_connection() as conn:
+            track_mismatches = list_mismatches(conn)
+        if severity_filter:
+            track_mismatches = [
+                mismatch for mismatch in track_mismatches
+                if mismatch.get("severity") == severity_filter
+            ]
+
+        # Active mismatch notifications are represented by the grouped,
+        # actionable cards instead of appearing repeatedly in the flat list.
+        notifications = [
+            notification for notification in notifications
+            if notification.get("type") != "track_mismatch"
+        ]
+
     unread_count = get_unread_count()
 
     return render_template(
         "admin/notifications.html",
         notifications=notifications,
+        track_mismatches=track_mismatches,
         unread_count=unread_count,
         include_dismissed=include_dismissed,
         severity_filter=severity_filter
     )
+
+
+@admin_bp.route(
+    "/admin/notifications/<int:notification_id>/resolve", methods=['POST']
+)
+@require_localhost
+@require_admin_csrf
+def admin_resolve_track_mismatch(notification_id):
+    """Preview or apply a schema-aware track mismatch resolution."""
+    payload = request.get_json(silent=True) or {}
+    action = payload.get("action")
+    apply_resolution = payload.get("apply") is True
+
+    try:
+        with get_db_connection() as conn:
+            ensure_entity_schema(conn)
+
+            if action == "map":
+                canonical_track = str(payload.get("canonical_track") or "").strip()
+                if not canonical_track:
+                    raise ValueError("Select a canonical track before mapping")
+                result = map_mismatch(
+                    conn,
+                    notification_id,
+                    canonical_track,
+                    dry_run=not apply_resolution,
+                )
+            elif action == "add":
+                track_number = payload.get("track_number")
+                if isinstance(track_number, bool):
+                    raise ValueError("Track number must be a positive integer")
+                try:
+                    track_number = int(track_number)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("Track number must be a positive integer") from exc
+                if track_number < 1:
+                    raise ValueError("Track number must be a positive integer")
+                result = add_to_tracklist(
+                    conn,
+                    notification_id,
+                    track_number,
+                    shift_existing=payload.get("shift_existing") is True,
+                    dry_run=not apply_resolution,
+                )
+            elif action == "keep":
+                result = keep_mismatch(
+                    conn, notification_id, dry_run=not apply_resolution
+                )
+            else:
+                raise ValueError("Action must be one of: map, add, keep")
+
+            if apply_resolution:
+                conn.commit()
+
+        return jsonify({
+            "success": True,
+            "applied": apply_resolution,
+            "result": asdict(result),
+        })
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except sqlite3.IntegrityError as exc:
+        logger.warning(
+            "Track mismatch resolution conflict: notification=%s action=%s error=%s",
+            notification_id,
+            action,
+            exc,
+        )
+        return jsonify({"success": False, "error": str(exc)}), 409
+    except sqlite3.Error:
+        logger.exception(
+            "Track mismatch resolution failed: notification=%s action=%s",
+            notification_id,
+            action,
+        )
+        return jsonify({
+            "success": False,
+            "error": "Database error while resolving the mismatch",
+        }), 500
 
 
 @admin_bp.route("/admin/notifications/<int:notification_id>/dismiss", methods=['POST'])

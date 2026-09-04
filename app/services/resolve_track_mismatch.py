@@ -381,22 +381,43 @@ def keep_mismatch(
 
 
 def list_mismatches(conn: sqlite3.Connection) -> list[dict]:
-    """Return one row per unique active mismatch, newest first."""
+    """Return one row per unique active mismatch, newest first.
+
+    Candidate tracks come from the newest notification in each group. This
+    keeps the CLI output useful while also giving the admin UI enough context
+    to offer a constrained canonical-track picker.
+    """
     rows = conn.execute(
         """
-        SELECT MAX(id) AS notification_id,
-               json_extract(details, '$.artist') AS artist,
-               json_extract(details, '$.album') AS album,
-               json_extract(details, '$.scrobble_track') AS source_track,
-               COUNT(*) AS repeated_notifications,
-               MAX(created_at) AS newest_at
-        FROM notifications
-        WHERE type = 'track_mismatch' AND dismissed_at IS NULL
-        GROUP BY artist, album, source_track
+        WITH grouped AS (
+            SELECT MAX(id) AS notification_id,
+                   json_extract(details, '$.artist') AS artist,
+                   json_extract(details, '$.album') AS album,
+                   json_extract(details, '$.scrobble_track') AS source_track,
+                   COUNT(*) AS repeated_notifications,
+                   MAX(created_at) AS newest_at
+            FROM notifications
+            WHERE type = 'track_mismatch' AND dismissed_at IS NULL
+            GROUP BY artist, album, source_track
+        )
+        SELECT grouped.*, notifications.details, notifications.severity
+        FROM grouped
+        JOIN notifications ON notifications.id = grouped.notification_id
         ORDER BY newest_at DESC, artist, album, source_track
         """
     ).fetchall()
-    return [dict(row) for row in rows]
+    results = []
+    for row in rows:
+        mismatch = dict(row)
+        try:
+            details = json.loads(mismatch.pop("details") or "{}")
+        except json.JSONDecodeError:
+            details = {}
+        candidates = details.get("album_tracks")
+        mismatch["album_tracks"] = candidates if isinstance(candidates, list) else []
+        mismatch["track_mbid"] = details.get("track_mbid")
+        results.append(mismatch)
+    return results
 
 
 def _parser() -> argparse.ArgumentParser:
