@@ -31,6 +31,10 @@ from dataclasses import dataclass
 
 from app.db.entities import Resolver
 from app.db.notifications import create_notification
+from app.services.track_mismatch_resolutions import (
+    apply_track_mismatch_decision,
+    track_mismatch_notification_exists,
+)
 from app.services.sync_lastfm import (
     _is_album_compilation_with_fallback,
     _is_single_artist_album,
@@ -141,6 +145,14 @@ def ingest_scrobble(
     track_name = clean_title(mapped_track, artist_name, album_name)
     track_mbid = _norm_optional(mapped_track_mbid)
 
+    # Apply an administrator's exact, album-scoped mismatch decision before
+    # validation and canonical entity resolution. A ``keep`` decision retains
+    # the incoming title while acknowledging that it is intentionally absent
+    # from this release's stored tracklist.
+    track_name, suppress_track_validation = apply_track_mismatch_decision(
+        conn, artist_name, album_name, track_name
+    )
+
     # --- album autocorrect (NETWORK — pull sync only) ------------------------
     # Suspicious album names (often a track name mistagged as the album) are
     # corrected via a Last.fm + MusicBrainz lookup. Disabled on the push path.
@@ -191,11 +203,16 @@ def ingest_scrobble(
         album_artist = artist_name
 
     # --- track validation (local, reads album_tracks) + mismatch notice -----
-    if run_track_validation:
+    if run_track_validation and not suppress_track_validation:
         track_validation = validate_scrobble_track(
             conn, artist_name, album_name, track_name, track_mbid
         )
-        if not track_validation["is_valid"]:
+        if (
+            not track_validation["is_valid"]
+            and not track_mismatch_notification_exists(
+                conn, artist_name, album_name, track_name
+            )
+        ):
             create_notification(
                 notification_type="track_mismatch",
                 title=f"Track mismatch: {artist_name} - {track_name}",

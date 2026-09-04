@@ -91,6 +91,21 @@ ENTITY_TABLES_DDL = [
         FOREIGN KEY (track_id) REFERENCES track(track_id)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS track_mismatch_resolution (
+        artist          TEXT NOT NULL,
+        album           TEXT NOT NULL,
+        source_track    TEXT NOT NULL,
+        action          TEXT NOT NULL CHECK (action IN ('map', 'add', 'keep')),
+        canonical_track TEXT,
+        created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (artist, album, source_track),
+        CHECK (
+            (action = 'map' AND canonical_track IS NOT NULL)
+            OR action IN ('add', 'keep')
+        )
+    )
+    """,
 ]
 
 ENTITY_INDEXES_DDL = [
@@ -219,7 +234,8 @@ def verify_schema(conn: sqlite3.Connection) -> bool:
     """Sanity-check that entity tables exist and scrobble got its id columns."""
     ok = True
     for table in ("artist", "album", "track",
-                  "artist_alias", "album_alias", "track_alias"):
+                  "artist_alias", "album_alias", "track_alias",
+                  "track_mismatch_resolution"):
         if not _table_exists(conn, table):
             logger.error("Verification failed: table %s missing", table)
             ok = False

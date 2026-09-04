@@ -21,6 +21,7 @@ The application is running at: https://scrobble.rojek.ie
 
 - [Deployment guide](docs/DEPLOYMENT.md)
 - [Project improvement roadmap](docs/PROJECT_IMPROVEMENT_ROADMAP.md)
+- [Track mismatch resolution](docs/TRACK_MISMATCH_RESOLUTION.md)
 - [Current and completed work](TODO.md)
 
 ## Requirements
