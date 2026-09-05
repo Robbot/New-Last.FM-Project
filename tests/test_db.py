@@ -44,6 +44,70 @@ class TestScrobbleQueries:
             # Scrobbles are from 2023-11-15 (1700000000 is Nov 15, 2023)
             assert len(rows) >= 0
 
+    def test_track_gaps_collapses_album_case_variants_by_canonical_id(self, app):
+        """A new play updates the gap even when Last.fm changes album casing."""
+        from app.db.entities import Resolver
+        from app.db.scrobbles import get_track_gaps
+
+        db_path = app.config['DATABASE_PATH']
+        canonical_album = 'Orient Express (Original television soundtrack)'
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            artist_id = resolver.resolve_artist_id('Ennio Morricone')
+            album_id = resolver.resolve_album_id(
+                artist_id, canonical_album, album_artist_text='Ennio Morricone'
+            )
+            track_id = resolver.resolve_track_id(artist_id, 'Le Train')
+            conn.executemany(
+                """
+                INSERT INTO scrobble
+                    (artist, album, album_artist, track, uts,
+                     artist_id, album_id, track_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    ('Ennio Morricone', canonical_album, 'Ennio Morricone',
+                     'Le Train', 1, artist_id, album_id, track_id),
+                    ('Ennio Morricone',
+                     'Orient Express (Original Television Soundtrack)',
+                     'Ennio Morricone', 'Le Train', 2,
+                     artist_id, album_id, track_id),
+                ],
+            )
+            conn.commit()
+
+        with app.app_context():
+            rows = [row for row in get_track_gaps() if row['track'] == 'Le Train']
+
+        assert len(rows) == 1
+        assert rows[0]['album'] == canonical_album
+        assert rows[0]['last_play_uts'] == 2
+        assert rows[0]['plays'] == 2
+
+    def test_track_gaps_normalizes_album_text_without_canonical_id(self, app):
+        """Legacy unresolved scrobbles retain a case-insensitive fallback."""
+        from app.db.scrobbles import get_track_gaps
+
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            conn.executemany(
+                """
+                INSERT INTO scrobble
+                    (artist, album, album_artist, track, uts)
+                VALUES ('Legacy Artist', ?, 'Legacy Artist', 'Legacy Track', ?)
+                """,
+                [('Legacy Album', 1), ('LEGACY ALBUM', 2)],
+            )
+            conn.commit()
+
+        with app.app_context():
+            rows = [row for row in get_track_gaps()
+                    if row['track'] == 'Legacy Track']
+
+        assert len(rows) == 1
+        assert rows[0]['last_play_uts'] == 2
+        assert rows[0]['plays'] == 2
+
     def test_top_tracks_collapses_case_variants_by_canonical_id(self, app):
         """Search results combine display-name variants of one track entity."""
         from app.db.entities import Resolver

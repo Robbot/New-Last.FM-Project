@@ -75,10 +75,9 @@ def get_track_gaps(start: str = "", end: str = ""):
     """Tracks sorted by time since last play (longest gap first).
 
     Grouped by canonical ``track_id`` (falling back to the normalized track text
-    for scrobbles that have no ``track_id`` yet) so that case/accent variants of
-    the same track collapse into a single row. Without this, a track scrobbled
-    once as "EMI (orchestral)" and again as "Emi (Orchestral)" appears as two
-    separate gap rows and the older one never inherits the newer play date.
+    and artist for scrobbles that have no ``track_id`` yet) and canonical
+    ``album_id`` (falling back to normalized album text). This prevents raw
+    track or album spelling variants from leaving stale duplicate gap rows.
     """
     conn = get_db_connection()
 
@@ -87,21 +86,35 @@ def get_track_gaps(start: str = "", end: str = ""):
     # CHAR(92) is backslash - we remove all backslashes to normalize escaped characters
     normalized_track = "TRIM(REPLACE(REPLACE(REPLACE(REPLACE(s.track, CHAR(92), ''), CHAR(92), ''), CHAR(92), ''), CHAR(92), ''))"
 
-    # When track_id is present, group by it so name variants merge; otherwise
-    # fall back to the normalized track text. The display title comes from the
-    # canonical track entity when available.
-    group_key = f"COALESCE(s.track_id, {normalized_track})"
+    normalized_artist = "LOWER(TRIM(s.artist))"
+    normalized_album = "LOWER(TRIM(REPLACE(s.album, CHAR(92), '')))"
+    normalized_album_artist = "LOWER(TRIM(COALESCE(s.album_artist, s.artist)))"
+
+    # Prefix keys with their source so a numeric-looking text value cannot
+    # collide with an entity ID. Artist identity is only needed for unresolved
+    # tracks because a canonical track already belongs to one artist.
+    track_group_key = (
+        "CASE WHEN s.track_id IS NOT NULL "
+        "THEN 'id:' || s.track_id "
+        f"ELSE 'text:' || LOWER({normalized_track}) || '|artist:' || {normalized_artist} END"
+    )
+    album_group_key = (
+        "CASE WHEN s.album_id IS NOT NULL "
+        "THEN 'id:' || s.album_id "
+        f"ELSE 'text:' || {normalized_album} || '|album_artist:' || {normalized_album_artist} END"
+    )
 
     sql = f"""
         SELECT
             COALESCE(ct.title, {normalized_track}) AS track,
             s.artist,
-            s.album,
+            COALESCE(ca.title, s.album) AS album,
             s.album_artist,
             MAX(CAST(s.uts AS INTEGER)) AS last_play_uts,
             COUNT(*) AS plays
         FROM scrobble s
         LEFT JOIN track ct ON ct.track_id = s.track_id
+        LEFT JOIN album ca ON ca.album_id = s.album_id
         WHERE s.track IS NOT NULL AND s.track != ''
     """
     params = []
@@ -113,7 +126,7 @@ def get_track_gaps(start: str = "", end: str = ""):
         params.extend([start, end])
 
     sql += f"""
-        GROUP BY {group_key}, s.artist, s.album, s.album_artist
+        GROUP BY {track_group_key}, {album_group_key}
         ORDER BY last_play_uts ASC
     """
 
