@@ -8,7 +8,11 @@ from app.services.migrate_entity_tables import ensure_entity_schema
 from app.services.migrations.reindex_scrobble_identity import (
     ensure_scrobble_identity_index,
 )
-from app.services.sync_lastfm import _update_compilation_albums, clean_album_name
+from app.services.sync_lastfm import (
+    _update_compilation_albums,
+    apply_scrobble_metadata_mapping,
+    clean_album_name,
+)
 
 
 def _connection():
@@ -27,6 +31,26 @@ def _connection():
     )
     ensure_entity_schema(conn)
     return conn
+
+
+def test_limahl_release_mapping_pins_canonical_album_and_recording_mbids():
+    mapped = apply_scrobble_metadata_mapping(
+        "Limahl",
+        "Don't Suppose",
+        "Never Ending Story",
+        "ba147912-dc39-416f-9e4b-09765d671674",
+        "1e828d49-9809-47b6-9582-c503f0d2c488",
+        "e085fdbd-4934-4bfd-b368-d5725d740302",
+    )
+
+    assert mapped == (
+        "Limahl",
+        "Don't Suppose",
+        "Never Ending Story",
+        "ba147912-dc39-416f-9e4b-09765d671674",
+        "3dbd3d32-d79f-439a-ba10-17d1e5ef3c97",
+        "360af6e3-6c05-4e96-8623-8e2650780341",
+    )
 
 
 def test_migration_keeps_later_corrected_album():
