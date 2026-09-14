@@ -24,6 +24,14 @@ logger = get_logger(__name__)
 DEFAULT_LOG_RETENTION_DAYS = 30
 
 
+def is_database_column_editable(column):
+    """Return whether the admin database editor may update a column."""
+    return (
+        column not in ('id', 'rowid', 'mbid')
+        and not column.endswith('_mbid')
+    )
+
+
 def is_localhost_allowed(remote_addr):
     """Check if the request is from localhost or local network."""
     if not remote_addr:
@@ -301,6 +309,7 @@ def admin_database():
     # Get table schema
     cursor.execute(f"PRAGMA table_info({table})")
     columns = [row['name'] for row in cursor.fetchall()]
+    editable_columns = [col for col in columns if is_database_column_editable(col)]
 
     # Get total count
     cursor.execute(f"SELECT COUNT(*) as count FROM {table}")
@@ -319,6 +328,7 @@ def admin_database():
                            tables=tables,
                            current_table=table,
                            columns=columns,
+                           editable_columns=editable_columns,
                            rows=rows,
                            page=page,
                            total_pages=total_pages,
@@ -357,6 +367,9 @@ def admin_database_execute():
         return jsonify({
             "success": True,
             "columns": columns,
+            "editable_columns": [
+                col for col in columns if is_database_column_editable(col)
+            ],
             "rows": [dict(row) for row in rows],
             "count": len(rows)
         })
@@ -392,12 +405,23 @@ def admin_database_update():
     # Get table schema
     cursor.execute(f"PRAGMA table_info({table})")
     columns_info = cursor.fetchall()
-    editable_columns = [col[1] for col in columns_info if col[1] not in ('id', 'rowid') and not col[1].endswith('_mbid')]
+    editable_columns = [
+        col[1] for col in columns_info if is_database_column_editable(col[1])
+    ]
 
     try:
-        # Build UPDATE query with only editable fields
-        set_clauses = [f"{col} = ?" for col in editable_columns]
-        values = [request.form.get(col, '') for col in editable_columns]
+        # Only update fields the client actually submitted. An omitted field must
+        # never be interpreted as a request to replace its value with an empty
+        # string.
+        submitted_columns = [
+            col for col in editable_columns if col in request.form
+        ]
+        if not submitted_columns:
+            conn.close()
+            return jsonify({"error": "No editable fields provided"}), 400
+
+        set_clauses = [f"{col} = ?" for col in submitted_columns]
+        values = [request.form[col] for col in submitted_columns]
 
         query = f"UPDATE {table} SET {', '.join(set_clauses)} WHERE rowid = ?"
         values.append(rowid)

@@ -160,6 +160,7 @@
 <script>
 // Store column definitions for the current table
 const tableColumns = {{ columns|tojson }};
+const editableColumns = {{ editable_columns|tojson }};
 const currentTable = "{{ current_table }}";
 
 // Edit modal handler
@@ -196,11 +197,11 @@ function openEditModal(rowid) {
         const fieldHtml = `
             <div class="col-md-6">
                 <label for="field-${index}" class="form-label">${col}</label>
-                ${col.includes('mbid') || col === 'id' ? `
-                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}" readonly>
-                    <small class="text-muted">Read-only (ID field)</small>
-                ` : `
+                ${editableColumns.includes(col) ? `
                     <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}">
+                ` : `
+                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}" readonly>
+                    <small class="text-muted">Read-only field</small>
                 `}
             </div>
         `;
@@ -326,7 +327,13 @@ document.getElementById('query-form').addEventListener('submit', function(e) {
                     const rowid = this.dataset.rowid;
                     const table = this.dataset.table;
                     const columns = JSON.parse(this.dataset.columns);
-                    openEditModalFromQuery(rowid, table, columns, this.closest('tr'));
+                    openEditModalFromQuery(
+                        rowid,
+                        table,
+                        columns,
+                        data.editable_columns,
+                        this.closest('tr')
+                    );
                 });
             });
         }
@@ -347,7 +354,7 @@ function extractTableName(query) {
 }
 
 // Open edit modal from query results
-function openEditModalFromQuery(rowid, table, columns, row) {
+function openEditModalFromQuery(rowid, table, columns, queryEditableColumns, row) {
     const fieldsContainer = document.getElementById('edit-fields');
     fieldsContainer.innerHTML = '';
     document.getElementById('edit-rowid').value = rowid;
@@ -366,11 +373,11 @@ function openEditModalFromQuery(rowid, table, columns, row) {
         const fieldHtml = `
             <div class="col-md-6">
                 <label for="field-${index}" class="form-label">${col}</label>
-                ${col.includes('mbid') || col === 'id' || col === 'rowid' ? `
-                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}" readonly>
-                    <small class="text-muted">Read-only (ID field)</small>
-                ` : `
+                ${queryEditableColumns.includes(col) ? `
                     <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}">
+                ` : `
+                    <input type="text" class="form-control" id="field-${index}" name="${col}" value="${value}" readonly>
+                    <small class="text-muted">Read-only field</small>
                 `}
             </div>
         `;
