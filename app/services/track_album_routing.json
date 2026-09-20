@@ -293,8 +293,28 @@
         "album": "2006",
         "album_mbid": "b903bbec-7cb3-4083-b6bf-51302ee03618",
         "tracks": ["Hej chłopcze", "Kulą w płot", "Skandal", "Spaliny"]
+      }, {
+        "album": "Afterparty",
+        "album_mbid": "67e09614-2ee2-4608-b326-01211d0895e4",
+        "tracks": ["Leżeć"]
+      }, {
+        "album": "Cool Kids of Death",
+        "album_mbid": "ca2ebaf2-da16-4a9b-bd9e-ab067c566cb3",
+        "tracks": ["Piosenki o miłości", "Poezja jest nie dla mnie", "Znam cię na pamięć"]
       }],
-      "reason": "Route corrected Różne-tagged tracks to their canonical titles on 2006"
+      "reason": "Route corrected Różne-tagged tracks to their canonical studio albums"
+    },
+    {
+      "artist": "The Kinks",
+      "conflict_albums": [
+        "The Rolling Stone Magazines 500 Greatest Songs of All Time"
+      ],
+      "routes": [{
+        "album": "Best of",
+        "album_mbid": "1272192e-e495-4caf-b359-8ac769cd312c",
+        "tracks": ["Lola", "Waterloo Sunset", "You Really Got Me"]
+      }],
+      "reason": "Route Kinks compilation scrobbles to the Best of release containing these songs"
     },
     {
       "artist": "Donna Summer",
@@ -382,6 +402,18 @@
         "tracks": ["Teraz"]
       }],
       "reason": "Distribute the 2005 greatest-hits compilation to each track's original release"
+    },
+    {
+      "artist": "T.Love",
+      "conflict_albums": ["Złota kolekcja"],
+      "routes": [{
+        "album": "CHŁOPAKI NIE PŁACZĄ",
+        "album_mbid": "5a121cf4-d5f7-4820-9282-8c53cacb5dfb",
+        "track_mbid": "3a40d5e1-0874-446d-a2bc-c779b382cdd9",
+        "source_track_mbids": ["8192f6e0-c58b-4016-a36d-dc23c05112fc"],
+        "tracks": ["Chłopaki nie płaczą"]
+      }],
+      "reason": "Route only the misidentified recent compilation scrobbles to the original album"
     },
     {
       "artist": "Róże Europy",

@@ -59,8 +59,19 @@ def artist_album_detail(album_artist_name: str, album_name: str):
     album_name = validate_album_name(album_name)
 
     # Alias matching is deliberately case-insensitive, but the browser should
-    # expose one stable URL for an album instead of retaining an old spelling.
-    canonical_title = db.get_canonical_album_title(album_artist_name, album_name)
+    # expose one stable URL and route compilations through their canonical page.
+    canonical_album = db.get_canonical_album_identity(album_artist_name, album_name)
+    if canonical_album and canonical_album["album_artist"] == "Various Artists":
+        return redirect(
+            url_for(
+                "compilations.compilation_detail",
+                album_identifier=canonical_album["mbid"] or canonical_album["title"],
+                **request.args,
+            ),
+            code=302,
+        )
+
+    canonical_title = canonical_album["title"] if canonical_album else None
     if canonical_title and canonical_title != album_name:
         return redirect(
             url_for(

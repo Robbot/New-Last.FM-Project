@@ -172,6 +172,88 @@ class TestScrobbleQueries:
         assert len(rows) == 2
         assert {row['artist'] for row in rows} == {'Artist One', 'Artist Two'}
 
+    def test_top_tracks_uses_most_played_album_as_representative(self, app):
+        """A compilation must not win merely because its title sorts last."""
+        from app.db.entities import Resolver
+        from app.db.tracks import get_top_tracks
+
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            artist_id = resolver.resolve_artist_id('T.Love')
+            original_id = resolver.resolve_album_id(artist_id, 'Chłopaki nie płaczą')
+            compilation_id = resolver.resolve_album_id(artist_id, 'Złota kolekcja')
+            track_id = resolver.resolve_track_id(artist_id, 'Chłopaki nie płaczą')
+            rows = [
+                ('Chłopaki nie płaczą', original_id, uts)
+                for uts in (1, 2, 3)
+            ] + [('Złota kolekcja', compilation_id, 4)]
+            conn.executemany(
+                """
+                INSERT INTO scrobble
+                    (artist, album, album_artist, track, uts,
+                     artist_id, album_id, track_id)
+                VALUES ('T.Love', ?, 'T.Love', 'Chłopaki nie płaczą', ?,
+                        ?, ?, ?)
+                """,
+                [(album, uts, artist_id, album_id, track_id)
+                 for album, album_id, uts in rows],
+            )
+            conn.commit()
+
+        with app.app_context():
+            result = get_top_tracks(search_term='Chłopaki nie płaczą')
+
+        assert len(result) == 1
+        assert result[0]['album'] == 'Chłopaki nie płaczą'
+        assert result[0]['plays'] == 4
+
+    def test_track_mbid_prefers_most_played_albums_tracklist(self, app):
+        """Sparse compilation metadata must not override the primary album."""
+        from app.db.entities import Resolver
+        from app.db.tracks import get_track_mbid
+
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            artist_id = resolver.resolve_artist_id('T.Love')
+            original_id = resolver.resolve_album_id(artist_id, 'Chłopaki nie płaczą')
+            compilation_id = resolver.resolve_album_id(artist_id, 'Złota kolekcja')
+            track_id = resolver.resolve_track_id(artist_id, 'Chłopaki nie płaczą')
+            conn.executemany(
+                """
+                INSERT INTO scrobble
+                    (artist, album, album_artist, track, track_mbid, uts,
+                     artist_id, album_id, track_id)
+                VALUES ('T.Love', ?, 'T.Love', 'Chłopaki nie płaczą', ?, ?,
+                        ?, ?, ?)
+                """,
+                [
+                    ('Chłopaki nie płaczą', None, 1,
+                     artist_id, original_id, track_id),
+                    ('Chłopaki nie płaczą', None, 2,
+                     artist_id, original_id, track_id),
+                    ('Złota kolekcja', 'compilation-recording', 3,
+                     artist_id, compilation_id, track_id),
+                ],
+            )
+            conn.execute(
+                """
+                INSERT INTO album_tracks
+                    (artist, album, track_number, track, track_mbid,
+                     artist_id, album_id, track_id)
+                VALUES ('T.Love', 'Chłopaki nie płaczą', 2,
+                        'Chłopaki nie płaczą', 'original-recording', ?, ?, ?)
+                """,
+                (artist_id, original_id, track_id),
+            )
+            conn.commit()
+
+        with app.app_context():
+            result = get_track_mbid('T.Love', 'Chłopaki nie płaczą')
+
+        assert result == 'original-recording'
+
 
 @pytest.mark.unit
 class TestDatabaseNormalization:

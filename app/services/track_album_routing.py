@@ -127,16 +127,29 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
 
         artist_id = resolver.resolve_artist_id(artist)
 
-        # Build normalized track -> (album, album_mbid) lookup for this rule
+        # Build (normalized track, optional source recording MBID) -> target.
+        # Most routes match any recording MBID.  A source_track_mbids filter is
+        # useful when only a known bad provider association should be moved,
+        # while historical plays of the same track/album remain legitimate.
         track_to_route = {}
         for route in routes:
-            target = (route.get("album"), route.get("album_mbid") or "")
+            target = (
+                route.get("album"),
+                route.get("album_mbid") or "",
+                route.get("track_mbid") or "",
+            )
+            source_track_mbids = route.get("source_track_mbids")
             for track_name in route.get("tracks") or []:
-                track_to_route[_normalize_for_routing(track_name)] = target
+                normalized_track = _normalize_for_routing(track_name)
+                if source_track_mbids:
+                    for source_mbid in source_track_mbids:
+                        track_to_route[(normalized_track, source_mbid or "")] = target
+                else:
+                    track_to_route[(normalized_track, None)] = target
 
         placeholders = ",".join("?" * len(conflict_albums))
         rows = conn.execute(
-            f"SELECT id, album, album_mbid, track FROM scrobble "
+            f"SELECT id, album, album_mbid, track, track_mbid FROM scrobble "
             f"WHERE artist = ? AND album IN ({placeholders})",
             [artist, *conflict_albums],
         ).fetchall()
@@ -145,15 +158,23 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
         skipped_correct = 0
         unmatched = 0
         for row in rows:
-            target = track_to_route.get(_normalize_for_routing(row["track"]))
+            normalized_track = _normalize_for_routing(row["track"])
+            source_track_mbid = row["track_mbid"] or ""
+            target = track_to_route.get((normalized_track, source_track_mbid))
+            if target is None:
+                target = track_to_route.get((normalized_track, None))
             if not target:
                 unmatched += 1
                 continue
-            new_album, new_mbid = target
+            new_album, new_mbid, configured_track_mbid = target
+            new_track_mbid = configured_track_mbid or source_track_mbid
             cur_album = row["album"]
             cur_mbid = row["album_mbid"] or ""
-            # Idempotency guard: already on the correct album + mbid
-            if cur_album == new_album and cur_mbid == (new_mbid or ""):
+            # Idempotency guard: already on the correct album + release and,
+            # when configured, recording MBIDs.
+            if (cur_album == new_album
+                    and cur_mbid == (new_mbid or "")
+                    and source_track_mbid == new_track_mbid):
                 skipped_correct += 1
                 continue
             if dry_run:
@@ -174,8 +195,10 @@ def apply_track_album_routing(conn: sqlite3.Connection, dry_run: bool = False, a
                 # skips that row rather than aborting the whole batch.
                 cur = conn.execute(
                     "UPDATE OR IGNORE scrobble "
-                    "SET album = ?, album_mbid = ?, album_id = ?, album_artist = ? WHERE id = ?",
-                    (new_album, new_mbid, target_aid, artist, row["id"]),
+                    "SET album = ?, album_mbid = ?, album_id = ?, album_artist = ?, "
+                    "track_mbid = ? WHERE id = ?",
+                    (new_album, new_mbid, target_aid, artist,
+                     new_track_mbid or None, row["id"]),
                 )
                 moved += cur.rowcount
 

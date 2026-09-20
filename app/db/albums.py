@@ -12,6 +12,8 @@ from typing import Any
 import requests
 from flask import current_app, url_for
 
+from app.services.album_title_rules import strip_deluxe_album_suffix
+
 from .connections import get_db_connection
 from .entities import Resolver, lookup_album_id
 
@@ -127,16 +129,30 @@ def get_album_total_plays(album_artist_name: str, album_name: str, start: str = 
 
 def get_canonical_album_title(album_artist_name: str, album_name: str) -> str | None:
     """Return the display title for an album resolved from a URL spelling."""
+    identity = get_canonical_album_identity(album_artist_name, album_name)
+    return identity["title"] if identity else None
+
+
+def get_canonical_album_identity(
+    album_artist_name: str, album_name: str
+) -> dict[str, Any] | None:
+    """Return the canonical title, owner, and MBID for an album alias."""
     conn = get_db_connection()
     try:
         album_id = lookup_album_id(conn, album_artist_name, album_name)
         if album_id is None:
             return None
         row = conn.execute(
-            "SELECT title FROM album WHERE album_id = ?",
+            """
+            SELECT album.album_id, album.title, album.mbid,
+                   artist.name AS album_artist
+            FROM album
+            JOIN artist ON artist.artist_id = album.artist_id
+            WHERE album.album_id = ?
+            """,
             (album_id,),
         ).fetchone()
-        return row["title"] if row else None
+        return dict(row) if row else None
     finally:
         conn.close()
 
@@ -282,6 +298,7 @@ def upsert_album_tracks(album_artist_name: str, album_name: str, tracks: list[di
         ]
         album_mbid: MusicBrainz release ID (optional)
     """
+    album_name = strip_deluxe_album_suffix(album_name)
     conn = get_db_connection()
     resolver = Resolver(conn)
     # The album entity is shared across all tracks; key it under the album's

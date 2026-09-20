@@ -29,6 +29,8 @@ the instance themselves.
 import logging
 import sqlite3
 
+from app.services.album_title_rules import strip_deluxe_album_suffix
+
 from .connections import _normalize_for_matching, _normalize_track_name_for_matching
 
 logger = logging.getLogger(__name__)
@@ -140,7 +142,9 @@ class Resolver:
         Various-Artists compilations (album_artist_text ~= "Various Artists")
         resolve under the VA sentinel so all contributing artists share one album.
         """
-        title = (album_title or "").strip()
+        # Entity creation is the last line of defence for writers outside the
+        # normal scrobble-ingest pipeline (for example album-tracklist tools).
+        title = strip_deluxe_album_suffix((album_title or "").strip())
         owner = self.va_sentinel_id if self._is_various_artists(album_artist_text) else artist_id
         norm = _normalize_for_matching(title)
 

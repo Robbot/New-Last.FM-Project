@@ -246,6 +246,13 @@
     },
     {
       "artist": "The Cure",
+      "album": "4:13 Dream",
+      "from": "Reasons Why",
+      "to": "The Reasons Why",
+      "to_track_mbid": "0306ccd0-93dc-3c3e-937e-8d2c7bff8d14"
+    },
+    {
+      "artist": "The Cure",
       "album": "Galore",
       "from": "Why Can't I Be You-",
       "to": "Why Can't I Be You?"
@@ -501,6 +508,33 @@
       "album": "Chapter V",
       "from": "Trippy",
       "to": "Right Here"
+    },
+    {
+      "artist": "Roxette",
+      "album": "Room Service",
+      "from": "Opportunity Nox",
+      "to": "It Takes You No Time to Get Here"
+    },
+    {
+      "artist": "The Kinks",
+      "album": "Best of",
+      "from": "Lola - 2020 Stereo",
+      "to": "Lola",
+      "to_track_mbid": "dcc1937e-9123-450a-b3c5-43fa820d8b80"
+    },
+    {
+      "artist": "The Kinks",
+      "album": "Best of",
+      "from": "Sunny Afternoon - Stereo Mix",
+      "to": "Sunny Afternoon",
+      "to_track_mbid": "d298f0ed-0e43-4715-9e6a-8223e51ee44d"
+    },
+    {
+      "artist": "The Kinks",
+      "album": "Best of",
+      "from": "Waterloo Sunset - Stereo",
+      "to": "Waterloo Sunset",
+      "to_track_mbid": "5faf9b55-9a74-4a5f-b9c4-de5545ea27dd"
     },
     {
       "artist": "Moloko",
@@ -1037,6 +1071,15 @@
       "to": "Hungry For You (J'Aurais Toujours Faim De Toi)"
     },
     {
+      "artist": "The Police",
+      "album": "Reggatta de Blanc",
+      "from": "Hole in My Life",
+      "to": "Hole in My Life",
+      "to_album": "Outlandos d'Amour",
+      "to_album_mbid": "038df3a9-8e9d-49b4-9732-b23810fbf129",
+      "to_track_mbid": "486b482a-d12d-3beb-a857-633c055705d9"
+    },
+    {
       "artist": "Pixies",
       "album": "Doolittle",
       "from": "No 13 Baby",
@@ -1541,6 +1584,49 @@
       "to": "Hej chłopcze"
     },
     {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Lezec (Live in Traljka)",
+      "to": "Leżeć",
+      "to_album": "Afterparty",
+      "to_album_mbid": "67e09614-2ee2-4608-b326-01211d0895e4",
+      "to_track_mbid": "da9ca0de-10a6-3242-bff0-936c225712e6"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Spotkam Cie",
+      "to": "Znam cię na pamięć",
+      "to_album": "Cool Kids of Death",
+      "to_album_mbid": "ca2ebaf2-da16-4a9b-bd9e-ab067c566cb3",
+      "to_track_mbid": "5a39fa59-8bbe-45dd-ba04-7f6303372c5d"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Piosenki Bez Refrenow",
+      "to": "Piosenki o miłości",
+      "to_album": "Cool Kids of Death",
+      "to_album_mbid": "ca2ebaf2-da16-4a9b-bd9e-ab067c566cb3",
+      "to_track_mbid": "7be12fb2-d1fb-3e87-aa8c-49fbba98c85a"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Slonce Nad Miastem",
+      "to": "Poezja jest nie dla mnie",
+      "to_album": "Cool Kids of Death",
+      "to_album_mbid": "ca2ebaf2-da16-4a9b-bd9e-ab067c566cb3"
+    },
+    {
+      "artist": "Cool Kids of Death",
+      "album": "Różne",
+      "from": "Fashion Magazines",
+      "to": "Poezja jest nie dla mnie",
+      "to_album": "Cool Kids of Death",
+      "to_album_mbid": "ca2ebaf2-da16-4a9b-bd9e-ab067c566cb3"
+    },
+    {
       "artist": "Donna Summer",
       "album": "Summer - the Original Hits",
       "from": "Hot Stuff - Ralphi Rosario and Erick Ibiza 2018 Rework",
@@ -1838,6 +1924,13 @@
       "to_track_mbid": "cfedd97e-36fb-4a1f-b017-dada6329c616"
     },
     {
+      "artist": "Killing Joke",
+      "album": "Pandemonium",
+      "from": "Millenium",
+      "to": "Millennium",
+      "to_track_mbid": "17460466-dbc9-333c-b2c3-414a4247d510"
+    },
+    {
       "artist": "Limahl",
       "album": "Don't Suppose",
       "from": "Don’t Suppose",
@@ -1852,7 +1945,27 @@
       "to": "I Was a Fool",
       "to_album_mbid": "3dbd3d32-d79f-439a-ba10-17d1e5ef3c97",
       "to_track_mbid": "5ad7165b-16cf-4ac7-b736-5288b1a044fe"
+    },
+    {
+      "artist": "David Bowie",
+      "album": "Station to Station",
+      "from": "TVC15",
+      "to": "TVC 15"
+    },
+    {
+      "artist": "Siouxsie and the Banshees",
+      "album": "Through the Looking Glass",
+      "from": "This Town Ain't Big Enough For",
+      "to": "This Town Ain't Big Enough for the Both of Us",
+      "to_track_mbid": "adb76536-9498-45dd-8007-6f96d29512cd"
+    },
+    {
+      "artist": "Siouxsie and the Banshees",
+      "album": "Through the Looking Glass",
+      "from": "This Town Ain't Big Enough for Both of Us",
+      "to": "This Town Ain't Big Enough for the Both of Us",
+      "to_track_mbid": "adb76536-9498-45dd-8007-6f96d29512cd"
     }
   ],
-  "last_updated": "2026-09-04"
+  "last_updated": "2026-09-11"
 }

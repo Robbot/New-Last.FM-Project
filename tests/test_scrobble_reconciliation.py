@@ -12,6 +12,7 @@ from app.services.sync_lastfm import (
     _update_compilation_albums,
     apply_scrobble_metadata_mapping,
     clean_album_name,
+    clean_title,
 )
 
 
@@ -51,6 +52,28 @@ def test_limahl_release_mapping_pins_canonical_album_and_recording_mbids():
         "3dbd3d32-d79f-439a-ba10-17d1e5ef3c97",
         "360af6e3-6c05-4e96-8623-8e2650780341",
     )
+
+
+def test_siouxsie_truncated_track_title_maps_to_complete_title():
+    mapped = apply_scrobble_metadata_mapping(
+        "Siouxsie and the Banshees",
+        "Through the Looking Glass",
+        "This Town Ain't Big Enough For",
+    )
+
+    assert mapped[2] == "This Town Ain't Big Enough for the Both of Us"
+    assert mapped[5] == "adb76536-9498-45dd-8007-6f96d29512cd"
+
+
+def test_siouxsie_missing_article_maps_to_complete_title():
+    mapped = apply_scrobble_metadata_mapping(
+        "Siouxsie and the Banshees",
+        "Through the Looking Glass",
+        "This Town Ain't Big Enough for Both of Us",
+    )
+
+    assert mapped[2] == "This Town Ain't Big Enough for the Both of Us"
+    assert mapped[5] == "adb76536-9498-45dd-8007-6f96d29512cd"
 
 
 def test_migration_keeps_later_corrected_album():
@@ -134,6 +157,41 @@ def test_albumless_scrobble_is_rejected_without_database_writes():
     conn.close()
 
 
+def test_ingest_preserves_existing_two_artist_compilation_owner():
+    conn = _connection()
+    ensure_scrobble_identity_index(conn)
+    resolver = Resolver(conn)
+    artist_id = resolver.resolve_artist_id("Trevor Jones")
+    compilation_id = resolver.resolve_album_id(
+        artist_id,
+        "Two Artist Soundtrack",
+        album_mbid="compilation-mbid",
+        album_artist_text="Various Artists",
+    )
+
+    result = ingest_scrobble(
+        conn,
+        resolver,
+        RawScrobble(
+            artist_name="Trevor Jones",
+            album_name="Two Artist Soundtrack",
+            album_mbid="compilation-mbid",
+            track_name="Opening Track",
+            uts=123,
+        ),
+        run_album_autocorrect=False,
+        run_track_validation=False,
+    )
+
+    row = conn.execute(
+        "SELECT album_artist, album_id FROM scrobble WHERE uts = 123"
+    ).fetchone()
+    assert result.album_artist == "Various Artists"
+    assert tuple(row) == ("Various Artists", compilation_id)
+    assert conn.execute("SELECT COUNT(*) FROM album").fetchone()[0] == 1
+    conn.close()
+
+
 def test_named_greatest_hits_stay_single_artist_after_bulk_detection():
     conn = _connection()
     rows = [
@@ -165,3 +223,58 @@ def test_named_greatest_hits_stay_single_artist_after_bulk_detection():
 
 def test_andy_gibb_greatest_hits_maps_to_self_titled_album():
     assert clean_album_name("Andy Gibb", "Greatest Hits") == "Andy Gibb"
+
+
+def test_tlove_pocisk_milosci_restores_polish_album_title():
+    assert clean_album_name("T.Love", "Pocisk Milosci") == "Pocisk Miłości"
+
+
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "Council Skies (Deluxe)",
+        "Council Skies [Deluxe Edition]",
+        "Council Skies - Deluxe Version",
+        "Council Skies / Super Deluxe Edition",
+        "Council Skies (Remastered and Expanded)",
+        "Council Skies [Remastered & Expanded Edition]",
+        "Council Skies - Expanded and Remastered",
+        "Council Skies (Expanded Edition - Remastered)",
+        "Council Skies [Remastered - Expanded Edition]",
+    ],
+)
+def test_deluxe_album_suffixes_always_collapse_to_base_album(variant):
+    assert clean_album_name(
+        "Noel Gallagher's High Flying Birds", variant
+    ) == "Council Skies"
+    assert clean_title(variant) == "Council Skies"
+
+
+def test_resolver_cannot_create_a_separate_deluxe_album_entity():
+    conn = _connection()
+    resolver = Resolver(conn)
+    artist_id = resolver.resolve_artist_id("Noel Gallagher's High Flying Birds")
+
+    canonical_id = resolver.resolve_album_id(artist_id, "Council Skies")
+    deluxe_id = resolver.resolve_album_id(artist_id, "Council Skies (Deluxe)")
+
+    assert deluxe_id == canonical_id
+    assert conn.execute("SELECT title FROM album").fetchall()[0][0] == "Council Skies"
+    assert conn.execute("SELECT COUNT(*) FROM album").fetchone()[0] == 1
+    conn.close()
+
+
+def test_resolver_cannot_create_combined_remaster_expanded_album_entity():
+    conn = _connection()
+    resolver = Resolver(conn)
+    artist_id = resolver.resolve_artist_id("Siouxsie and the Banshees")
+
+    canonical_id = resolver.resolve_album_id(artist_id, "Through the Looking Glass")
+    edition_id = resolver.resolve_album_id(
+        artist_id, "Through the Looking Glass (Remastered and Expanded)"
+    )
+
+    assert edition_id == canonical_id
+    assert conn.execute("SELECT title FROM album").fetchall()[0][0] == "Through the Looking Glass"
+    assert conn.execute("SELECT COUNT(*) FROM album").fetchone()[0] == 1
+    conn.close()

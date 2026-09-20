@@ -29,7 +29,7 @@ import logging
 import sqlite3
 from dataclasses import dataclass
 
-from app.db.entities import Resolver
+from app.db.entities import Resolver, lookup_album_id
 from app.db.notifications import create_notification
 from app.services.track_mismatch_resolutions import (
     apply_track_mismatch_decision,
@@ -97,6 +97,43 @@ def _norm_optional(value: str | None) -> str | None:
         return None
     value = value.strip()
     return value or None
+
+
+def _existing_album_owner(
+    conn: sqlite3.Connection,
+    artist_name: str,
+    album_name: str,
+    album_mbid: str | None,
+) -> str | None:
+    """Return the owner of an existing canonical album, if unambiguous."""
+    album_id = lookup_album_id(conn, artist_name, album_name)
+    if album_id is not None:
+        row = conn.execute(
+            """
+            SELECT artist.name
+            FROM album
+            JOIN artist ON artist.artist_id = album.artist_id
+            WHERE album.album_id = ?
+            """,
+            (album_id,),
+        ).fetchone()
+        return row[0] if row else None
+
+    if not album_mbid:
+        return None
+
+    # A track artist may not have an alias yet for a known compilation. The
+    # release MBID can still safely recover a single existing VA-owned album.
+    rows = conn.execute(
+        """
+        SELECT DISTINCT album.album_id, artist.name
+        FROM album
+        JOIN artist ON artist.artist_id = album.artist_id
+        WHERE album.mbid = ? AND artist.name = 'Various Artists'
+        """,
+        (album_mbid,),
+    ).fetchall()
+    return rows[0][1] if len(rows) == 1 else None
 
 
 def ingest_scrobble(
@@ -239,6 +276,13 @@ def ingest_scrobble(
 
     # --- canonical entity ids (Resolver writes entities + aliases on miss) ---
     artist_id = resolver.resolve_artist_id(artist_name, artist_mbid)
+
+    # Manual and two-artist compilation classifications must survive later
+    # syncs. Heuristic detection intentionally requires more artists, but an
+    # existing canonical Various Artists owner is authoritative.
+    if _existing_album_owner(conn, artist_name, album_name, album_mbid) == "Various Artists":
+        album_artist = "Various Artists"
+
     album_id = resolver.resolve_album_id(artist_id, album_name, album_mbid, album_artist)
     track_id = resolver.resolve_track_id(artist_id, track_name, track_mbid)
 

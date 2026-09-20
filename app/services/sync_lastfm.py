@@ -245,6 +245,13 @@ def clean_album_name(artist: str, album: str) -> str:
     if not album:
         return album
 
+    # This rule is deliberately global: Deluxe is release packaging, not a
+    # separate album in this library. Keep it here as well as in clean_title()
+    # so callers that use the album-specific cleaner cannot recreate a Deluxe
+    # album entity.
+    from app.services.album_title_rules import strip_deluxe_album_suffix
+    album = strip_deluxe_album_suffix(album)
+
     mappings = _load_album_mappings()
 
     for mapping in mappings:
@@ -344,9 +351,18 @@ def clean_remastered_suffix(title: str) -> str:
     if not title:
         return title
 
-    cleaned = title
+    # Run the shared combined-qualifier cleaner first. Otherwise a legacy
+    # single-word pattern can turn "Expanded and Remastered" into the broken
+    # intermediate title "Expanded and" before the combined rule sees it.
+    from app.services.album_title_rules import strip_edition_suffix
+    cleaned = strip_edition_suffix(title)
     for pattern in _REMASTER_PATTERNS:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+    # Shared last line of defence for combined qualifiers such as
+    # "(Remastered and Expanded)". Entity writers use the same helper, so a
+    # non-ingest code path cannot recreate an edition-suffixed album entity.
+    cleaned = strip_edition_suffix(cleaned)
 
     return cleaned.strip()
 

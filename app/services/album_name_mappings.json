@@ -557,9 +557,21 @@
             "from": "Les Chants Magnétiques / Magnetic Fields",
             "to": "Magnetic Fields",
             "reason": "Merge the bilingual release title into the canonical English album title"
+        },
+        {
+            "artist": "Roxette",
+            "from": "Room Service (Extended Version)",
+            "to": "Room Service",
+            "reason": "Merge the extended-edition title into the canonical album"
+        },
+        {
+            "artist": "T.Love",
+            "from": "Pocisk Milosci",
+            "to": "Pocisk Miłości",
+            "reason": "Restore the Polish diacritic and merge the ASCII title into the canonical album"
         }
     ],
-    "last_updated": "2026-08-29",
+    "last_updated": "2026-09-05",
     "notes": "Album name corrections to apply during sync. These handle cases where Last.fm/Spotify uses incorrect album names that won't be caught by the automatic cleaning patterns.",
     "track_mappings": [
         {

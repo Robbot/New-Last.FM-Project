@@ -16,11 +16,13 @@ def get_latest_scrobbles(start: str = "", end: str = ""):
     sql = """
         SELECT s.artist,
                COALESCE(a.title, s.album) AS album,
-               s.album_artist,
+               COALESCE(album_owner.name, s.album_artist, s.artist) AS album_artist,
+               COALESCE(a.mbid, s.album_mbid) AS album_mbid,
                s.track,
                strftime('%Y-%m-%d %H:%M:%S', s.uts, 'unixepoch', 'localtime') AS date
         FROM scrobble s
         LEFT JOIN album a ON a.album_id = s.album_id
+        LEFT JOIN artist album_owner ON album_owner.artist_id = a.artist_id
     """
     params = []
 

@@ -141,6 +141,7 @@ def get_top_tracks(start: str = "", end: str = "", search_term: str = ""):
                 END AS primary_artist,
                 fs.album_artist,
                 fs.album,
+                fs.uts,
                 CASE
                     WHEN fs.track_id IS NOT NULL THEN 'id:' || fs.track_id
                     ELSE 'text:' || LOWER(fs.track) || CHAR(31) || LOWER(fs.primary_artist)
@@ -148,15 +149,42 @@ def get_top_tracks(start: str = "", end: str = "", search_term: str = ""):
             FROM filtered_scrobbles fs
             LEFT JOIN track t ON t.track_id = fs.track_id
             LEFT JOIN artist ar ON ar.artist_id = fs.artist_id
+        ),
+        album_counts AS (
+            SELECT
+                track_group_key,
+                MAX(track) AS track,
+                MAX(primary_artist) AS artist,
+                MAX(album_artist) AS album_artist,
+                album,
+                COUNT(*) AS album_plays,
+                MAX(uts) AS last_play
+            FROM normalized_scrobbles
+            GROUP BY track_group_key, album
+        ),
+        ranked_albums AS (
+            SELECT
+                *,
+                SUM(album_plays) OVER (
+                    PARTITION BY track_group_key
+                ) AS plays,
+                ROW_NUMBER() OVER (
+                    PARTITION BY track_group_key
+                    ORDER BY album_plays DESC,
+                             last_play DESC,
+                             (album IS NULL OR album = '') ASC,
+                             album COLLATE NOCASE ASC
+                ) AS album_rank
+            FROM album_counts
         )
         SELECT
-            MAX(track) AS track,
-            MAX(primary_artist) AS artist,
-            MAX(album_artist) AS album_artist,
-            MAX(album) AS album,
-            COUNT(*) AS plays
-        FROM normalized_scrobbles
-        GROUP BY track_group_key
+            track,
+            artist,
+            album_artist,
+            album,
+            plays
+        FROM ranked_albums
+        WHERE album_rank = 1
         ORDER BY plays DESC
     """
 
@@ -195,23 +223,64 @@ def get_track_overview(artist_name: str, track_name: str):
 
 def get_track_mbid(artist_name: str, track_name: str) -> str | None:
     """
-    Get the MusicBrainz ID for a track from the scrobble table.
-    Returns the MBID if found, None otherwise.
+    Get the MusicBrainz recording ID for a canonical track.
+
+    Prefer the cached tracklist MBID belonging to the album on which the track
+    has the most plays.  A recording can appear on multiple releases, and an
+    arbitrary non-empty scrobble MBID may belong to a compilation rather than
+    the representative album.  Fall back to entity/scrobble metadata when the
+    preferred album has no cached recording ID.
     """
     conn = get_db_connection()
     try:
+        track_id = lookup_track_id(conn, artist_name, track_name)
+        if track_id is None:
+            row = conn.execute(
+                """
+                SELECT track_mbid
+                FROM scrobble
+                WHERE artist = ? AND track = ?
+                  AND track_mbid IS NOT NULL AND track_mbid != ''
+                ORDER BY uts DESC, id DESC
+                LIMIT 1
+                """,
+                (artist_name, track_name),
+            ).fetchone()
+            return row["track_mbid"] if row else None
+
         row = conn.execute(
             """
-            SELECT track_mbid
-            FROM scrobble
-            WHERE artist = ?
-              AND track = ?
-              AND track_mbid IS NOT NULL
-              AND track_mbid != ''
-            LIMIT 1
+            WITH preferred_album AS (
+                SELECT album_id
+                FROM scrobble
+                WHERE track_id = ? AND album_id IS NOT NULL
+                GROUP BY album_id
+                ORDER BY COUNT(*) DESC, MAX(uts) DESC, album_id ASC
+                LIMIT 1
+            )
+            SELECT COALESCE(
+                (
+                    SELECT NULLIF(at.track_mbid, '')
+                    FROM preferred_album pa
+                    JOIN album_tracks at
+                      ON at.album_id = pa.album_id AND at.track_id = ?
+                    WHERE at.track_mbid IS NOT NULL AND at.track_mbid != ''
+                    ORDER BY at.track_number
+                    LIMIT 1
+                ),
+                (SELECT NULLIF(t.mbid, '') FROM track t WHERE t.track_id = ?),
+                (
+                    SELECT NULLIF(s.track_mbid, '')
+                    FROM scrobble s
+                    WHERE s.track_id = ?
+                      AND s.track_mbid IS NOT NULL AND s.track_mbid != ''
+                    ORDER BY s.uts DESC, s.id DESC
+                    LIMIT 1
+                )
+            ) AS track_mbid
             """,
-            (artist_name, track_name),
+            (track_id, track_id, track_id, track_id),
         ).fetchone()
-        return row["track_mbid"] if row else None
+        return row["track_mbid"] if row and row["track_mbid"] else None
     finally:
         conn.close()

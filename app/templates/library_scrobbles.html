@@ -28,7 +28,11 @@
       </td>
       <td>
         {% set album_artist = row['album_artist'] %}
+        {% if album_artist == 'Various Artists' %}
+        <a href="{{ url_for('compilations.compilation_detail', album_identifier=row.get('album_mbid') or row['album']) }}">
+        {% else %}
         <a href="{{ url_for('albums.artist_album_detail', album_artist_name=album_artist, album_name=row['album']) }}">
+        {% endif %}
         {{ row['album'] }}</a>
       </td>
       <td>

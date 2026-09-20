@@ -59,6 +59,39 @@ class TestScrobblesRoutes:
         assert b"Outlandos d&#39;Amour" in response.data
         assert b"Outlandos D&#39;Amour" not in response.data
 
+    def test_scrobbles_page_uses_canonical_compilation_link(self, app, client):
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            artist_id = resolver.resolve_artist_id('Track Artist')
+            album_id = resolver.resolve_album_id(
+                artist_id,
+                'Two Artist Soundtrack',
+                album_mbid='compilation-mbid',
+                album_artist_text='Various Artists',
+            )
+            track_id = resolver.resolve_track_id(artist_id, 'Opening Track')
+            conn.execute(
+                """
+                INSERT INTO scrobble
+                    (artist, album, album_mbid, album_artist, track, uts, source,
+                     artist_id, album_id, track_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    'Track Artist', 'Two Artist Soundtrack', 'compilation-mbid',
+                    'Track Artist', 'Opening Track', 1, 'lastfm', artist_id,
+                    album_id, track_id,
+                ),
+            )
+            conn.commit()
+
+        response = client.get('/library/scrobbles')
+
+        assert response.status_code == 200
+        assert b'href="/library/compilations/compilation-mbid"' in response.data
+        assert b'/library/artists/Track%20Artist/albums/Two%20Artist%20Soundtrack' not in response.data
+
 
 @pytest.mark.unit
 class TestArtistsRoutes:
@@ -152,6 +185,36 @@ class TestAlbumsRoutes:
         assert response.status_code == 302
         assert response.location.endswith(
             "/library/artists/The%20Police/albums/Outlandos%20d'Amour?sort=plays"
+        )
+
+    def test_compilation_alias_url_redirects_to_compilation_page(self, app, client):
+        db_path = app.config['DATABASE_PATH']
+        with sqlite3.connect(db_path) as conn:
+            resolver = Resolver(conn)
+            artist_id = resolver.resolve_artist_id('Track Artist')
+            album_id = resolver.resolve_album_id(
+                artist_id,
+                'Two Artist Soundtrack',
+                album_mbid='compilation-mbid',
+                album_artist_text='Various Artists',
+            )
+            conn.execute(
+                """
+                INSERT INTO album_alias (artist_id, norm_title, album_id)
+                VALUES (?, 'two artist soundtrack', ?)
+                """,
+                (artist_id, album_id),
+            )
+            conn.commit()
+
+        response = client.get(
+            '/library/artists/Track%20Artist/albums/Two%20Artist%20Soundtrack?sort=plays',
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.location.endswith(
+            '/library/compilations/compilation-mbid?sort=plays'
         )
 
 
