@@ -16,10 +16,10 @@ RELEASE_MBID = "e620d72e-1a84-463d-8760-c1a869c4cff2"
 # (release title, recording MBID, existing canonical title where it differs)
 TRACKS = [
     ("Little Games", "8c9e92b8-8abf-412b-8142-3a2290ae09d2", None),
-    ("Smile on Me (2002 stereo mix)", "436d265b-e49e-4bb8-8423-ecb29d5c8c49", "Smile on Me"),
+    ("Smile on Me", "436d265b-e49e-4bb8-8423-ecb29d5c8c49", None),
     ("White Summer", "1fcb16c5-40bb-4c74-8de0-bdd6419a8f30", None),
-    ("Tinker, Tailor, Soldier, Sailor (2002 stereo mix)", "35064a96-cc65-4b8e-bc50-3894a09e7534", "Tinker Tailor Soldier Sailor"),
-    ("Glimpses", "46aa921b-144a-4b57-97da-ff2abf717868", "Glimpes"),
+    ("Tinker, Tailor, Soldier, Sailor", "35064a96-cc65-4b8e-bc50-3894a09e7534", None),
+    ("Glimpses", "46aa921b-144a-4b57-97da-ff2abf717868", None),
     ("Drinking Muddy Water", "afc1b215-52b7-4d75-940a-cdc6692bad19", None),
     ("No Excess Baggage", "f3633c5c-c4e2-452a-a7e7-cd04df2f9dc8", None),
     ("Stealing Stealing", "1e8652a7-bb22-47e2-a336-3307f2ae1e22", None),
